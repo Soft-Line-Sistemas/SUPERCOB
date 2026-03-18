@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERADOR
+}
+
+enum Status {
+  ABERTO
+  NEGOCIACAO
+  QUITADO
+}
+
+model Usuario {
+  id               String       @id @default(cuid())
+  nome             String
+  email            String       @unique
+  senha            String
+  role             Role         @default(OPERADOR)
+  avatarUrl        String?
+  isActive         Boolean      @default(true)
+  
+  // Permissões baseadas na imagem (Op8, Op91, Op34, Op52)
+  canManageUsers   Boolean      @default(false)
+  canManageClients Boolean      @default(true)
+  canManageLoans   Boolean      @default(true)
+
+  createdAt        DateTime     @default(now())
+  emprestimos      Emprestimo[]
+  
+  // Relações para Mensagens Internas
+  mensagensEnviadas   MensagemInterna[] @relation("MensagensEnviadas")
+  mensagensRecebidas  MensagemInterna[] @relation("MensagensRecebidas")
+}
+
+model MensagemInterna {
+  id          String   @id @default(cuid())
+  conteudo    String   @db.Text
+  isLida      Boolean  @default(false)
+  isMassiva   Boolean  @default(false)
+  
+  remetenteId String
+  remetente   Usuario  @relation("MensagensEnviadas", fields: [remetenteId], references: [id])
+  
+  destinatarioId String? // Pode ser nulo se for uma mensagem em massa para todos
+  destinatario   Usuario? @relation("MensagensRecebidas", fields: [destinatarioId], references: [id])
+  
+  createdAt   DateTime @default(now())
+}
+
+model Cliente {
+  id                   String       @id @default(cuid())
+  nome                 String
+  indicacao            String?
+  cpf                  String?
+  rg                   String?
+  orgao                String?
+  
+  diaNasc              Int?
+  mesNasc              Int?
+  anoNasc              Int?
+  
+  email                String?
+  whatsapp             String?
+  instagram            String?
+  
+  // Endereço Residencial
+  endereco             String?
+  complemento          String?
+  bairro               String?
+  cidade               String?
+  estado               String?
+  pontoReferencia      String?
+  
+  // Profissão e Empresa
+  profissao            String?
+  empresa              String?
+  
+  // Contatos de Emergência
+  contatoEmergencia1   String?
+  contatoEmergencia2   String?
+  contatoEmergencia3   String?
+
+  createdAt            DateTime     @default(now())
+  loans                Emprestimo[]
+}
+
+model Emprestimo {
+  id          String    @id @default(cuid())
+  clienteId   String
+  cliente     Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  usuarioId   String?
+  usuario     Usuario?  @relation(fields: [usuarioId], references: [id])
+  
+  valor       Float
+  jurosMes    Float     @default(0)
+  vencimento  DateTime?
+  quitadoEm   DateTime?
+  status      Status    @default(ABERTO)
+  observacao  String?   @db.Text
+  
+  // Arquivos (Anexos) baseados na imagem
+  arquivo1    String?
+  arquivo2    String?
+  arquivo3    String?
+  arquivo4    String?
+  arquivo5    String?
+  
+  createdAt   DateTime  @default(now())
+}
