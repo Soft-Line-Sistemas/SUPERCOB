@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'sonner';
@@ -9,7 +9,6 @@ export const metadata: Metadata = {
   description: 'Sistema profissional para gestão e automação de cobranças',
   applicationName: 'SUPERCOB',
   manifest: '/manifest.webmanifest',
-  themeColor: '#0f172a',
   appleWebApp: {
     capable: true,
     title: 'SUPERCOB',
@@ -24,10 +23,24 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
+  ],
+  colorScheme: 'light dark',
+}
+
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="pt-BR">
-      <body suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('theme')||'system';var m=window.matchMedia('(prefers-color-scheme: dark)');var d=t==='dark'||(t==='system'&&m.matches);document.documentElement.dataset.theme=t;document.documentElement.classList.toggle('dark',d);}catch(e){}})();",
+          }}
+        />
         <SessionProvider>
           <SplashScreen />
           {children}

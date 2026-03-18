@@ -243,7 +243,7 @@ export function Clients({ initialClients }: ClientsProps) {
             await deleteCliente(id);
             toast.success('Cliente excluído com sucesso!');
           } catch (error) {
-            toast.error('Erro ao excluir cliente. Verifique se há empréstimos ativos.');
+            toast.error('Erro ao excluir cliente. Verifique se há contratos ativos.');
           }
         },
       },
@@ -256,7 +256,7 @@ export function Clients({ initialClients }: ClientsProps) {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Carteira de Clientes</h1>
-          <p className="text-slate-500">Gerencie sua base de contatos e tomadores.</p>
+          <p className="text-slate-500">Cadastre e organize as informações de contato dos seus clientes.</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">

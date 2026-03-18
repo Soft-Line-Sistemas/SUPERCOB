@@ -14,7 +14,7 @@ export function Shell({ currentView, onNavigate, onLogout, children }: ShellProp
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', label: 'Clientes', icon: Users },
-    { id: 'loans', label: 'Empréstimos', icon: CreditCard },
+    { id: 'loans', label: 'Contratos', icon: CreditCard },
     { id: 'reports', label: 'Relatórios', icon: BarChart3 },
   ] as const;
 

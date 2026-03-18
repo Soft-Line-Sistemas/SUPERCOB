@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Bell, Search, Command, HelpCircle, X, ExternalLink } from 'lucide-react'
+import { Bell, Search, Command, HelpCircle, X, ExternalLink, Sun, Moon, Monitor } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { markAsRead } from '@/app/(dashboard)/chat/actions'
@@ -21,8 +21,36 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
   const [readIds, setReadIds] = useState<string[]>([])
+  const [theme, setTheme] = useState<'system' | 'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'system'
+    try {
+      const stored = window.localStorage.getItem('theme')
+      if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
+      return 'system'
+    } catch {
+      return 'system'
+    }
+  })
   const notificationsRef = useRef<HTMLDivElement>(null)
   const helpRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const apply = () => {
+      const root = document.documentElement
+      const media = window.matchMedia('(prefers-color-scheme: dark)')
+      const isDark = theme === 'dark' || (theme === 'system' && media.matches)
+      root.dataset.theme = theme
+      root.classList.toggle('dark', isDark)
+    }
+
+    apply()
+
+    if (theme !== 'system') return
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => apply()
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [theme])
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -60,7 +88,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
   }
 
   return (
-    <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-slate-100 flex items-center justify-between px-8 sticky top-0 z-30">
+    <header className="h-20 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-100 dark:border-white/10 flex items-center justify-between px-8 sticky top-0 z-30">
       {/* Page Title with Animation */}
       <motion.div 
         key={pathname}
@@ -69,7 +97,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
         className="flex items-center gap-4"
       >
         <div className="h-8 w-1 bg-blue-600 rounded-full hidden md:block" />
-        <h1 className="text-xl font-black text-slate-900 tracking-tight">
+        <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
           {getTitle()}
         </h1>
       </motion.div>
@@ -98,25 +126,27 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
               setIsNotificationsOpen((v) => !v)
               setIsHelpOpen(false)
             }}
-            className="relative p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all group"
+            aria-label="Notificações"
+            className="relative p-2.5 text-slate-500 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-white/5 rounded-xl transition-all group"
           >
             <Bell className="w-5 h-5 transition-transform group-hover:rotate-12" />
             {hasUnread && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full" />}
           </button>
 
           {isNotificationsOpen && (
-            <div className="absolute right-0 mt-2 w-[360px] bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="absolute right-0 mt-2 w-[360px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-black text-slate-900">Notificações</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <p className="text-sm font-black text-slate-900 dark:text-slate-100">Notificações</p>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                     {displayedUnreadCount} não lidas
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsNotificationsOpen(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all"
+                  aria-label="Fechar notificações"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -125,19 +155,19 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
               <div className="max-h-[360px] overflow-y-auto">
                 {displayedNotifications.length === 0 ? (
                   <div className="p-6 text-center">
-                    <p className="text-sm font-bold text-slate-700">Sem notificações</p>
-                    <p className="text-xs text-slate-500 mt-1">Tudo em dia por aqui.</p>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Sem notificações</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Tudo em dia por aqui.</p>
                   </div>
                 ) : (
                   displayedNotifications.map((n) => (
-                    <div key={n.id} className="px-5 py-4 border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <div key={n.id} className="px-5 py-4 border-b border-slate-50 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-xs font-black text-slate-900 truncate">
+                          <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
                             {n.isMassiva ? 'Comunicado' : 'Mensagem'} • {n.remetenteNome}
                           </p>
-                          <p className="text-xs text-slate-600 mt-1">{n.conteudo}</p>
-                          <p className="text-[10px] font-bold text-slate-400 mt-2">
+                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{n.conteudo}</p>
+                          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-2">
                             {new Date(n.createdAt).toLocaleString('pt-BR')}
                           </p>
                         </div>
@@ -152,7 +182,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                 )}
               </div>
 
-              <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-2">
+              <div className="p-4 bg-slate-50 dark:bg-white/5 border-t border-slate-100 dark:border-white/10 flex gap-2">
                 <button
                   type="button"
                   disabled={notificationIdsToMarkRead.length === 0}
@@ -163,7 +193,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                     } catch {
                     }
                   }}
-                  className="flex-1 py-2.5 px-4 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-2xl hover:bg-slate-100 transition-all disabled:opacity-50"
+                  className="flex-1 py-2.5 px-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black rounded-2xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all disabled:opacity-50"
                 >
                   Marcar como lidas
                 </button>
@@ -182,6 +212,24 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
           )}
         </div>
 
+        <button
+          type="button"
+          aria-label="Alternar tema"
+          onClick={() =>
+            setTheme((prev) => {
+              const next = prev === 'system' ? 'light' : prev === 'light' ? 'dark' : 'system'
+              try {
+                window.localStorage.setItem('theme', next)
+              } catch {
+              }
+              return next
+            })
+          }
+          className="p-2.5 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-all"
+        >
+          {theme === 'dark' ? <Moon className="w-5 h-5" /> : theme === 'light' ? <Sun className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+        </button>
+
         {/* Help */}
         <div className="relative hidden sm:block" ref={helpRef}>
           <button
@@ -190,29 +238,31 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
               setIsHelpOpen((v) => !v)
               setIsNotificationsOpen(false)
             }}
-            className="p-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all"
+            aria-label="Ajuda"
+            className="p-2.5 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-all"
           >
             <HelpCircle className="w-5 h-5" />
           </button>
 
           {isHelpOpen && (
-            <div className="absolute right-0 mt-2 w-[360px] bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="absolute right-0 mt-2 w-[360px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-black text-slate-900">Ajuda rápida</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Supercob</p>
+                  <p className="text-sm font-black text-slate-900 dark:text-slate-100">Ajuda rápida</p>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Supercob</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsHelpOpen(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all"
+                  aria-label="Fechar ajuda"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
               <div className="p-5 space-y-3">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-xs font-black text-slate-900">Fluxo recomendado</p>
+                <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10">
+                  <p className="text-xs font-black text-slate-900 dark:text-slate-100">Fluxo recomendado</p>
                   <ul className="mt-2 text-xs text-slate-600 space-y-1">
                     <li>1) Cadastre o cliente</li>
                     <li>2) Crie a cobrança com valor/juros/vencimento</li>
@@ -221,7 +271,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                 </div>
                 <Link
                   href="/perfil"
-                  className="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black text-slate-700 hover:bg-slate-50 transition-all"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
                 >
                   Perfil (foto e senha) <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </Link>
@@ -229,7 +279,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                   href="https://wa.me/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black text-slate-700 hover:bg-slate-50 transition-all"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
                 >
                   Ajuda via WhatsApp <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </a>
@@ -243,7 +293,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
         {/* User Profile - Compact */}
         <Link href="/perfil" className="flex items-center gap-3 pl-2">
           <div className="hidden md:block text-right">
-            <p className="text-xs font-black text-slate-900">{user?.nome?.split(' ')[0]}</p>
+            <p className="text-xs font-black text-slate-900 dark:text-slate-100">{user?.nome?.split(' ')[0]}</p>
             <p className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter">{user?.role}</p>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 border border-white shadow-sm flex items-center justify-center font-black text-slate-600 text-sm overflow-hidden">

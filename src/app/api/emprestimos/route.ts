@@ -38,7 +38,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(emprestimos)
   } catch (error) {
-    return NextResponse.json({ error: 'Erro ao buscar empréstimos' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao buscar contratos' }, { status: 500 })
   }
 }
 
@@ -66,6 +66,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json(emprestimo, { status: 201 })
   } catch (error) {
-    return NextResponse.json({ error: 'Erro ao criar empréstimo' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao criar contrato' }, { status: 500 })
   }
 }

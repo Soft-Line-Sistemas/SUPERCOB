@@ -3,7 +3,9 @@ import { getEmprestimos } from './actions'
 import { getClientes } from '../clientes/actions'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card'
+// import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card'
+// import { Receipt } from 'lucide-react'
+
 
 export default async function EmprestimosPage({
   searchParams,
@@ -73,14 +75,14 @@ export default async function EmprestimosPage({
 
   return (
     <div className="space-y-6">
-      <Card className="border-0 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-xl">
+      {/* <Card className="border-0 bg-gradient-to-r from-blue-600 to-green-700 text-white shadow-xl">
         <CardHeader className="pb-4">
-          <CardTitle className="text-3xl font-bold tracking-tight">Gestão de Cobranças</CardTitle>
-          <CardDescription className="text-blue-100 mt-2 text-base">
+          <CardTitle className="text-3xl font-bold text-white tracking-tight"> <Receipt /> Gestão de Cobranças</CardTitle>
+          <CardDescription className="text-black/70 mt-2 text-base">
             Controle a carteira, acompanhe negociações e quitações.
           </CardDescription>
         </CardHeader>
-      </Card>
+      </Card> */}
       <Loans 
         initialLoans={emprestimos as any} 
         clientes={clientes.map(c => ({ id: c.id, nome: c.nome }))} 

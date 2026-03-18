@@ -27,7 +27,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     })
     return NextResponse.json(emprestimo)
   } catch (error) {
-    return NextResponse.json({ error: 'Erro ao atualizar empréstimo' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao atualizar contrato' }, { status: 500 })
   }
 }
 
@@ -40,8 +40,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     await prisma.emprestimo.delete({
       where: { id },
     })
-    return NextResponse.json({ message: 'Empréstimo excluído com sucesso' })
+    return NextResponse.json({ message: 'Contrato excluído com sucesso' })
   } catch (error) {
-    return NextResponse.json({ error: 'Erro ao excluir empréstimo' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao excluir contrato' }, { status: 500 })
   }
 }

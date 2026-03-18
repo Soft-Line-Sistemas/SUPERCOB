@@ -211,14 +211,6 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
             <option value="NEGOCIACAO">Negociação</option>
             <option value="QUITADO">Quitados</option>
           </select>
-
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-2xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all active:scale-95"
-          >
-            <Plus className="h-5 w-5" />
-            Nova Cobrança
-          </button>
         </div>
       </div>
 

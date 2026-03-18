@@ -1,15 +1,27 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { updateMyAvatar, updateMyPassword } from './actions'
+import { removeMyAvatar, updateMyPassword, uploadMyAvatar } from './actions'
 
 export function Profile({ me }: { me: { id: string; nome: string; email: string; role: string; avatarUrl: string | null } }) {
-  const [avatarUrl, setAvatarUrl] = useState(me.avatarUrl ?? '')
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState(me.avatarUrl ?? '')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [loadingAvatar, setLoadingAvatar] = useState(false)
   const [loadingPassword, setLoadingPassword] = useState(false)
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreviewUrl('')
+      return
+    }
+    const url = URL.createObjectURL(selectedFile)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [selectedFile])
 
   return (
     <div className="space-y-8">
@@ -23,8 +35,10 @@ export function Profile({ me }: { me: { id: string; nome: string; email: string;
           <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-4">Conta</p>
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xl font-black text-slate-700 overflow-hidden">
-              {me.avatarUrl ? (
-                <img src={me.avatarUrl} alt={me.nome} className="w-full h-full object-cover" />
+              {previewUrl ? (
+                <img src={previewUrl} alt={me.nome} className="w-full h-full object-cover" />
+              ) : currentAvatarUrl ? (
+                <img src={currentAvatarUrl} alt={me.nome} className="w-full h-full object-cover" />
               ) : (
                 me.nome?.[0] || 'U'
               )}
@@ -45,7 +59,20 @@ export function Profile({ me }: { me: { id: string; nome: string; email: string;
               if (loadingAvatar) return
               setLoadingAvatar(true)
               try {
-                await updateMyAvatar(avatarUrl.trim() === '' ? null : avatarUrl.trim())
+                if (!selectedFile) {
+                  toast.error('Selecione uma imagem.')
+                  return
+                }
+                const fd = new FormData()
+                fd.set('file', selectedFile)
+                const updated = await uploadMyAvatar(fd)
+                setCurrentAvatarUrl(updated.avatarUrl ?? '')
+                try {
+                  window.localStorage.setItem('avatarUrl', updated.avatarUrl ?? '')
+                  window.dispatchEvent(new Event('supercob:avatar-updated'))
+                } catch {
+                }
+                setSelectedFile(null)
                 toast.success('Foto atualizada!')
               } catch (err: any) {
                 toast.error(err?.message || 'Erro ao atualizar foto')
@@ -56,26 +83,44 @@ export function Profile({ me }: { me: { id: string; nome: string; email: string;
             className="space-y-4"
           >
             <div className="space-y-1.5">
-              <label className="text-sm font-bold text-slate-700 ml-1">URL da imagem</label>
+              <label className="text-sm font-bold text-slate-700 ml-1">Tirar foto / Escolher imagem</label>
               <input
-                type="url"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
+                type="file"
+                accept="image/*"
+                capture="user"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                placeholder="https://..."
               />
             </div>
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setAvatarUrl('')}
+                onClick={async () => {
+                  if (loadingAvatar) return
+                  setLoadingAvatar(true)
+                  try {
+                    await removeMyAvatar()
+                    setCurrentAvatarUrl('')
+                    setSelectedFile(null)
+                    try {
+                      window.localStorage.setItem('avatarUrl', '')
+                      window.dispatchEvent(new Event('supercob:avatar-updated'))
+                    } catch {
+                    }
+                    toast.success('Foto removida!')
+                  } catch (err: any) {
+                    toast.error(err?.message || 'Erro ao remover foto')
+                  } finally {
+                    setLoadingAvatar(false)
+                  }
+                }}
                 className="flex-1 py-3 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
               >
                 Remover
               </button>
               <button
                 type="submit"
-                disabled={loadingAvatar}
+                disabled={loadingAvatar || !selectedFile}
                 className="flex-[2] py-3 px-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all disabled:opacity-50"
               >
                 {loadingAvatar ? 'Salvando...' : 'Salvar'}
