@@ -6,8 +6,7 @@ import { auth } from '@/auth'
 
 export async function getEmprestimos(filters?: {
   status?: string;
-  email?: string;
-  whatsapp?: string;
+  q?: string;
   startDate?: string;
   endDate?: string;
 }) {
@@ -23,11 +22,14 @@ export async function getEmprestimos(filters?: {
     where.status = filters.status
   }
 
-  if (filters?.email || filters?.whatsapp) {
+  if (filters?.q && filters.q.trim() !== '') {
+    const q = filters.q.trim()
+    const digits = q.replace(/\D/g, '')
     where.cliente = {
       OR: [
-        filters.email ? { email: { contains: filters.email } } : undefined,
-        filters.whatsapp ? { whatsapp: { contains: filters.whatsapp } } : undefined,
+        { nome: { contains: q } },
+        { email: { contains: q } },
+        digits ? { whatsapp: { contains: digits } } : undefined,
       ].filter(Boolean),
     }
   }

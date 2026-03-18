@@ -20,6 +20,7 @@ interface Cliente {
   email?: string | null;
   whatsapp?: string | null;
   instagram?: string | null;
+  cep?: string | null;
   endereco?: string | null;
   complemento?: string | null;
   bairro?: string | null;
@@ -28,6 +29,7 @@ interface Cliente {
   pontoReferencia?: string | null;
   profissao?: string | null;
   empresa?: string | null;
+  cepEmpresa?: string | null;
   enderecoEmpresa?: string | null;
   cidadeEmpresa?: string | null;
   estadoEmpresa?: string | null;
@@ -67,6 +69,7 @@ export function Clients({ initialClients }: ClientsProps) {
     email: '',
     whatsapp: '',
     instagram: '',
+    cep: '',
     endereco: '',
     complemento: '',
     bairro: '',
@@ -75,6 +78,7 @@ export function Clients({ initialClients }: ClientsProps) {
     pontoReferencia: '',
     profissao: '',
     empresa: '',
+    cepEmpresa: '',
     enderecoEmpresa: '',
     cidadeEmpresa: '',
     estadoEmpresa: '',
@@ -83,9 +87,73 @@ export function Clients({ initialClients }: ClientsProps) {
     contatoEmergencia3: '',
   });
   const [loading, setLoading] = useState(false);
+  const [loadingCep, setLoadingCep] = useState(false);
+  const [loadingCepEmpresa, setLoadingCepEmpresa] = useState(false);
+  const [chargeData, setChargeData] = useState({
+    enabled: false,
+    valor: '',
+    jurosMes: '',
+    vencimento: '',
+    observacao: '',
+  })
 
   const normalizeDigits = (value: string) => value.replace(/\D/g, '');
   const normalizeText = (value: string) => value.trim().toLowerCase();
+
+  const formatCPF = (value: string) => {
+    const d = normalizeDigits(value).slice(0, 11)
+    if (d.length <= 3) return d
+    if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
+    if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
+    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+  }
+
+  const formatPhoneBR = (value: string) => {
+    const d = normalizeDigits(value).slice(0, 11)
+    if (d.length <= 2) return d
+    if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+    if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+  }
+
+  const formatCEP = (value: string) => {
+    const d = normalizeDigits(value).slice(0, 8)
+    if (d.length <= 5) return d
+    return `${d.slice(0, 5)}-${d.slice(5)}`
+  }
+
+  const isValidCPF = (cpf: string) => {
+    const digits = normalizeDigits(cpf)
+    if (digits.length !== 11) return false
+    if (/^(\d)\1{10}$/.test(digits)) return false
+
+    const calc = (len: number) => {
+      let sum = 0
+      for (let i = 0; i < len; i++) sum += Number(digits[i]) * (len + 1 - i)
+      const mod = sum % 11
+      return mod < 2 ? 0 : 11 - mod
+    }
+
+    const d1 = calc(9)
+    const d2 = calc(10)
+    return d1 === Number(digits[9]) && d2 === Number(digits[10])
+  }
+
+  const fetchCep = async (cep: string) => {
+    const d = normalizeDigits(cep)
+    if (d.length !== 8) throw new Error('CEP inválido')
+    const res = await fetch(`https://viacep.com.br/ws/${d}/json/`)
+    if (!res.ok) throw new Error('Erro ao consultar CEP')
+    const data = await res.json()
+    if ((data as any)?.erro) throw new Error('CEP não encontrado')
+    return {
+      endereco: String((data as any).logradouro ?? ''),
+      complemento: String((data as any).complemento ?? ''),
+      bairro: String((data as any).bairro ?? ''),
+      cidade: String((data as any).localidade ?? ''),
+      estado: String((data as any).uf ?? ''),
+    }
+  }
 
   const filteredClients = initialClients.filter((client) => {
     const q = normalizeText(searchTerm);
@@ -115,15 +183,16 @@ export function Clients({ initialClients }: ClientsProps) {
       setFormData({
         nome: client.nome ?? '',
         indicacao: client.indicacao ?? '',
-        cpf: client.cpf ?? '',
+        cpf: formatCPF(client.cpf ?? ''),
         rg: client.rg ?? '',
         orgao: client.orgao ?? '',
         diaNasc: client.diaNasc == null ? '' : String(client.diaNasc),
         mesNasc: client.mesNasc == null ? '' : String(client.mesNasc),
         anoNasc: client.anoNasc == null ? '' : String(client.anoNasc),
         email: client.email ?? '',
-        whatsapp: client.whatsapp ?? '',
+        whatsapp: formatPhoneBR(client.whatsapp ?? ''),
         instagram: client.instagram ?? '',
+        cep: formatCEP(client.cep ?? ''),
         endereco: client.endereco ?? '',
         complemento: client.complemento ?? '',
         bairro: client.bairro ?? '',
@@ -132,6 +201,7 @@ export function Clients({ initialClients }: ClientsProps) {
         pontoReferencia: client.pontoReferencia ?? '',
         profissao: client.profissao ?? '',
         empresa: client.empresa ?? '',
+        cepEmpresa: formatCEP(client.cepEmpresa ?? ''),
         enderecoEmpresa: client.enderecoEmpresa ?? '',
         cidadeEmpresa: client.cidadeEmpresa ?? '',
         estadoEmpresa: client.estadoEmpresa ?? '',
@@ -139,6 +209,7 @@ export function Clients({ initialClients }: ClientsProps) {
         contatoEmergencia2: client.contatoEmergencia2 ?? '',
         contatoEmergencia3: client.contatoEmergencia3 ?? '',
       });
+      setChargeData({ enabled: false, valor: '', jurosMes: '', vencimento: '', observacao: '' })
     } else {
       setEditingClient(null);
       setFormData({
@@ -153,6 +224,7 @@ export function Clients({ initialClients }: ClientsProps) {
         email: '',
         whatsapp: '',
         instagram: '',
+        cep: '',
         endereco: '',
         complemento: '',
         bairro: '',
@@ -161,6 +233,7 @@ export function Clients({ initialClients }: ClientsProps) {
         pontoReferencia: '',
         profissao: '',
         empresa: '',
+        cepEmpresa: '',
         enderecoEmpresa: '',
         cidadeEmpresa: '',
         estadoEmpresa: '',
@@ -168,6 +241,7 @@ export function Clients({ initialClients }: ClientsProps) {
         contatoEmergencia2: '',
         contatoEmergencia3: '',
       });
+      setChargeData({ enabled: false, valor: '', jurosMes: '', vencimento: '', observacao: '' })
     }
     setActiveTab('basico');
     setIsModalOpen(true);
@@ -188,18 +262,50 @@ export function Clients({ initialClients }: ClientsProps) {
         return Number.isFinite(num) ? num : null;
       };
 
+      if (formData.nome.trim() === '') {
+        toast.error('Informe o nome do cliente.')
+        setActiveTab('basico')
+        return
+      }
+
+      const whatsappDigits = normalizeDigits(formData.whatsapp)
+      if (whatsappDigits.length < 10) {
+        toast.error('Informe um WhatsApp válido.')
+        setActiveTab('basico')
+        return
+      }
+
+      const cpfDigits = normalizeDigits(formData.cpf)
+      if (cpfDigits.length !== 11 || !isValidCPF(cpfDigits)) {
+        toast.error('CPF inválido.')
+        setActiveTab('documentos')
+        return
+      }
+
+      const cpfDuplicado = initialClients.some((c) => {
+        const other = normalizeDigits(c.cpf ?? '')
+        if (editingClient && c.id === editingClient.id) return false
+        return other !== '' && other === cpfDigits
+      })
+      if (cpfDuplicado) {
+        toast.error('Já existe um cliente cadastrado com esse CPF.')
+        setActiveTab('documentos')
+        return
+      }
+
       const payload = {
         nome: formData.nome.trim(),
         indicacao: normalizeOptional(formData.indicacao),
-        cpf: normalizeOptional(formData.cpf),
+        cpf: cpfDigits,
         rg: normalizeOptional(formData.rg),
         orgao: normalizeOptional(formData.orgao),
         diaNasc: parseIntOrNull(formData.diaNasc),
         mesNasc: parseIntOrNull(formData.mesNasc),
         anoNasc: parseIntOrNull(formData.anoNasc),
         email: normalizeOptional(formData.email),
-        whatsapp: normalizeOptional(formData.whatsapp),
+        whatsapp: whatsappDigits,
         instagram: normalizeOptional(formData.instagram),
+        cep: normalizeOptional(formData.cep),
         endereco: normalizeOptional(formData.endereco),
         complemento: normalizeOptional(formData.complemento),
         bairro: normalizeOptional(formData.bairro),
@@ -208,6 +314,7 @@ export function Clients({ initialClients }: ClientsProps) {
         pontoReferencia: normalizeOptional(formData.pontoReferencia),
         profissao: normalizeOptional(formData.profissao),
         empresa: normalizeOptional(formData.empresa),
+        cepEmpresa: normalizeOptional(formData.cepEmpresa),
         enderecoEmpresa: normalizeOptional(formData.enderecoEmpresa),
         cidadeEmpresa: normalizeOptional(formData.cidadeEmpresa),
         estadoEmpresa: normalizeOptional(formData.estadoEmpresa),
@@ -223,7 +330,24 @@ export function Clients({ initialClients }: ClientsProps) {
         const created = await createCliente(payload);
         toast.success('Cliente cadastrado com sucesso!');
         setIsModalOpen(false);
-        router.push(`/emprestimos?clienteId=${created.id}&novo=1`);
+        if (chargeData.enabled) {
+          const q = new URLSearchParams()
+          q.set('clienteId', created.id)
+          q.set('novo', '1')
+          if (chargeData.valor.trim() !== '') q.set('valor', chargeData.valor.trim())
+          if (chargeData.jurosMes.trim() !== '') q.set('jurosMes', chargeData.jurosMes.trim())
+          if (chargeData.vencimento.trim() !== '') q.set('vencimento', chargeData.vencimento.trim())
+          if (chargeData.observacao.trim() !== '') q.set('observacao', chargeData.observacao.trim())
+          router.push(`/emprestimos?${q.toString()}`)
+          return;
+        }
+
+        toast.message('Deseja lançar uma cobrança agora?', {
+          action: {
+            label: 'Adicionar cobrança',
+            onClick: () => router.push(`/emprestimos?clienteId=${created.id}&novo=1`),
+          },
+        })
         return;
       }
       setIsModalOpen(false);
@@ -335,7 +459,7 @@ export function Clients({ initialClients }: ClientsProps) {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-500">
                     <Phone className="h-4 w-4" />
-                    <span>{client.whatsapp || '-'}</span>
+                    <span>{client.whatsapp ? formatPhoneBR(client.whatsapp) : '-'}</span>
                   </div>
                 </div>
               </div>
@@ -480,8 +604,10 @@ export function Clients({ initialClients }: ClientsProps) {
                           <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                           <input
                             type="text"
+                            inputMode="tel"
+                            required
                             value={formData.whatsapp}
-                            onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, whatsapp: formatPhoneBR(e.target.value) })}
                             className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                             placeholder="(00) 00000-0000"
                           />
@@ -498,6 +624,72 @@ export function Clients({ initialClients }: ClientsProps) {
                           placeholder="@perfil"
                         />
                       </div>
+
+                      {!editingClient && (
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-black text-slate-900">Cobrança inicial</p>
+                              <p className="text-xs text-slate-500">Opcional: já abrir a cobrança após cadastrar.</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setChargeData((p) => ({ ...p, enabled: !p.enabled }))}
+                              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                                chargeData.enabled ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-700'
+                              }`}
+                            >
+                              {chargeData.enabled ? 'Ativado' : 'Desativado'}
+                            </button>
+                          </div>
+
+                          {chargeData.enabled && (
+                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Valor (R$)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={chargeData.valor}
+                                  onChange={(e) => setChargeData((p) => ({ ...p, valor: e.target.value }))}
+                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
+                                  placeholder="0,00"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Juros ao mês (%)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={chargeData.jurosMes}
+                                  onChange={(e) => setChargeData((p) => ({ ...p, jurosMes: e.target.value }))}
+                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Vencimento</label>
+                                <input
+                                  type="date"
+                                  value={chargeData.vencimento}
+                                  onChange={(e) => setChargeData((p) => ({ ...p, vencimento: e.target.value }))}
+                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
+                                />
+                              </div>
+                              <div className="space-y-1.5 sm:col-span-2">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Observação</label>
+                                <input
+                                  type="text"
+                                  value={chargeData.observacao}
+                                  onChange={(e) => setChargeData((p) => ({ ...p, observacao: e.target.value }))}
+                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
+                                  placeholder="Opcional"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -508,8 +700,10 @@ export function Clients({ initialClients }: ClientsProps) {
                           <label className="text-sm font-bold text-slate-700 ml-1">CPF</label>
                           <input
                             type="text"
+                            inputMode="numeric"
+                            required
                             value={formData.cpf}
-                            onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, cpf: formatCPF(e.target.value) })}
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                             placeholder="000.000.000-00"
                           />
@@ -574,6 +768,65 @@ export function Clients({ initialClients }: ClientsProps) {
 
                   {activeTab === 'endereco' && (
                     <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-bold text-slate-700 ml-1">CEP</label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={formData.cep}
+                            onChange={(e) => setFormData({ ...formData, cep: formatCEP(e.target.value) })}
+                            onBlur={async () => {
+                              const d = normalizeDigits(formData.cep)
+                              if (d.length !== 8 || loadingCep) return
+                              setLoadingCep(true)
+                              try {
+                                const data = await fetchCep(formData.cep)
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  endereco: prev.endereco || data.endereco,
+                                  complemento: prev.complemento || data.complemento,
+                                  bairro: prev.bairro || data.bairro,
+                                  cidade: prev.cidade || data.cidade,
+                                  estado: prev.estado || data.estado,
+                                }))
+                              } catch (err: any) {
+                                toast.error(err?.message || 'Erro ao consultar CEP')
+                              } finally {
+                                setLoadingCep(false)
+                              }
+                            }}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                            placeholder="00000-000"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          disabled={loadingCep}
+                          onClick={async () => {
+                            if (loadingCep) return
+                            setLoadingCep(true)
+                            try {
+                              const data = await fetchCep(formData.cep)
+                              setFormData((prev) => ({
+                                ...prev,
+                                endereco: prev.endereco || data.endereco,
+                                complemento: prev.complemento || data.complemento,
+                                bairro: prev.bairro || data.bairro,
+                                cidade: prev.cidade || data.cidade,
+                                estado: prev.estado || data.estado,
+                              }))
+                            } catch (err: any) {
+                              toast.error(err?.message || 'Erro ao consultar CEP')
+                            } finally {
+                              setLoadingCep(false)
+                            }
+                          }}
+                          className="h-12 px-5 bg-slate-900 text-white text-sm font-black rounded-2xl hover:bg-slate-800 transition-all disabled:opacity-50"
+                        >
+                          {loadingCep ? 'Buscando...' : 'Buscar'}
+                        </button>
+                      </div>
                       <div className="space-y-1.5">
                         <label className="text-sm font-bold text-slate-700 ml-1">Endereço</label>
                         <input
@@ -662,6 +915,61 @@ export function Clients({ initialClients }: ClientsProps) {
                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                           placeholder="Empresa"
                         />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-bold text-slate-700 ml-1">CEP (Empresa)</label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={formData.cepEmpresa}
+                            onChange={(e) => setFormData({ ...formData, cepEmpresa: formatCEP(e.target.value) })}
+                            onBlur={async () => {
+                              const d = normalizeDigits(formData.cepEmpresa)
+                              if (d.length !== 8 || loadingCepEmpresa) return
+                              setLoadingCepEmpresa(true)
+                              try {
+                                const data = await fetchCep(formData.cepEmpresa)
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  enderecoEmpresa: prev.enderecoEmpresa || [data.endereco, data.complemento].filter(Boolean).join(' ').trim(),
+                                  cidadeEmpresa: prev.cidadeEmpresa || data.cidade,
+                                  estadoEmpresa: prev.estadoEmpresa || data.estado,
+                                }))
+                              } catch (err: any) {
+                                toast.error(err?.message || 'Erro ao consultar CEP')
+                              } finally {
+                                setLoadingCepEmpresa(false)
+                              }
+                            }}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                            placeholder="00000-000"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          disabled={loadingCepEmpresa}
+                          onClick={async () => {
+                            if (loadingCepEmpresa) return
+                            setLoadingCepEmpresa(true)
+                            try {
+                              const data = await fetchCep(formData.cepEmpresa)
+                              setFormData((prev) => ({
+                                ...prev,
+                                enderecoEmpresa: prev.enderecoEmpresa || [data.endereco, data.complemento].filter(Boolean).join(' ').trim(),
+                                cidadeEmpresa: prev.cidadeEmpresa || data.cidade,
+                                estadoEmpresa: prev.estadoEmpresa || data.estado,
+                              }))
+                            } catch (err: any) {
+                              toast.error(err?.message || 'Erro ao consultar CEP')
+                            } finally {
+                              setLoadingCepEmpresa(false)
+                            }
+                          }}
+                          className="h-12 px-5 bg-slate-900 text-white text-sm font-black rounded-2xl hover:bg-slate-800 transition-all disabled:opacity-50"
+                        >
+                          {loadingCepEmpresa ? 'Buscando...' : 'Buscar'}
+                        </button>
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-sm font-bold text-slate-700 ml-1">Endereço da Empresa</label>

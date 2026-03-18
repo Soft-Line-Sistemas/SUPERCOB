@@ -16,6 +16,7 @@ type ClienteInput = {
   email?: string | null
   whatsapp?: string | null
   instagram?: string | null
+  cep?: string | null
   endereco?: string | null
   complemento?: string | null
   bairro?: string | null
@@ -24,6 +25,7 @@ type ClienteInput = {
   pontoReferencia?: string | null
   profissao?: string | null
   empresa?: string | null
+  cepEmpresa?: string | null
   enderecoEmpresa?: string | null
   cidadeEmpresa?: string | null
   estadoEmpresa?: string | null
@@ -32,7 +34,7 @@ type ClienteInput = {
   contatoEmergencia3?: string | null
 }
 
-export async function getClientes() {
+export async function getClientes(options?: { includeIds?: string[] }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -40,11 +42,13 @@ export async function getClientes() {
   const userId = (session.user as any).id
 
   if (role === 'OPERADOR') {
+    const includeIds = (options?.includeIds ?? []).filter((id) => typeof id === 'string' && id.trim() !== '')
     return await prisma.cliente.findMany({
       where: {
-        loans: {
-          some: { usuarioId: userId }
-        }
+        OR: [
+          { loans: { some: { usuarioId: userId } } },
+          includeIds.length > 0 ? { id: { in: includeIds } } : undefined,
+        ].filter(Boolean),
       },
       orderBy: { createdAt: 'desc' },
     })

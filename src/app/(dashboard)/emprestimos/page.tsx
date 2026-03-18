@@ -16,15 +16,15 @@ export default async function EmprestimosPage({
   const params = await searchParams
   const filters = {
     status: params.status as string,
-    email: params.email as string,
-    whatsapp: params.whatsapp as string,
+    q: params.q as string,
     startDate: params.startDate as string,
     endDate: params.endDate as string,
   }
+  const clienteId = params.clienteId as string
 
   const [emprestimos, clientes, colaboradores] = await Promise.all([
     getEmprestimos(filters),
-    getClientes(),
+    getClientes({ includeIds: clienteId ? [clienteId] : [] }),
     prisma.usuario.findMany({
       where: { role: 'OPERADOR' },
       select: { id: true, nome: true }

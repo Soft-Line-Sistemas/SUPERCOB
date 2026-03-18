@@ -62,6 +62,7 @@ model Cliente {
   email                String?
   whatsapp             String?
   instagram            String?
+  cep                  String?
   
   // Endereço Residencial
   endereco             String?
@@ -74,6 +75,7 @@ model Cliente {
   // Profissão e Empresa
   profissao            String?
   empresa              String?
+  cepEmpresa           String?
   enderecoEmpresa      String?
   cidadeEmpresa        String?
   estadoEmpresa        String?
