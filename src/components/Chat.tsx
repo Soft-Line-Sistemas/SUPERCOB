@@ -41,6 +41,12 @@ export function Chat({ currentUser }: { currentUser: any }) {
   }, [isOpen]);
 
   useEffect(() => {
+    const handler = () => setIsOpen(true)
+    window.addEventListener('supercob:open-chat', handler)
+    return () => window.removeEventListener('supercob:open-chat', handler)
+  }, [])
+
+  useEffect(() => {
     if (selectedUser || isMassMode) {
       loadMessages();
       const interval = setInterval(loadMessages, 5000); // Poll for new messages

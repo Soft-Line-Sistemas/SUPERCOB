@@ -10,23 +10,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  OPERADOR
-}
-
-enum Status {
-  ABERTO
-  NEGOCIACAO
-  QUITADO
-}
-
 model Usuario {
   id               String       @id @default(cuid())
   nome             String
   email            String       @unique
   senha            String
-  role             Role         @default(OPERADOR)
+  role             String       @default("OPERADOR") @db.VarChar(20)
   avatarUrl        String?
   isActive         Boolean      @default(true)
   
@@ -50,10 +39,10 @@ model MensagemInterna {
   isMassiva   Boolean  @default(false)
   
   remetenteId String
-  remetente   Usuario  @relation("MensagensEnviadas", fields: [remetenteId], references: [id])
+  remetente   Usuario  @relation("MensagensEnviadas", fields: [remetenteId], references: [id], onUpdate: NoAction, onDelete: NoAction)
   
   destinatarioId String? // Pode ser nulo se for uma mensagem em massa para todos
-  destinatario   Usuario? @relation("MensagensRecebidas", fields: [destinatarioId], references: [id])
+  destinatario   Usuario? @relation("MensagensRecebidas", fields: [destinatarioId], references: [id], onUpdate: NoAction, onDelete: SetNull)
   
   createdAt   DateTime @default(now())
 }
@@ -85,6 +74,9 @@ model Cliente {
   // Profissão e Empresa
   profissao            String?
   empresa              String?
+  enderecoEmpresa      String?
+  cidadeEmpresa        String?
+  estadoEmpresa        String?
   
   // Contatos de Emergência
   contatoEmergencia1   String?
@@ -106,7 +98,7 @@ model Emprestimo {
   jurosMes    Float     @default(0)
   vencimento  DateTime?
   quitadoEm   DateTime?
-  status      Status    @default(ABERTO)
+  status      String    @default("ABERTO") @db.VarChar(20)
   observacao  String?   @db.Text
   
   // Arquivos (Anexos) baseados na imagem

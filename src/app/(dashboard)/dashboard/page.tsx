@@ -2,7 +2,7 @@ import { Dashboard } from '@/components/Dashboard'
 import { getDashboardData } from './actions'
 
 export default async function DashboardPage() {
-  const data = await getDashboardData()
+  const data = await getDashboardData('hoje')
 
   return (
     <div className="space-y-6">

@@ -7,13 +7,20 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
-      const isOnDashboard = nextUrl.pathname.startsWith('/dashboard')
+      const protectedPrefixes = ['/dashboard', '/clientes', '/emprestimos', '/reports', '/chat', '/usuarios']
+      const isOnProtectedRoute = protectedPrefixes.some((prefix) => nextUrl.pathname.startsWith(prefix))
       const isOnAdmin = nextUrl.pathname.startsWith('/usuarios')
+      const role = (auth?.user as any)?.role
       
-      if (isOnDashboard || isOnAdmin) {
-        if (isLoggedIn) return true
-        return false // Redirect unauthenticated users to login page
-      } else if (isLoggedIn) {
+      if (isOnProtectedRoute) {
+        if (!isLoggedIn) return false
+        if (isOnAdmin && role !== 'ADMIN') {
+          return Response.redirect(new URL('/dashboard', nextUrl))
+        }
+        return true
+      }
+
+      if (isLoggedIn) {
         return Response.redirect(new URL('/dashboard', nextUrl))
       }
       return true

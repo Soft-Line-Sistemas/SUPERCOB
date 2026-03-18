@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Filter, MessageCircle, Plus, X, Edit2, Trash2, Calendar, DollarSign, Info, MoreHorizontal, User, Clock, CheckCircle2, AlertCircle as AlertIcon, Send, Download } from 'lucide-react';
 import { createEmprestimo, updateEmprestimo, deleteEmprestimo } from '@/app/(dashboard)/emprestimos/actions';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams } from 'next/navigation';
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO';
 
@@ -23,6 +24,8 @@ interface Loan {
     nome: string;
   } | null;
   valor: number;
+  jurosMes?: number;
+  vencimento?: Date | null;
   status: LoanStatus;
   observacao?: string | null;
   quitadoEm?: Date | null;
@@ -34,6 +37,7 @@ interface LoansProps {
   clientes: { id: string; nome: string }[];
   colaboradores: { id: string; nome: string }[];
   userRole: 'ADMIN' | 'OPERADOR';
+  analytics?: { id: string; nome: string; aberto: number; negociacao: number; quitado: number; total: number }[];
 }
 
 const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any; bg: string }> = {
@@ -42,7 +46,8 @@ const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any
   QUITADO: { label: 'Quitado', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: CheckCircle2 },
 };
 
-export function Loans({ initialLoans, clientes, colaboradores, userRole }: LoansProps) {
+export function Loans({ initialLoans, clientes, colaboradores, userRole, analytics }: LoansProps) {
+  const searchParams = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
@@ -61,6 +66,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
     clienteId: '',
     usuarioId: '',
     valor: 0,
+    jurosMes: 0,
+    vencimento: '',
     observacao: '',
     quitadoEm: '',
   });
@@ -75,10 +82,28 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
   };
 
   const generateWhatsAppLink = (loan: Loan) => {
-    const text = `Olá ${loan.cliente.nome}, sou da SUPERCOB. Gostaria de falar sobre o seu empréstimo no valor de ${formatCurrency(loan.valor)}.`;
+    const text = `Olá ${loan.cliente.nome}, sou da SUPERCOB. Gostaria de falar sobre a sua cobrança no valor de ${formatCurrency(loan.valor)}.`;
     const phone = loan.cliente.whatsapp.replace(/\D/g, '');
     return `https://wa.me/55${phone}?text=${encodeURIComponent(text)}`;
   };
+
+  useEffect(() => {
+    const clienteId = searchParams.get('clienteId')
+    const novo = searchParams.get('novo')
+    if (novo === '1' && clienteId) {
+      setEditingLoan(null)
+      setFormData({
+        clienteId,
+        usuarioId: '',
+        valor: 0,
+        jurosMes: 0,
+        vencimento: '',
+        observacao: '',
+        quitadoEm: '',
+      })
+      setIsModalOpen(true)
+    }
+  }, [searchParams])
 
   const handleOpenModal = (loan?: Loan) => {
     if (loan) {
@@ -87,6 +112,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
         clienteId: loan.clienteId,
         usuarioId: loan.usuarioId || '',
         valor: loan.valor,
+        jurosMes: (loan.jurosMes as any) ?? 0,
+        vencimento: loan.vencimento ? format(new Date(loan.vencimento), 'yyyy-MM-dd') : '',
         observacao: loan.observacao || '',
         quitadoEm: loan.quitadoEm ? format(new Date(loan.quitadoEm), 'yyyy-MM-dd') : '',
       });
@@ -96,6 +123,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
         clienteId: '',
         usuarioId: '',
         valor: 0,
+        jurosMes: 0,
+        vencimento: '',
         observacao: '',
         quitadoEm: '',
       });
@@ -115,26 +144,28 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
       const data = {
         ...formData,
         usuarioId: formData.usuarioId || null,
+        jurosMes: Number(formData.jurosMes) || 0,
+        vencimento: formData.vencimento ? new Date(formData.vencimento) : null,
         quitadoEm: formData.quitadoEm ? new Date(formData.quitadoEm) : null,
       };
 
       if (editingLoan) {
         await updateEmprestimo(editingLoan.id, data as any);
-        toast.success('Empréstimo atualizado com sucesso!');
+        toast.success('Cobrança atualizada com sucesso!');
       } else {
         await createEmprestimo(data as any);
-        toast.success('Empréstimo registrado com sucesso!');
+        toast.success('Cobrança registrada com sucesso!');
       }
       setIsModalOpen(false);
     } catch (error) {
-      toast.error('Erro ao salvar empréstimo.');
+      toast.error('Erro ao salvar cobrança.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = (id: string) => {
-    toast.warning('Excluir empréstimo?', {
+    toast.warning('Excluir cobrança?', {
       action: {
         label: 'Confirmar',
         onClick: async () => {
@@ -186,10 +217,47 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-2xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all active:scale-95"
           >
             <Plus className="h-5 w-5" />
-            Novo Empréstimo
+            Nova Cobrança
           </button>
         </div>
       </div>
+
+      {userRole === 'ADMIN' && analytics && analytics.length > 0 && (
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Visão por Colaborador</h3>
+              <p className="text-sm text-slate-500">Andamento da carteira por responsável</p>
+            </div>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {analytics.map((a) => (
+              <div key={a.id} className="p-5 rounded-2xl bg-slate-50 border border-slate-100">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-black text-slate-900">{a.nome}</p>
+                  <span className="text-[10px] font-black text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded-full">
+                    {a.total} casos
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="p-2 rounded-xl bg-white border border-slate-200">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">Aberto</p>
+                    <p className="text-sm font-black text-slate-900 mt-1">{a.aberto}</p>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white border border-slate-200">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">Negociação</p>
+                    <p className="text-sm font-black text-slate-900 mt-1">{a.negociacao}</p>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white border border-slate-200">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">Quitado</p>
+                    <p className="text-sm font-black text-slate-900 mt-1">{a.quitado}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Grid Layout for Loans */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -280,39 +348,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
           })}
         </AnimatePresence>
       </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => handleOpenModal(loan)} className="text-blue-600 hover:text-blue-900">
-                      <Edit2 className="h-4 w-4 inline" />
-                    </button>
-                    <button onClick={() => handleDelete(loan.id)} className="text-red-600 hover:text-red-900">
-                      <Trash2 className="h-4 w-4 inline" />
-                    </button>
-                    <a
-                      href={generateWhatsAppLink(loan)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-                      title="Contatar via WhatsApp"
-                    >
-                      <MessageCircle className="h-5 w-5" />
-                    </a>
-                  </td>
-                </tr>
-              ))}
-              {initialLoans.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
-                    Nenhum empréstimo encontrado.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      {/* Modal Novo/Editar Empréstimo */}
+      {/* Modal Novo/Editar Cobrança */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -322,7 +359,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex justify-between items-center mb-5">
                   <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                    {editingLoan ? 'Editar Empréstimo' : 'Novo Empréstimo'}
+                    {editingLoan ? 'Editar Cobrança' : 'Nova Cobrança'}
                   </h3>
                   <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-500">
                     <X className="h-6 w-6" />
@@ -377,6 +414,29 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
                     </div>
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Juros ao mês (%)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.jurosMes}
+                      onChange={(e) => setFormData({ ...formData, jurosMes: parseFloat(e.target.value) })}
+                      className="border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border p-2"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="date"
+                        value={formData.vencimento}
+                        onChange={(e) => setFormData({ ...formData, vencimento: e.target.value })}
+                        className="pl-10 border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border p-2"
+                      />
+                    </div>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Observação (Gera status NEGOCIAÇÃO)</label>
                     <textarea
                       value={formData.observacao}
@@ -404,7 +464,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
                       disabled={loading}
                       className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:w-auto sm:text-sm disabled:opacity-50"
                     >
-                      {loading ? 'Salvando...' : 'Salvar Empréstimo'}
+                      {loading ? 'Salvando...' : 'Salvar Cobrança'}
                     </button>
                     <button
                       type="button"
@@ -421,7 +481,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
         </div>
       )}
 
-      {/* Modal Detalhes do Empréstimo */}
+      {/* Modal Detalhes da Cobrança */}
       {isDetailModalOpen && selectedLoan && (
         <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -431,7 +491,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex justify-between items-center mb-5">
                   <h3 className="text-lg leading-6 font-bold text-gray-900 flex items-center">
-                    <Info className="h-5 w-5 mr-2 text-blue-600" /> Detalhes do Empréstimo
+                    <Info className="h-5 w-5 mr-2 text-blue-600" /> Detalhes da Cobrança
                   </h3>
                   <button onClick={() => setIsDetailModalOpen(false)} className="text-gray-400 hover:text-gray-500">
                     <X className="h-6 w-6" />
@@ -446,8 +506,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole }: Loans
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 uppercase font-bold">Status</p>
-                      <span className={`mt-1 px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyles[selectedLoan.status]}`}>
-                        {statusLabels[selectedLoan.status]}
+                      <span className={`mt-1 px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${statusConfig[selectedLoan.status].bg} ${statusConfig[selectedLoan.status].color}`}>
+                        {statusConfig[selectedLoan.status].label}
                       </span>
                     </div>
                     <div>

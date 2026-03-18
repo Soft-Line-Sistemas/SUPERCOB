@@ -54,6 +54,8 @@ export async function getEmprestimos(filters?: {
 export async function createEmprestimo(data: {
   clienteId: string;
   valor: number;
+  jurosMes?: number;
+  vencimento?: Date | null;
   observacao?: string;
   quitadoEm?: Date | null;
   usuarioId?: string;
@@ -90,6 +92,8 @@ export async function createEmprestimo(data: {
 
 export async function updateEmprestimo(id: string, data: {
   valor: number;
+  jurosMes?: number;
+  vencimento?: Date | null;
   observacao?: string;
   quitadoEm?: Date | null;
   usuarioId?: string;

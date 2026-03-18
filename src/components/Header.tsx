@@ -1,12 +1,54 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Bell, Search, Command, HelpCircle } from 'lucide-react'
+import { Bell, Search, Command, HelpCircle, X, ExternalLink } from 'lucide-react'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { markAsRead } from '@/app/(dashboard)/chat/actions'
 
-export function Header({ user }: { user: any }) {
+type HeaderNotification = {
+  id: string
+  conteudo: string
+  createdAt: Date
+  isMassiva: boolean
+  remetenteNome: string
+  remetenteRole: string
+}
+
+export function Header({ user, notifications, unreadCount }: { user: any; notifications: HeaderNotification[]; unreadCount: number }) {
   const pathname = usePathname()
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [readIds, setReadIds] = useState<string[]>([])
+  const notificationsRef = useRef<HTMLDivElement>(null)
+  const helpRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (isNotificationsOpen && notificationsRef.current && !notificationsRef.current.contains(target)) {
+        setIsNotificationsOpen(false)
+      }
+      if (isHelpOpen && helpRef.current && !helpRef.current.contains(target)) {
+        setIsHelpOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [isNotificationsOpen, isHelpOpen])
+
+  const displayedNotifications = useMemo(() => notifications.filter((n) => !readIds.includes(n.id)), [notifications, readIds])
+  const readDirectCount = useMemo(
+    () => readIds.filter((id) => notifications.some((n) => n.id === id && !n.isMassiva)).length,
+    [readIds, notifications]
+  )
+  const displayedUnreadCount = Math.max(0, unreadCount - readDirectCount)
+  const hasUnread = displayedUnreadCount > 0
+  const notificationIdsToMarkRead = useMemo(
+    () => displayedNotifications.filter((n) => !n.isMassiva).map((n) => n.id),
+    [displayedNotifications]
+  )
   
   const getTitle = () => {
     if (pathname.startsWith('/dashboard')) return 'Overview'
@@ -49,20 +91,157 @@ export function Header({ user }: { user: any }) {
         </div>
 
         {/* Notifications */}
-        <button className="relative p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all group">
-          <Bell className="w-5 h-5 transition-transform group-hover:rotate-12" />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full" />
-        </button>
+        <div className="relative" ref={notificationsRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsNotificationsOpen((v) => !v)
+              setIsHelpOpen(false)
+            }}
+            className="relative p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all group"
+          >
+            <Bell className="w-5 h-5 transition-transform group-hover:rotate-12" />
+            {hasUnread && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full" />}
+          </button>
+
+          {isNotificationsOpen && (
+            <div className="absolute right-0 mt-2 w-[360px] bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-black text-slate-900">Notificações</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    {displayedUnreadCount} não lidas
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNotificationsOpen(false)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="max-h-[360px] overflow-y-auto">
+                {displayedNotifications.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <p className="text-sm font-bold text-slate-700">Sem notificações</p>
+                    <p className="text-xs text-slate-500 mt-1">Tudo em dia por aqui.</p>
+                  </div>
+                ) : (
+                  displayedNotifications.map((n) => (
+                    <div key={n.id} className="px-5 py-4 border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-slate-900 truncate">
+                            {n.isMassiva ? 'Comunicado' : 'Mensagem'} • {n.remetenteNome}
+                          </p>
+                          <p className="text-xs text-slate-600 mt-1">{n.conteudo}</p>
+                          <p className="text-[10px] font-bold text-slate-400 mt-2">
+                            {new Date(n.createdAt).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                        {n.isMassiva && (
+                          <span className="text-[9px] font-black bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">
+                            GERAL
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-2">
+                <button
+                  type="button"
+                  disabled={notificationIdsToMarkRead.length === 0}
+                  onClick={async () => {
+                    try {
+                      await markAsRead(notificationIdsToMarkRead)
+                      setReadIds((prev) => Array.from(new Set([...prev, ...notificationIdsToMarkRead])))
+                    } catch {
+                    }
+                  }}
+                  className="flex-1 py-2.5 px-4 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-2xl hover:bg-slate-100 transition-all disabled:opacity-50"
+                >
+                  Marcar como lidas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new Event('supercob:open-chat'))
+                    setIsNotificationsOpen(false)
+                  }}
+                  className="flex-1 py-2.5 px-4 bg-slate-900 text-white text-xs font-black rounded-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+                >
+                  Abrir chat <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Help */}
-        <button className="p-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all hidden sm:block">
-          <HelpCircle className="w-5 h-5" />
-        </button>
+        <div className="relative hidden sm:block" ref={helpRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsHelpOpen((v) => !v)
+              setIsNotificationsOpen(false)
+            }}
+            className="p-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
+
+          {isHelpOpen && (
+            <div className="absolute right-0 mt-2 w-[360px] bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-black text-slate-900">Ajuda rápida</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Supercob</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsHelpOpen(false)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-xs font-black text-slate-900">Fluxo recomendado</p>
+                  <ul className="mt-2 text-xs text-slate-600 space-y-1">
+                    <li>1) Cadastre o cliente</li>
+                    <li>2) Crie a cobrança com valor/juros/vencimento</li>
+                    <li>3) Acompanhe status: Aberto → Negociação → Quitado</li>
+                  </ul>
+                </div>
+                <Link
+                  href="/perfil"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black text-slate-700 hover:bg-slate-50 transition-all"
+                >
+                  Perfil (foto e senha) <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                </Link>
+                <a
+                  href="https://wa.me/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black text-slate-700 hover:bg-slate-50 transition-all"
+                >
+                  Ajuda via WhatsApp <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="h-8 w-[1px] bg-slate-100 mx-2 hidden sm:block" />
 
         {/* User Profile - Compact */}
-        <div className="flex items-center gap-3 pl-2">
+        <Link href="/perfil" className="flex items-center gap-3 pl-2">
           <div className="hidden md:block text-right">
             <p className="text-xs font-black text-slate-900">{user?.nome?.split(' ')[0]}</p>
             <p className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter">{user?.role}</p>
@@ -70,7 +249,7 @@ export function Header({ user }: { user: any }) {
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 border border-white shadow-sm flex items-center justify-center font-black text-slate-600 text-sm overflow-hidden">
             {user?.nome?.[0] || 'U'}
           </div>
-        </div>
+        </Link>
       </div>
     </header>
   )

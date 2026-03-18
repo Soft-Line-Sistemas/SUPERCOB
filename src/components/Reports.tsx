@@ -1,56 +1,83 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Cell, AreaChart, Area } from 'recharts';
-import { Wallet, PiggyBank, TrendingUp, CalendarDays, AlertTriangle, MapPin, Download, FileText, Share2, Filter, Printer } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Wallet, PiggyBank, TrendingUp, CalendarDays, AlertTriangle, MapPin, Download, FileText, Share2, Filter, MoreVertical, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
-// --- MOCK DATA ---
-const interestByMonth = [
-  { month: 'Jan', juros: 12500 },
-  { month: 'Fev', juros: 14200 },
-  { month: 'Mar', juros: 15800 },
-  { month: 'Abr', juros: 16100 },
-  { month: 'Mai', juros: 18500 },
-  { month: 'Jun', juros: 21000 },
-];
+type ReportsFilters = {
+  startDate: string
+  endDate: string
+  status: string
+  cidade: string
+  estado: string
+}
 
-const volumeByLocation = [
-  { city: 'Salvador, BA', volume: 450000 },
-  { city: 'São Paulo, SP', volume: 280000 },
-  { city: 'Rio de Janeiro, RJ', volume: 150000 },
-  { city: 'Belo Horizonte, MG', volume: 95000 },
-];
+type ReportsData = {
+  kpis: {
+    principalAtivo: number
+    totalProjetado: number
+    jurosMes: number
+    jurosAno: number
+  }
+  interestByMonth: { month: string; juros: number }[]
+  volumeByLocation: { city: string; volume: number }[]
+  abcCurveData: { rank: number; client: string; city: string; volume: number; class: 'A' | 'B' | 'C'; acc: string }[]
+  defaultersData: { id: string; client: string; city: string; daysLate: number; amount: number }[]
+}
 
-const abcCurveData = [
-  { rank: 1, client: 'Empresa Alpha Ltda', city: 'Salvador/BA', volume: 150000, class: 'A', acc: '25%' },
-  { rank: 2, client: 'Roberto Almeida', city: 'Salvador/BA', volume: 120000, class: 'A', acc: '45%' },
-  { rank: 3, client: 'Tech Solutions', city: 'São Paulo/SP', volume: 90000, class: 'A', acc: '60%' },
-  { rank: 4, client: 'Ana Beatriz', city: 'Salvador/BA', volume: 60000, class: 'B', acc: '70%' },
-  { rank: 5, client: 'João Silva', city: 'São Paulo/SP', volume: 40000, class: 'B', acc: '76%' },
-  { rank: 6, client: 'Maria Oliveira', city: 'Rio de Janeiro/RJ', volume: 15000, class: 'C', acc: '79%' },
-];
+export function Reports({ report, filters }: { report: ReportsData; filters: ReportsFilters }) {
+  const router = useRouter()
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false)
+  const [draftFilters, setDraftFilters] = useState<ReportsFilters>(filters)
 
-const defaultersData = [
-  { id: 'EMP-089', client: 'Carlos Santos', city: 'Belo Horizonte/MG', daysLate: 45, amount: 10000 },
-  { id: 'EMP-102', client: 'Pedro Henrique', city: 'Salvador/BA', daysLate: 15, amount: 5400 },
-  { id: 'EMP-045', client: 'Comercial Souza', city: 'São Paulo/SP', daysLate: 60, amount: 25000 },
-];
-
-export function Reports() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  const handleExportPDF = () => {
-    const promise = new Promise((resolve) => setTimeout(resolve, 2000));
-    toast.promise(promise, {
-      loading: 'Gerando relatório PDF detalhado...',
-      success: 'Relatório exportado com sucesso! O download começará em instantes.',
-      error: 'Erro ao gerar PDF.',
-    });
-  };
+  const leaderCity = useMemo(() => report.volumeByLocation[0]?.city, [report.volumeByLocation])
+
+  const handleExportPDF = async () => {
+    try {
+      toast.loading('Gerando relatório PDF...', { id: 'pdf' })
+      const res = await fetch('/api/export/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'reports',
+          filters,
+          report,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Erro ao gerar PDF')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `relatorio-supercob-${filters.startDate}_a_${filters.endDate}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast.success('Relatório exportado com sucesso!', { id: 'pdf' })
+    } catch (e) {
+      toast.error('Erro ao gerar PDF.', { id: 'pdf' })
+    }
+  }
+
+  const applyFilters = () => {
+    const sp = new URLSearchParams()
+    if (draftFilters.startDate) sp.set('startDate', draftFilters.startDate)
+    if (draftFilters.endDate) sp.set('endDate', draftFilters.endDate)
+    if (draftFilters.status) sp.set('status', draftFilters.status)
+    if (draftFilters.cidade) sp.set('cidade', draftFilters.cidade)
+    if (draftFilters.estado) sp.set('estado', draftFilters.estado)
+    router.push(`/reports?${sp.toString()}`)
+    setIsFiltersOpen(false)
+  }
 
   const container = {
     hidden: { opacity: 0 },
@@ -76,11 +103,18 @@ export function Reports() {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Relatórios Avançados</h1>
-          <p className="text-slate-500">Análise profunda de métricas e performance de crédito.</p>
+          <p className="text-slate-500">Análise profunda de métricas e performance de cobrança.</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
+          <button
+            type="button"
+            onClick={() => {
+              setDraftFilters(filters)
+              setIsFiltersOpen(true)
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+          >
             <Filter className="w-4 h-4" />
             Filtros
           </button>
@@ -102,8 +136,8 @@ export function Reports() {
         <motion.div variants={item}>
           <ReportMetricCard
             title="Principal Ativo"
-            value="R$ 975.000"
-            subtitle="Capital em circulação"
+            value={formatCurrency(report.kpis.principalAtivo)}
+            subtitle={`Período: ${filters.startDate} até ${filters.endDate}`}
             icon={Wallet}
             color="blue"
           />
@@ -111,8 +145,8 @@ export function Reports() {
         <motion.div variants={item}>
           <ReportMetricCard
             title="Total Projetado"
-            value="R$ 1.245.000"
-            subtitle="Principal + Juros"
+            value={formatCurrency(report.kpis.totalProjetado)}
+            subtitle="Principal + juros estimados"
             icon={PiggyBank}
             color="emerald"
           />
@@ -120,8 +154,8 @@ export function Reports() {
         <motion.div variants={item}>
           <ReportMetricCard
             title="Rentabilidade Mês"
-            value="R$ 21.000"
-            subtitle="Juros em Junho/26"
+            value={formatCurrency(report.kpis.jurosMes)}
+            subtitle="Juros estimados no mês"
             icon={TrendingUp}
             color="indigo"
           />
@@ -129,8 +163,8 @@ export function Reports() {
         <motion.div variants={item}>
           <ReportMetricCard
             title="Rentabilidade Ano"
-            value="R$ 98.100"
-            subtitle="Acumulado 2026"
+            value={formatCurrency(report.kpis.jurosAno)}
+            subtitle="Juros estimados no ano"
             icon={CalendarDays}
             color="purple"
           />
@@ -149,7 +183,7 @@ export function Reports() {
           </div>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={interestByMonth}>
+              <AreaChart data={report.interestByMonth}>
                 <defs>
                   <linearGradient id="colorJuros" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.1}/>
@@ -180,12 +214,12 @@ export function Reports() {
             <h3 className="text-lg font-bold text-slate-900">Distribuição por Localidade</h3>
             <div className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full">
               <MapPin className="w-3.5 h-3.5" />
-              Liderança: Salvador
+              Liderança: {leaderCity || '-'}
             </div>
           </div>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={volumeByLocation} layout="vertical" margin={{ left: 40 }}>
+              <BarChart data={report.volumeByLocation} layout="vertical" margin={{ left: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                 <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} tickFormatter={(value) => `${value / 1000}k`} />
                 <YAxis dataKey="city" type="category" axisLine={false} tickLine={false} tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }} width={100} />
@@ -195,8 +229,8 @@ export function Reports() {
                   formatter={(value: any) => [formatCurrency(value as number), 'Volume']}
                 />
                 <Bar dataKey="volume" radius={[0, 8, 8, 0]}>
-                  {volumeByLocation.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.city.includes('Salvador') ? '#3B82F6' : '#cbd5e1'} />
+                  {report.volumeByLocation.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#cbd5e1'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -226,7 +260,7 @@ export function Reports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {abcCurveData.map((item) => (
+                {report.abcCurveData.map((item) => (
                   <tr key={item.rank} className="hover:bg-slate-50 transition-colors">
                     <td className="px-8 py-4">
                       <div className="text-sm font-bold text-slate-900">{item.client}</div>
@@ -263,7 +297,7 @@ export function Reports() {
               <p className="text-sm text-slate-500">Contratos com atraso superior a 5 dias</p>
             </div>
             <span className="bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
-              {defaultersData.length} ALERTAS
+              {report.defaultersData.length} ALERTAS
             </span>
           </div>
           <div className="overflow-x-auto">
@@ -276,7 +310,7 @@ export function Reports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {defaultersData.map((item) => (
+                {report.defaultersData.map((item) => (
                   <tr key={item.id} className="hover:bg-red-50/30 transition-colors">
                     <td className="px-8 py-4">
                       <div className="text-sm font-bold text-slate-900">{item.client}</div>
@@ -300,6 +334,119 @@ export function Reports() {
           </div>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {isFiltersOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsFiltersOpen(false)}
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100"
+            >
+              <div className="p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Filtros</h3>
+                    <p className="text-slate-500 text-sm">Selecione período e critérios.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsFiltersOpen(false)}
+                    className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-slate-700 ml-1">Início</label>
+                      <input
+                        type="date"
+                        value={draftFilters.startDate}
+                        onChange={(e) => setDraftFilters({ ...draftFilters, startDate: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-slate-700 ml-1">Fim</label>
+                      <input
+                        type="date"
+                        value={draftFilters.endDate}
+                        onChange={(e) => setDraftFilters({ ...draftFilters, endDate: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-slate-700 ml-1">Status</label>
+                    <select
+                      value={draftFilters.status}
+                      onChange={(e) => setDraftFilters({ ...draftFilters, status: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                    >
+                      <option value="">Todos</option>
+                      <option value="ABERTO">Aberto</option>
+                      <option value="NEGOCIACAO">Negociação</option>
+                      <option value="QUITADO">Quitado</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-slate-700 ml-1">Cidade</label>
+                      <input
+                        type="text"
+                        value={draftFilters.cidade}
+                        onChange={(e) => setDraftFilters({ ...draftFilters, cidade: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                        placeholder="Cidade"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-slate-700 ml-1">Estado</label>
+                      <input
+                        type="text"
+                        value={draftFilters.estado}
+                        onChange={(e) => setDraftFilters({ ...draftFilters, estado: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                        placeholder="UF"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDraftFilters({ startDate: '', endDate: '', status: '', cidade: '', estado: '' })}
+                    className="flex-1 py-3.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                  >
+                    Limpar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={applyFilters}
+                    className="flex-[2] py-3.5 px-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 shadow-lg shadow-slate-900/20 transition-all"
+                  >
+                    Aplicar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -330,6 +477,3 @@ function ReportMetricCard({ title, value, subtitle, icon: Icon, color }: any) {
     </div>
   );
 }
-
-// Re-using MoreVertical from lucide-react which was missing in the destructuring
-import { MoreVertical as MoreVerticalIcon } from 'lucide-react';

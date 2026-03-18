@@ -10,9 +10,10 @@ async function checkAdmin() {
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await checkAdmin()
+    const { id } = await params
     const data = await req.json()
     
     const updateData: any = {
@@ -26,7 +27,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 
     const usuario = await prisma.usuario.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -41,17 +42,18 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth()
     if (session?.user?.role !== 'ADMIN') throw new Error('Unauthorized')
+    const { id } = await params
     
-    if (session.user.id === params.id) {
+    if (session.user.id === id) {
       return NextResponse.json({ error: 'Você não pode excluir seu próprio usuário' }, { status: 400 })
     }
 
     await prisma.usuario.delete({
-      where: { id: params.id },
+      where: { id },
     })
     return NextResponse.json({ message: 'Usuário excluído com sucesso' })
   } catch (error) {

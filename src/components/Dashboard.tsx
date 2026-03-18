@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useTransition } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { TrendingUp, Users, DollarSign, AlertCircle, Percent, Coins, ArrowUpRight, ArrowDownRight, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getDashboardData } from '@/app/(dashboard)/dashboard/actions';
 
 interface DashboardProps {
   data: {
@@ -31,7 +32,11 @@ const evolutionData = [
 ];
 
 export function Dashboard({ data }: DashboardProps) {
-  const { metrics, statusDistribution, agentData } = data;
+  const [period, setPeriod] = useState<'hoje' | 'semana' | 'mes'>('hoje')
+  const [currentData, setCurrentData] = useState(data)
+  const [isPending, startTransition] = useTransition()
+
+  const { metrics, statusDistribution, agentData } = currentData;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -69,9 +74,48 @@ export function Dashboard({ data }: DashboardProps) {
           <p className="text-slate-500">Bem-vindo ao centro de comando do SUPERCOB.</p>
         </div>
         <div className="flex items-center gap-3 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-          <button className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">Hoje</button>
-          <button className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">Semana</button>
-          <button className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">Mês</button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => {
+              setPeriod('hoje')
+              startTransition(async () => {
+                const next = await getDashboardData('hoje')
+                setCurrentData(next)
+              })
+            }}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'hoje' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-50'} ${isPending ? 'opacity-60' : ''}`}
+          >
+            Hoje
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => {
+              setPeriod('semana')
+              startTransition(async () => {
+                const next = await getDashboardData('semana')
+                setCurrentData(next)
+              })
+            }}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'semana' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-50'} ${isPending ? 'opacity-60' : ''}`}
+          >
+            Semana
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => {
+              setPeriod('mes')
+              startTransition(async () => {
+                const next = await getDashboardData('mes')
+                setCurrentData(next)
+              })
+            }}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'mes' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-50'} ${isPending ? 'opacity-60' : ''}`}
+          >
+            Mês
+          </button>
         </div>
       </div>
 
@@ -269,6 +313,6 @@ function ModernMetricCard({ title, value, trend, trendUp, icon: Icon, color }: a
         <p className="text-sm font-medium text-slate-500">{title}</p>
         <h4 className="text-2xl font-bold text-slate-900 mt-1">{value}</h4>
       </div>
-    </motion.div>
+    </div>
   );
 }
