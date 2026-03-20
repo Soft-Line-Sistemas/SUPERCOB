@@ -5,6 +5,25 @@ export const authConfig = {
     signIn: '/login',
   },
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      const canonicalBase = (process.env.APP_URL || process.env.AUTH_URL || baseUrl).replace(/\/+$/, '')
+
+      if (url.startsWith('/')) {
+        return `${canonicalBase}${url}`
+      }
+
+      try {
+        const target = new URL(url)
+        const runtimeBase = new URL(baseUrl)
+        if (target.origin === runtimeBase.origin) {
+          return `${canonicalBase}${target.pathname}${target.search}${target.hash}`
+        }
+      } catch {
+        return `${canonicalBase}/login`
+      }
+
+      return url
+    },
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
       const protectedPrefixes = ['/dashboard', '/clientes', '/emprestimos', '/reports', '/chat', '/usuarios', '/perfil']
