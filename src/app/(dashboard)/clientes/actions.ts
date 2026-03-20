@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 
@@ -43,12 +44,17 @@ export async function getClientes(options?: { includeIds?: string[] }) {
 
   if (role === 'OPERADOR') {
     const includeIds = (options?.includeIds ?? []).filter((id) => typeof id === 'string' && id.trim() !== '')
+    const orConditions: Prisma.ClienteWhereInput[] = [
+      { loans: { some: { usuarioId: userId } } },
+    ]
+
+    if (includeIds.length > 0) {
+      orConditions.push({ id: { in: includeIds } })
+    }
+
     return await prisma.cliente.findMany({
       where: {
-        OR: [
-          { loans: { some: { usuarioId: userId } } },
-          includeIds.length > 0 ? { id: { in: includeIds } } : undefined,
-        ].filter(Boolean),
+        OR: orConditions,
       },
       orderBy: { createdAt: 'desc' },
     })
