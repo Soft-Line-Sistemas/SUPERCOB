@@ -30,6 +30,8 @@ model Usuario {
   // Relações para Mensagens Internas
   mensagensEnviadas   MensagemInterna[] @relation("MensagensEnviadas")
   mensagensRecebidas  MensagemInterna[] @relation("MensagensRecebidas")
+
+  emprestimoHistoricos EmprestimoHistorico[] @relation("EmprestimoHistoricoCreatedBy")
 }
 
 model MensagemInterna {
@@ -87,6 +89,7 @@ model Cliente {
 
   createdAt            DateTime     @default(now())
   loans                Emprestimo[]
+  documentos           ClienteDocumento[]
 }
 
 model Emprestimo {
@@ -102,6 +105,7 @@ model Emprestimo {
   quitadoEm   DateTime?
   status      String    @default("ABERTO") @db.VarChar(20)
   observacao  String?   @db.Text
+  historico   EmprestimoHistorico[]
   
   // Arquivos (Anexos) baseados na imagem
   arquivo1    String?
@@ -111,4 +115,27 @@ model Emprestimo {
   arquivo5    String?
   
   createdAt   DateTime  @default(now())
+}
+
+model EmprestimoHistorico {
+  id           String     @id @default(cuid())
+  emprestimoId String
+  emprestimo   Emprestimo @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
+
+  descricao    String     @db.Text
+  createdAt    DateTime   @default(now())
+
+  createdById  String?
+  createdBy    Usuario?   @relation("EmprestimoHistoricoCreatedBy", fields: [createdById], references: [id], onUpdate: NoAction, onDelete: NoAction)
+}
+
+model ClienteDocumento {
+  id           String   @id @default(cuid())
+  clienteId    String
+  cliente      Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  originalName String
+  fileName     String   @unique
+  mimeType     String   @db.VarChar(100)
+  size         Int
+  createdAt    DateTime @default(now())
 }

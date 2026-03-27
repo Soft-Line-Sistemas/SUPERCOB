@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter, Download, UserPlus } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter, Download, UserPlus, Camera, Image as ImageIcon, Eye } from 'lucide-react';
 import { createCliente, updateCliente, deleteCliente } from '@/app/(dashboard)/clientes/actions';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -96,6 +96,13 @@ export function Clients({ initialClients }: ClientsProps) {
     vencimento: '',
     observacao: '',
   })
+  const [docs, setDocs] = useState<Array<{ id: string; originalName: string; mimeType: string; size: number; createdAt: string; url: string }>>([])
+  const [uploading, setUploading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const inputFileRef = useRef<HTMLInputElement>(null)
+  const inputCameraRef = useRef<HTMLInputElement>(null)
 
   const normalizeDigits = (value: string) => value.replace(/\D/g, '');
   const normalizeText = (value: string) => value.trim().toLowerCase();
@@ -373,6 +380,102 @@ export function Clients({ initialClients }: ClientsProps) {
       },
     });
   };
+
+  useEffect(() => {
+    const loadDocs = async () => {
+      if (!editingClient || activeTab !== 'documentos') return
+      try {
+        const res = await fetch(`/api/clientes/${editingClient.id}/documentos`)
+        if (!res.ok) return
+        const data = await res.json()
+        setDocs(data)
+      } catch {}
+    }
+    if (isModalOpen) loadDocs()
+  }, [isModalOpen, editingClient?.id, activeTab])
+
+  const validateFile = (file: File) => {
+    const allowed = ['image/jpeg', 'image/png', 'application/pdf']
+    if (!allowed.includes(file.type)) {
+      toast.error('Tipos permitidos: JPEG, PNG, PDF')
+      return false
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Tamanho máximo: 5MB')
+      return false
+    }
+    return true
+  }
+
+  const onPickFile = (f: File | null) => {
+    if (!f) return
+    if (!validateFile(f)) return
+    setSelectedFile(f)
+    if (f.type.startsWith('image/')) {
+      const url = URL.createObjectURL(f)
+      setPreviewUrl(url)
+    } else {
+      setPreviewUrl(null)
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!editingClient || !selectedFile || uploading) return
+    setUploading(true)
+    setProgress(0)
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', `/api/clientes/${editingClient.id}/documentos`)
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100))
+        }
+        xhr.onreadystatechange = () => {
+          if (xhr.readyState === 4) {
+            if (xhr.status >= 200 && xhr.status < 300) resolve()
+            else reject(new Error('Falha ao enviar'))
+          }
+        }
+        const form = new FormData()
+        form.append('file', selectedFile)
+        xhr.send(form)
+      })
+      const res = await fetch(`/api/clientes/${editingClient.id}/documentos`)
+      if (res.ok) {
+        const data = await res.json()
+        setDocs(data)
+      }
+      setSelectedFile(null)
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+        setPreviewUrl(null)
+      }
+      setProgress(0)
+      toast.success('Documento enviado')
+    } catch {
+      toast.error('Erro no upload')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleDeleteDoc = async (docId: string) => {
+    if (!editingClient) return
+    try {
+      const res = await fetch(`/api/clientes/${editingClient.id}/documentos/${docId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      setDocs((prev) => prev.filter((d) => d.id !== docId))
+      toast.success('Documento excluído')
+    } catch {
+      toast.error('Erro ao excluir documento')
+    }
+  }
+
+  const formatSize = (n: number) => {
+    if (n < 1024) return `${n} B`
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+    return `${(n / (1024 * 1024)).toFixed(1)} MB`
+  }
 
   return (
     <div className="space-y-8">
@@ -761,6 +864,132 @@ export function Clients({ initialClients }: ClientsProps) {
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                             placeholder="Ano"
                           />
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <div className="p-4 rounded-2xl border border-slate-200 bg-white">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-bold text-slate-900">Anexos de Documentos</p>
+                            {!editingClient && <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Disponível após salvar</span>}
+                          </div>
+                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              disabled={!editingClient}
+                              onClick={() => inputFileRef.current?.click()}
+                              className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white text-sm font-black rounded-2xl disabled:opacity-50"
+                            >
+                              <ImageIcon className="w-4 h-4" /> Selecionar Arquivo
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!editingClient}
+                              onClick={() => inputCameraRef.current?.click()}
+                              className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white text-sm font-black rounded-2xl disabled:opacity-50"
+                            >
+                              <Camera className="w-4 h-4" /> Capturar Foto
+                            </button>
+                            <input
+                              ref={inputFileRef}
+                              type="file"
+                              accept="image/jpeg,image/png,application/pdf"
+                              className="hidden"
+                              onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
+                            />
+                            <input
+                              ref={inputCameraRef}
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              className="hidden"
+                              onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
+                            />
+                          </div>
+
+                          {selectedFile && (
+                            <div className="mt-3 p-3 rounded-xl border border-slate-200 bg-slate-50">
+                              <div className="flex items-center gap-3">
+                                {previewUrl ? (
+                                  <img src={previewUrl} alt="preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200" />
+                                ) : (
+                                  <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                                    <Download className="w-5 h-5 text-slate-400" />
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold text-slate-900 truncate">{selectedFile.name}</p>
+                                  <p className="text-xs text-slate-500">{formatSize(selectedFile.size)}</p>
+                                </div>
+                                <div className="ml-auto flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={uploading}
+                                    onClick={handleUpload}
+                                    className="px-4 py-2 bg-emerald-600 text-white text-xs font-black rounded-xl disabled:opacity-50"
+                                  >
+                                    Enviar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={uploading}
+                                    onClick={() => {
+                                      setSelectedFile(null)
+                                      if (previewUrl) {
+                                        URL.revokeObjectURL(previewUrl)
+                                        setPreviewUrl(null)
+                                      }
+                                    }}
+                                    className="px-3 py-2 bg-white border border-slate-200 text-xs font-black rounded-xl"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                              {uploading && (
+                                <div className="mt-3 w-full h-2 bg-white border border-slate-200 rounded-full overflow-hidden">
+                                  <div className="h-full bg-emerald-500" style={{ width: `${progress}%` }} />
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="mt-4">
+                            {docs.length === 0 ? (
+                              <p className="text-xs text-slate-500">Nenhum documento anexado.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {docs.map((d) => (
+                                  <div key={d.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                    <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                                      {d.mimeType.startsWith('image/') ? <ImageIcon className="w-5 h-5 text-slate-500" /> : <Download className="w-5 h-5 text-slate-500" />}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-bold text-slate-900 truncate">{d.originalName}</p>
+                                      <p className="text-[10px] font-bold text-slate-500">{formatSize(d.size)}</p>
+                                    </div>
+                                    <div className="ml-auto flex items-center gap-2">
+                                      <a
+                                        href={d.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-3 py-2 bg-white border border-slate-200 text-xs font-black rounded-xl flex items-center gap-1"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" /> Ver
+                                      </a>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteDoc(d.id)}
+                                        className="px-3 py-2 bg-red-600 text-white text-xs font-black rounded-xl flex items-center gap-1"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" /> Excluir
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

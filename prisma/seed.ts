@@ -79,7 +79,145 @@ async function main() {
     },
   })
 
-  console.log({ admin: admin.email, operador: operador.email, cliente: cliente.id, contrato: contrato.id })
+  await prisma.emprestimoHistorico.createMany({
+    data: [
+      {
+        emprestimoId: contrato.id,
+        descricao: 'Contrato criado e enviado para acompanhamento.',
+        createdById: operador.id,
+      },
+      {
+        emprestimoId: contrato.id,
+        descricao: 'Cliente solicitou proposta de parcelamento.',
+        createdById: operador.id,
+      },
+    ],
+    skipDuplicates: true,
+  })
+
+  // Clientes adicionais com movimentações e status variados
+  const clientesSeed = [
+    { nome: 'Ana Silva', email: 'ana.silva@example.com', whatsapp: '11911112222', cidade: 'São Paulo', estado: 'SP' },
+    { nome: 'Bruno Costa', email: 'bruno.costa@example.com', whatsapp: '21922223333', cidade: 'Rio de Janeiro', estado: 'RJ' },
+    { nome: 'Carla Souza', email: 'carla.souza@example.com', whatsapp: '31933334444', cidade: 'Belo Horizonte', estado: 'MG' },
+    { nome: 'Diego Lima', email: 'diego.lima@example.com', whatsapp: '41944445555', cidade: 'Curitiba', estado: 'PR' },
+    { nome: 'Elisa Rocha', email: 'elisa.rocha@example.com', whatsapp: '51955556666', cidade: 'Porto Alegre', estado: 'RS' },
+  ]
+
+  const createdClients = []
+  for (const c of clientesSeed) {
+    const cli = await prisma.cliente.create({ data: c })
+    createdClients.push(cli)
+  }
+
+  // Empréstimos por cliente com diferentes status
+  const now = Date.now()
+
+  // 1) Ana - ABERTO
+  const ana = createdClients[0]
+  const emprestimoAna = await prisma.emprestimo.create({
+    data: {
+      clienteId: ana.id,
+      usuarioId: operador.id,
+      valor: 800,
+      jurosMes: 2.5,
+      vencimento: new Date(now + 10 * 24 * 60 * 60 * 1000),
+      status: 'ABERTO',
+    },
+  })
+  await prisma.emprestimoHistorico.createMany({
+    data: [
+      { emprestimoId: emprestimoAna.id, descricao: 'Contrato criado.', createdById: operador.id },
+      { emprestimoId: emprestimoAna.id, descricao: 'Primeiro contato realizado com o cliente.', createdById: operador.id },
+    ],
+  })
+
+  // 2) Bruno - NEGOCIACAO
+  const bruno = createdClients[1]
+  const emprestimoBruno = await prisma.emprestimo.create({
+    data: {
+      clienteId: bruno.id,
+      usuarioId: operador.id,
+      valor: 1500,
+      jurosMes: 3,
+      vencimento: new Date(now + 5 * 24 * 60 * 60 * 1000),
+      observacao: 'Em negociação de parcelamento em 3x.',
+      status: 'NEGOCIACAO',
+    },
+  })
+  await prisma.emprestimoHistorico.createMany({
+    data: [
+      { emprestimoId: emprestimoBruno.id, descricao: 'Contrato criado.', createdById: operador.id },
+      { emprestimoId: emprestimoBruno.id, descricao: 'Cliente solicitou parcelamento em 3x.', createdById: operador.id },
+      { emprestimoId: emprestimoBruno.id, descricao: 'Proposta enviada e aguardando confirmação.', createdById: operador.id },
+    ],
+  })
+
+  // 3) Carla - QUITADO
+  const carla = createdClients[2]
+  const emprestimoCarla = await prisma.emprestimo.create({
+    data: {
+      clienteId: carla.id,
+      usuarioId: operador.id,
+      valor: 600,
+      jurosMes: 1.5,
+      vencimento: new Date(now - 10 * 24 * 60 * 60 * 1000),
+      quitadoEm: new Date(now - 2 * 24 * 60 * 60 * 1000),
+      status: 'QUITADO',
+    },
+  })
+  await prisma.emprestimoHistorico.createMany({
+    data: [
+      { emprestimoId: emprestimoCarla.id, descricao: 'Contrato criado.', createdById: operador.id },
+      { emprestimoId: emprestimoCarla.id, descricao: 'Boleto enviado.', createdById: operador.id },
+      { emprestimoId: emprestimoCarla.id, descricao: 'Pagamento confirmado. Contrato quitado.', createdById: operador.id },
+    ],
+  })
+
+  // 4) Diego - CANCELADO
+  const diego = createdClients[3]
+  const emprestimoDiego = await prisma.emprestimo.create({
+    data: {
+      clienteId: diego.id,
+      usuarioId: operador.id,
+      valor: 950,
+      jurosMes: 2,
+      vencimento: new Date(now + 20 * 24 * 60 * 60 * 1000),
+      status: 'CANCELADO',
+    },
+  })
+  await prisma.emprestimoHistorico.createMany({
+    data: [
+      { emprestimoId: emprestimoDiego.id, descricao: 'Contrato criado.', createdById: operador.id },
+      { emprestimoId: emprestimoDiego.id, descricao: 'Cancelado por solicitação do cliente.', createdById: operador.id },
+    ],
+  })
+
+  // 5) Elisa - ABERTO com vencimento próximo
+  const elisa = createdClients[4]
+  const emprestimoElisa = await prisma.emprestimo.create({
+    data: {
+      clienteId: elisa.id,
+      usuarioId: operador.id,
+      valor: 2000,
+      jurosMes: 4,
+      vencimento: new Date(now + 2 * 24 * 60 * 60 * 1000),
+      status: 'ABERTO',
+    },
+  })
+  await prisma.emprestimoHistorico.createMany({
+    data: [
+      { emprestimoId: emprestimoElisa.id, descricao: 'Contrato criado.', createdById: operador.id },
+      { emprestimoId: emprestimoElisa.id, descricao: 'Lembrete de pagamento enviado via WhatsApp.', createdById: operador.id },
+    ],
+  })
+
+  console.log({
+    admin: admin.email,
+    operador: operador.email,
+    clientes: [cliente.id, ...createdClients.map((c) => c.id)],
+    contratos: [contrato.id, emprestimoAna.id, emprestimoBruno.id, emprestimoCarla.id, emprestimoDiego.id, emprestimoElisa.id],
+  })
 }
 
 main()

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { LayoutDashboard, Users, CreditCard, LogOut, ShieldCheck, UserCog, Menu, X, BarChart3, Settings } from 'lucide-react'
+import { LayoutDashboard, Users, CreditCard, LogOut, ShieldCheck, UserCog, BarChart3, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
@@ -53,36 +53,38 @@ export function Sidebar() {
     navItems.push({ id: 'users', label: 'Equipe', icon: UserCog, href: '/usuarios' })
   }
 
+  const mobileItems = [
+    ...navItems,
+    { id: 'profile', label: 'Perfil', icon: Settings, href: '/perfil' },
+  ]
+
   return (
     <>
-      {/* Mobile Menu Trigger */}
-      <div className="md:hidden fixed top-4 left-4 z-[60]">
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'}
-          className="p-2.5 bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-900/20 border border-white/10 backdrop-blur-xl"
-        >
-          {isOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
+      <div className="md:hidden fixed inset-x-0 bottom-0 z-[60] bg-slate-950/95 backdrop-blur border-t border-white/10">
+        <nav className={`mx-auto max-w-[1600px] px-3 py-2 grid gap-1 ${mobileItems.length >= 6 ? 'grid-cols-6' : 'grid-cols-5'}`}>
+          {mobileItems.map((item) => {
+            const Icon = item.icon
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                aria-current={isActive ? 'page' : undefined}
+                className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-2 transition-all ${
+                  isActive ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/5'
+                }`}
+              >
+                <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-300'}`} />
+                <span className="text-[10px] font-black leading-none">{item.label}</span>
+              </Link>
+            )
+          })}
+        </nav>
       </div>
-
-      {/* Mobile Overlay */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[50] md:hidden"
-            onClick={() => setIsOpen(false)}
-          />
-        )}
-      </AnimatePresence>
 
       {/* Sidebar Content */}
       <aside
-        className={`fixed inset-y-0 left-0 z-[55] w-72 bg-slate-950 text-white flex flex-col transform transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] md:relative md:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`hidden md:flex fixed inset-y-0 left-0 z-[55] w-72 bg-slate-950 text-white flex-col transform transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] md:relative md:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* Brand Header */}
         <div className="p-8">

@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChargeModal } from './ChargeModal';
 
-type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO';
+type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
 
 interface Loan {
   id: string;
@@ -45,6 +45,7 @@ const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any
   ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-100', icon: Clock },
   NEGOCIACAO: { label: 'Em Negociação', color: 'text-amber-600', bg: 'bg-amber-50', icon: AlertIcon },
   QUITADO: { label: 'Quitado', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: CheckCircle2 },
+  CANCELADO: { label: 'Cancelado', color: 'text-red-600', bg: 'bg-red-50', icon: X },
 };
 
 export function Loans({ initialLoans, clientes, colaboradores, userRole, analytics }: LoansProps) {
@@ -182,7 +183,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
   const normalizeDigits = (value: string) => value.replace(/\D/g, '')
   const contactFilter = (loan: Loan) => {
     const hasWhatsapp = normalizeDigits(loan.cliente.whatsapp || '').length >= 10
-    const notPaid = loan.status !== 'QUITADO'
+    const notPaid = loan.status !== 'QUITADO' && loan.status !== 'CANCELADO'
     return hasWhatsapp && notPaid
   }
 
@@ -226,6 +227,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         toast.success('Cobrança registrada com sucesso!');
       }
       setIsModalOpen(false);
+      router.refresh()
     } catch (error) {
       toast.error('Erro ao salvar cobrança.');
     } finally {
@@ -241,6 +243,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
           try {
             await deleteEmprestimo(id);
             toast.success('Excluído com sucesso!');
+            router.refresh()
           } catch (err) {
             toast.error('Erro ao excluir.');
           }
@@ -310,6 +313,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                       <option value="ABERTO">Abertos</option>
                       <option value="NEGOCIACAO">Negociação</option>
                       <option value="QUITADO">Quitados</option>
+                      <option value="CANCELADO">Cancelados</option>
                     </select>
                   </div>
 
@@ -422,6 +426,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                           <option value="ABERTO">Abertos</option>
                           <option value="NEGOCIACAO">Negociação</option>
                           <option value="QUITADO">Quitados</option>
+                          <option value="CANCELADO">Cancelados</option>
                         </select>
                       </div>
 
@@ -528,6 +533,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
           {filteredLoans.map((loan, idx) => {
             const config = statusConfig[loan.status];
             const StatusIcon = config.icon;
+            const borderColor =
+              loan.status === 'CANCELADO' ? 'border-red-500' : loan.status === 'QUITADO' ? 'border-emerald-500' : 'border-amber-400'
             
             return (
               <motion.div
@@ -536,7 +543,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.2, delay: idx * 0.03 }}
                 key={loan.id}
-                className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                className={`bg-white rounded-3xl border-2 ${borderColor} shadow-sm hover:shadow-md transition-all group overflow-hidden`}
               >
                 {/* Card Header */}
                 <div className="p-6 border-b border-slate-50 flex items-center justify-between">
@@ -591,7 +598,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                 </div>
 
                 {/* Card Footer */}
-                <div className="px-6 py-4 bg-slate-50 flex items-center justify-between">
+                <div className="px-6 py-4 bg-slate-50 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
                       {loan.usuario?.nome?.[0] || '?'}
@@ -600,23 +607,36 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                       {loan.usuario?.nome || 'Não atribuído'}
                     </span>
                   </div>
-                  
-                  {contactFilter(loan) ? (
-                    <a 
-                      href={generateWhatsAppLink(loan)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white text-xs font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-sm"
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(`/emprestimos/${loan.id}`)
+                      }}
+                      className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl hover:bg-slate-100 transition-colors"
                     >
-                      <Send className="w-3.5 h-3.5" />
-                      Cobrar
-                    </a>
-                  ) : (
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                      Sem WhatsApp
-                    </span>
-                  )}
+                      Ver Detalhes
+                    </button>
+
+                    {contactFilter(loan) ? (
+                      <a
+                        href={generateWhatsAppLink(loan)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white text-xs font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-sm"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        Cobrar
+                      </a>
+                    ) : (
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                        Sem WhatsApp
+                      </span>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             );
