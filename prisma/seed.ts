@@ -92,7 +92,6 @@ async function main() {
         createdById: operador.id,
       },
     ],
-    skipDuplicates: true,
   })
 
   // Clientes adicionais com movimentações e status variados
