@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
-import { Calendar, DollarSign, Search, User, X } from 'lucide-react'
+import { Calendar, Search, User, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 type ChargeFormData = {
@@ -11,7 +11,6 @@ type ChargeFormData = {
   jurosMes: number
   vencimento: string
   observacao: string
-  quitadoEm: string
 }
 
 export function ChargeModal({
@@ -29,7 +28,7 @@ export function ChargeModal({
 }: {
   open: boolean
   title: string
-  clientes: { id: string; nome: string }[]
+  clientes: { id: string; nome: string; email?: string | null; whatsapp?: string | null }[]
   colaboradores: { id: string; nome: string }[]
   userRole: 'ADMIN' | 'OPERADOR'
   editing: boolean
@@ -43,10 +42,22 @@ export function ChargeModal({
   const filteredClientes = useMemo(() => {
     const q = clientQuery.trim().toLowerCase()
     if (q === '') return clientes
-    return clientes.filter((c) => c.nome.toLowerCase().includes(q))
+    const qDigits = q.replace(/\D/g, '')
+    return clientes.filter((c) => {
+      const nameOk = c.nome.toLowerCase().includes(q)
+      const emailOk = (c.email ?? '').toLowerCase().includes(q)
+      const whatsOk = qDigits ? (c.whatsapp ?? '').replace(/\D/g, '').includes(qDigits) : false
+      return nameOk || emailOk || whatsOk
+    })
   }, [clientes, clientQuery])
 
   const disableSubmit = loading || formData.clienteId.trim() === '' || !Number.isFinite(formData.valor) || formData.valor <= 0
+  const formatBRL = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(value) ? value : 0)
+  const parseBRL = (value: string) => {
+    const digits = value.replace(/\D/g, '')
+    const cents = digits ? Number(digits) : 0
+    return cents / 100
+  }
 
   return (
     <AnimatePresence>
@@ -147,21 +158,18 @@ export function ChargeModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Valor (R$)</label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <input
-                        type="number"
-                        step="0.01"
-                        required
-                        value={Number.isFinite(formData.valor) ? formData.valor : 0}
-                        onChange={(e) => {
-                          const next = e.target.value === '' ? 0 : Number(e.target.value)
-                          setFormData((p) => ({ ...p, valor: Number.isFinite(next) ? next : 0 }))
-                        }}
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
-                        placeholder="0,00"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      value={formatBRL(formData.valor)}
+                      onChange={(e) => {
+                        const next = parseBRL(e.target.value)
+                        setFormData((p) => ({ ...p, valor: Number.isFinite(next) ? next : 0 }))
+                      }}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 text-left outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
+                      placeholder="R$ 0,00"
+                    />
                   </div>
 
                   <div className="space-y-1.5">
@@ -189,19 +197,6 @@ export function ChargeModal({
                         type="date"
                         value={formData.vencimento}
                         onChange={(e) => setFormData((p) => ({ ...p, vencimento: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Quitado em</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <input
-                        type="date"
-                        value={formData.quitadoEm}
-                        onChange={(e) => setFormData((p) => ({ ...p, quitadoEm: e.target.value }))}
                         className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
                       />
                     </div>

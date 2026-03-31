@@ -41,6 +41,14 @@ export async function createUsuario(data: { nome: string; email: string; senha: 
 
 export async function updateUsuario(id: string, data: { nome: string; email: string; senha?: string; role: 'ADMIN' | 'OPERADOR' }) {
   await checkAdmin()
+  const session = await auth()
+  const autorId = (session?.user as any)?.id as string | undefined
+
+  const before = await prisma.usuario.findUnique({
+    where: { id },
+    select: { id: true, nome: true, email: true, role: true },
+  })
+
   const updateData: any = {
     nome: data.nome,
     email: data.email,
@@ -55,6 +63,19 @@ export async function updateUsuario(id: string, data: { nome: string; email: str
     where: { id },
     data: updateData,
   })
+
+  if (before && autorId && before.role !== usuario.role) {
+    await prisma.permissaoAuditoria.create({
+      data: {
+        alvoId: usuario.id,
+        autorId,
+        tipo: 'ROLE',
+        antes: before.role,
+        depois: usuario.role,
+      },
+    })
+  }
+
   revalidatePath('/usuarios')
   return { id: usuario.id, nome: usuario.nome, email: usuario.email, role: usuario.role }
 }

@@ -65,3 +65,57 @@ export async function setEmprestimoStatus(input: {
 
   return { emprestimo: updated, evento }
 }
+
+export async function addPagamentoParcial(input: { emprestimoId: string; valor: number }) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const valor = Number(input.valor)
+  if (!Number.isFinite(valor) || valor <= 0) throw new Error('Valor inválido')
+
+  const createdById = (session.user as any).id as string | undefined
+
+  const emprestimoAtual = await prisma.emprestimo.findUnique({ where: { id: input.emprestimoId } })
+  if (!emprestimoAtual) throw new Error('Contrato não encontrado')
+  if (emprestimoAtual.status === 'CANCELADO') throw new Error('Contrato cancelado')
+
+  const novoPago = (emprestimoAtual.valorPago || 0) + valor
+  const quitado = novoPago >= emprestimoAtual.valor
+
+  const updated = await prisma.emprestimo.update({
+    where: { id: input.emprestimoId },
+    data: {
+      valorPago: novoPago,
+      status: quitado ? 'QUITADO' : emprestimoAtual.status,
+      quitadoEm: quitado ? new Date() : emprestimoAtual.quitadoEm,
+    },
+  })
+
+  const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+  const eventoPagamento = await prisma.emprestimoHistorico.create({
+    data: {
+      emprestimoId: input.emprestimoId,
+      descricao: `Pagamento parcial registrado: ${fmt.format(valor)}.`,
+      createdById,
+    },
+    include: { createdBy: { select: { nome: true } } },
+  })
+
+  let eventoQuitacao: typeof eventoPagamento | null = null
+  if (quitado && emprestimoAtual.status !== 'QUITADO') {
+    eventoQuitacao = await prisma.emprestimoHistorico.create({
+      data: {
+        emprestimoId: input.emprestimoId,
+        descricao: 'Contrato quitado automaticamente após pagamento parcial.',
+        createdById,
+      },
+      include: { createdBy: { select: { nome: true } } },
+    })
+  }
+
+  revalidatePath(`/emprestimos/${input.emprestimoId}`)
+  revalidatePath('/emprestimos')
+  revalidatePath('/dashboard')
+
+  return { emprestimo: updated, eventos: [eventoPagamento, ...(eventoQuitacao ? [eventoQuitacao] : [])] }
+}

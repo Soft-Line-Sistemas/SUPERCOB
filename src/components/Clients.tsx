@@ -22,6 +22,7 @@ interface Cliente {
   instagram?: string | null;
   cep?: string | null;
   endereco?: string | null;
+  numeroEndereco?: number | null;
   complemento?: string | null;
   bairro?: string | null;
   cidade?: string | null;
@@ -71,6 +72,7 @@ export function Clients({ initialClients }: ClientsProps) {
     instagram: '',
     cep: '',
     endereco: '',
+    numeroEndereco: '',
     complemento: '',
     bairro: '',
     cidade: '',
@@ -201,6 +203,7 @@ export function Clients({ initialClients }: ClientsProps) {
         instagram: client.instagram ?? '',
         cep: formatCEP(client.cep ?? ''),
         endereco: client.endereco ?? '',
+        numeroEndereco: client.numeroEndereco == null ? '' : String(client.numeroEndereco),
         complemento: client.complemento ?? '',
         bairro: client.bairro ?? '',
         cidade: client.cidade ?? '',
@@ -233,6 +236,7 @@ export function Clients({ initialClients }: ClientsProps) {
         instagram: '',
         cep: '',
         endereco: '',
+        numeroEndereco: '',
         complemento: '',
         bairro: '',
         cidade: '',
@@ -300,6 +304,32 @@ export function Clients({ initialClients }: ClientsProps) {
         return
       }
 
+      const cepDigits = normalizeDigits(formData.cep)
+      if (cepDigits.length !== 8) {
+        toast.error('Informe um CEP válido.')
+        setActiveTab('endereco')
+        return
+      }
+
+      if (formData.endereco.trim() === '') {
+        toast.error('Informe o endereço.')
+        setActiveTab('endereco')
+        return
+      }
+
+      const numeroEndereco = parseIntOrNull(formData.numeroEndereco)
+      if (!numeroEndereco || numeroEndereco <= 0) {
+        toast.error('Informe o número do endereço.')
+        setActiveTab('endereco')
+        return
+      }
+
+      if (formData.bairro.trim() === '' || formData.cidade.trim() === '' || formData.estado.trim() === '') {
+        toast.error('Preencha bairro, cidade e estado.')
+        setActiveTab('endereco')
+        return
+      }
+
       const payload = {
         nome: formData.nome.trim(),
         indicacao: normalizeOptional(formData.indicacao),
@@ -314,6 +344,7 @@ export function Clients({ initialClients }: ClientsProps) {
         instagram: normalizeOptional(formData.instagram),
         cep: normalizeOptional(formData.cep),
         endereco: normalizeOptional(formData.endereco),
+        numeroEndereco: parseIntOrNull(formData.numeroEndereco),
         complemento: normalizeOptional(formData.complemento),
         bairro: normalizeOptional(formData.bairro),
         cidade: normalizeOptional(formData.cidade),
@@ -393,6 +424,108 @@ export function Clients({ initialClients }: ClientsProps) {
     }
     if (isModalOpen) loadDocs()
   }, [isModalOpen, editingClient?.id, activeTab])
+
+  const tabOrder: Array<'basico' | 'documentos' | 'endereco' | 'profissao' | 'emergencia'> = ['basico', 'documentos', 'endereco', 'profissao', 'emergencia']
+  const getNextTab = (tab: typeof tabOrder[number]) => {
+    const idx = tabOrder.indexOf(tab)
+    return idx >= 0 && idx < tabOrder.length - 1 ? tabOrder[idx + 1] : null
+  }
+
+  const isTabComplete = (tab: typeof tabOrder[number]) => {
+    if (tab === 'basico') {
+      return formData.nome.trim() !== '' && normalizeDigits(formData.whatsapp).length >= 10
+    }
+    if (tab === 'documentos') {
+      const cpfDigits = normalizeDigits(formData.cpf)
+      if (cpfDigits.length !== 11 || !isValidCPF(cpfDigits)) return false
+      const cpfDuplicado = initialClients.some((c) => {
+        const other = normalizeDigits(c.cpf ?? '')
+        if (editingClient && c.id === editingClient.id) return false
+        return other !== '' && other === cpfDigits
+      })
+      return !cpfDuplicado
+    }
+    if (tab === 'endereco') {
+      const cepDigits = normalizeDigits(formData.cep)
+      const numero = Number.parseInt(formData.numeroEndereco.trim(), 10)
+      return cepDigits.length === 8 && formData.endereco.trim() !== '' && Number.isFinite(numero) && numero > 0 && formData.bairro.trim() !== '' && formData.cidade.trim() !== '' && formData.estado.trim() !== ''
+    }
+    return true
+  }
+
+  const validateTabBeforeNavigate = (tab: typeof tabOrder[number]) => {
+    if (tab === 'basico') {
+      if (formData.nome.trim() === '') {
+        toast.error('Informe o nome do cliente.')
+        return false
+      }
+      if (normalizeDigits(formData.whatsapp).length < 10) {
+        toast.error('Informe um WhatsApp válido.')
+        return false
+      }
+      return true
+    }
+    if (tab === 'documentos') {
+      const cpfDigits = normalizeDigits(formData.cpf)
+      if (cpfDigits.length !== 11 || !isValidCPF(cpfDigits)) {
+        toast.error('CPF inválido.')
+        return false
+      }
+      const cpfDuplicado = initialClients.some((c) => {
+        const other = normalizeDigits(c.cpf ?? '')
+        if (editingClient && c.id === editingClient.id) return false
+        return other !== '' && other === cpfDigits
+      })
+      if (cpfDuplicado) {
+        toast.error('Já existe um cliente cadastrado com esse CPF.')
+        return false
+      }
+      return true
+    }
+    if (tab === 'endereco') {
+      const cepDigits = normalizeDigits(formData.cep)
+      if (cepDigits.length !== 8) {
+        toast.error('Informe um CEP válido.')
+        return false
+      }
+      if (formData.endereco.trim() === '') {
+        toast.error('Informe o endereço.')
+        return false
+      }
+      const numero = Number.parseInt(formData.numeroEndereco.trim(), 10)
+      if (!Number.isFinite(numero) || numero <= 0) {
+        toast.error('Informe o número do endereço.')
+        return false
+      }
+      if (formData.bairro.trim() === '' || formData.cidade.trim() === '' || formData.estado.trim() === '') {
+        toast.error('Preencha bairro, cidade e estado.')
+        return false
+      }
+      return true
+    }
+    return true
+  }
+
+  const handleTabNavigate = (target: typeof tabOrder[number]) => {
+    const currentIdx = tabOrder.indexOf(activeTab)
+    const targetIdx = tabOrder.indexOf(target)
+    if (targetIdx <= currentIdx) {
+      setActiveTab(target)
+      return
+    }
+    const ok = validateTabBeforeNavigate(activeTab)
+    if (!ok) return
+    setActiveTab(target)
+  }
+
+  useEffect(() => {
+    if (!isModalOpen) return
+    const next = getNextTab(activeTab)
+    if (!next) return
+    if (!isTabComplete(activeTab)) return
+    const t = window.setTimeout(() => setActiveTab(next), 350)
+    return () => window.clearTimeout(t)
+  }, [activeTab, formData, isModalOpen])
 
   const validateFile = (file: File) => {
     const allowed = ['image/jpeg', 'image/png', 'application/pdf']
@@ -623,35 +756,35 @@ export function Clients({ initialClients }: ClientsProps) {
                 <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-2xl border border-slate-200 mb-6">
                   <button
                     type="button"
-                    onClick={() => setActiveTab('basico')}
+                    onClick={() => handleTabNavigate('basico')}
                     className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${activeTab === 'basico' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     Básico
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('documentos')}
+                    onClick={() => handleTabNavigate('documentos')}
                     className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${activeTab === 'documentos' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     Documentos
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('endereco')}
+                    onClick={() => handleTabNavigate('endereco')}
                     className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${activeTab === 'endereco' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     Endereço
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('profissao')}
+                    onClick={() => handleTabNavigate('profissao')}
                     className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${activeTab === 'profissao' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     Profissão
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('emergencia')}
+                    onClick={() => handleTabNavigate('emergencia')}
                     className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${activeTab === 'emergencia' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     Emergência
@@ -1056,15 +1189,29 @@ export function Clients({ initialClients }: ClientsProps) {
                           {loadingCep ? 'Buscando...' : 'Buscar'}
                         </button>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Endereço</label>
-                        <input
-                          type="text"
-                          value={formData.endereco}
-                          onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="Rua, número"
-                        />
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-bold text-slate-700 ml-1">Endereço</label>
+                          <input
+                            type="text"
+                            value={formData.endereco}
+                            onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                            placeholder="Rua, avenida..."
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-bold text-slate-700 ml-1">Número</label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            required
+                            value={formData.numeroEndereco}
+                            onChange={(e) => setFormData({ ...formData, numeroEndereco: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                            placeholder="000"
+                          />
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">

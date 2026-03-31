@@ -46,10 +46,10 @@ export function Sidebar() {
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, href: '/dashboard' },
     { id: 'clients', label: 'Clientes', icon: Users, href: '/clientes' },
     { id: 'loans', label: 'Contratos', icon: CreditCard, href: '/emprestimos' },
-    { id: 'reports', label: 'Relatórios', icon: BarChart3, href: '/reports' },
   ]
 
   if (session?.user?.role === 'ADMIN') {
+    navItems.push({ id: 'reports', label: 'Relatórios', icon: BarChart3, href: '/reports' })
     navItems.push({ id: 'users', label: 'Equipe', icon: UserCog, href: '/usuarios' })
   }
 

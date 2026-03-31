@@ -31,6 +31,7 @@ export default async function ReportsPage({
 }) {
   const session = await auth()
   if (!session?.user) redirect('/login')
+  if ((session.user as any).role !== 'ADMIN') redirect('/dashboard')
 
   const params = await searchParams
   const startDateParam = Array.isArray(params.startDate) ? params.startDate[0] : params.startDate
@@ -110,13 +111,15 @@ export default async function ReportsPage({
   let jurosAno = 0
   for (const loan of loans) {
     const interest = loan.status !== 'QUITADO' ? expectedInterest(loan.valor, loan.jurosMes) : 0
-    if (loan.createdAt >= monthStart && loan.createdAt < nextMonthStart) jurosMes += interest
-    if (loan.createdAt >= yearStart && loan.createdAt < nextYearStart) jurosAno += interest
+    const refDate = loan.vencimento ?? loan.createdAt
+    if (refDate >= monthStart && refDate < nextMonthStart) jurosMes += interest
+    if (refDate >= yearStart && refDate < nextYearStart) jurosAno += interest
   }
 
   const byMonth = new Map<string, { date: Date; juros: number }>()
   for (const loan of loans) {
-    const d = new Date(loan.createdAt.getFullYear(), loan.createdAt.getMonth(), 1, 0, 0, 0, 0)
+    const base = loan.vencimento ?? loan.createdAt
+    const d = new Date(base.getFullYear(), base.getMonth(), 1, 0, 0, 0, 0)
     const key = `${d.getFullYear()}-${d.getMonth()}`
     const current = byMonth.get(key) ?? { date: d, juros: 0 }
     const interest = loan.status !== 'QUITADO' ? expectedInterest(loan.valor, loan.jurosMes) : 0

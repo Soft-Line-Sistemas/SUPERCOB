@@ -69,3 +69,29 @@ Para testes rápidos sem banco de dados, utilize as seguintes credenciais:
 - **Admin**: `admin@supercob.com.br` / `admin123`
 - **Operador**: `op@supercob.com.br` / `op123456`
 
+## 🧾 Alterações Recentes
+
+- **Contratos**
+  - Cards com borda por status e botão "Ver Detalhes".
+  - Página de detalhes `/emprestimos/[id]` com histórico em timeline, adicionar detalhes e ações Cancelar/Concluir.
+  - Pagamento parcial disponível apenas na tela de detalhes, com atualização automática do status e histórico.
+
+- **Clientes**
+  - Campo obrigatório "Número" no endereço (validação no fluxo de cadastro/edição).
+  - Navegação por abas com validação progressiva e avanço automático quando a aba estiver completa.
+  - Campo de anexos (JPEG/PNG/PDF, até 5MB) com preview, progresso, visualização e exclusão.
+
+- **Relatórios**
+  - Acesso restrito a usuários administradores.
+  - Evolução de juros mensal baseada na data de vencimento (quando disponível).
+
+- **UI/UX**
+  - Ajustes de contraste no modo escuro para melhorar legibilidade.
+  - Em telas pequenas, menu principal como barra fixa no rodapé.
+
+- **Auditoria**
+  - Registro de auditoria para alterações de role de usuários.
+
+- **Seed**
+  - Base de dados com pelo menos 5 clientes e cobranças com status e movimentações variadas.
+

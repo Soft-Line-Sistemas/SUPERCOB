@@ -85,7 +85,7 @@ export default async function EmprestimosPage({
       </Card> */}
       <Loans 
         initialLoans={emprestimos as any} 
-        clientes={clientes.map(c => ({ id: c.id, nome: c.nome }))} 
+        clientes={clientes.map(c => ({ id: c.id, nome: c.nome, email: c.email, whatsapp: c.whatsapp }))} 
         colaboradores={colaboradores}
         userRole={(session?.user as any)?.role}
         analytics={analytics}

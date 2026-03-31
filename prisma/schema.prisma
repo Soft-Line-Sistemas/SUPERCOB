@@ -32,6 +32,10 @@ model Usuario {
   mensagensRecebidas  MensagemInterna[] @relation("MensagensRecebidas")
 
   emprestimoHistoricos EmprestimoHistorico[] @relation("EmprestimoHistoricoCreatedBy")
+
+  permissaoAuditorias PermissaoAuditoria[] @relation("PermissaoAuditoriaAlvo")
+
+  permissaoAuditoriasAutor PermissaoAuditoria[] @relation("PermissaoAuditoriaAutor")
 }
 
 model MensagemInterna {
@@ -68,6 +72,7 @@ model Cliente {
   
   // Endereço Residencial
   endereco             String?
+  numeroEndereco       Int?
   complemento          String?
   bairro               String?
   cidade               String?
@@ -100,6 +105,7 @@ model Emprestimo {
   usuario     Usuario?  @relation(fields: [usuarioId], references: [id])
   
   valor       Float
+  valorPago   Float     @default(0)
   jurosMes    Float     @default(0)
   vencimento  DateTime?
   quitadoEm   DateTime?
@@ -137,5 +143,19 @@ model ClienteDocumento {
   fileName     String   @unique
   mimeType     String   @db.VarChar(100)
   size         Int
+  createdAt    DateTime @default(now())
+}
+
+model PermissaoAuditoria {
+  id           String   @id @default(cuid())
+  alvoId       String
+  alvo         Usuario  @relation("PermissaoAuditoriaAlvo", fields: [alvoId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  autorId      String
+  autor        Usuario  @relation("PermissaoAuditoriaAutor", fields: [autorId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  tipo         String   @db.VarChar(50)
+  antes        String?  @db.Text
+  depois       String?  @db.Text
+
   createdAt    DateTime @default(now())
 }

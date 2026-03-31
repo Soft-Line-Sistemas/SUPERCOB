@@ -19,6 +19,7 @@ type ClienteInput = {
   instagram?: string | null
   cep?: string | null
   endereco?: string | null
+  numeroEndereco?: number | null
   complemento?: string | null
   bairro?: string | null
   cidade?: string | null

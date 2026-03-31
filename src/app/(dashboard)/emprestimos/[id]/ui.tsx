@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { ArrowLeft, Calendar, CheckCircle2, Clock, XCircle } from 'lucide-react'
-import { addEmprestimoHistorico, setEmprestimoStatus } from './actions'
+import { addEmprestimoHistorico, addPagamentoParcial, setEmprestimoStatus } from './actions'
 
 type EmprestimoStatus = string
 
@@ -20,6 +20,7 @@ type HistoricoEvento = {
 type EmprestimoDetalhes = {
   id: string
   valor: number
+  valorPago?: number | null
   jurosMes?: number | null
   vencimento?: Date | string | null
   quitadoEm?: Date | string | null
@@ -72,14 +73,24 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
   const [status, setStatus] = useState<EmprestimoStatus>(emprestimo.status)
   const [quitadoEm, setQuitadoEm] = useState<Date | string | null | undefined>(emprestimo.quitadoEm)
   const [eventos, setEventos] = useState<HistoricoEvento[]>(emprestimo.historico ?? [])
+  const [valorPago, setValorPago] = useState<number>(Number(emprestimo.valorPago ?? 0) || 0)
   const [descricao, setDescricao] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  const [pagamento, setPagamento] = useState('')
 
   const statusLabel = useMemo(() => getStatusLabel(status), [status])
   const borderClass = useMemo(() => getBorderClass(status), [status])
 
   const canCancel = status !== 'CANCELADO' && status !== 'QUITADO'
   const canFinish = status !== 'QUITADO' && status !== 'CANCELADO'
+
+  const formatBRL = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(value) ? value : 0)
+  const parseBRL = (value: string) => {
+    const digits = value.replace(/\D/g, '')
+    const cents = digits ? Number(digits) : 0
+    return cents / 100
+  }
+  const restante = Math.max(emprestimo.valor - valorPago, 0)
 
   const handleAddEvento = () => {
     const value = descricao.trim()
@@ -114,6 +125,28 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
         router.refresh()
       } catch (e) {
         toast.error('Erro ao atualizar status.')
+      }
+    })
+  }
+
+  const handlePagamentoParcial = () => {
+    const v = parseBRL(pagamento)
+    if (!Number.isFinite(v) || v <= 0) {
+      toast.error('Informe um valor válido.')
+      return
+    }
+    startTransition(async () => {
+      try {
+        const { emprestimo: updated, eventos: novosEventos } = await addPagamentoParcial({ emprestimoId: emprestimo.id, valor: v })
+        setValorPago(Number((updated as any).valorPago ?? 0) || 0)
+        setStatus((updated as any).status)
+        setQuitadoEm((updated as any).quitadoEm)
+        setEventos((prev) => [...prev, ...(novosEventos as any)].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)))
+        setPagamento('')
+        toast.success('Pagamento registrado.')
+        router.refresh()
+      } catch {
+        toast.error('Erro ao registrar pagamento.')
       }
     })
   }
@@ -186,6 +219,14 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
             <p className="text-2xl font-black text-slate-900 mt-1">{formatCurrency(emprestimo.valor)}</p>
           </div>
           <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Pago</p>
+            <p className="text-2xl font-black text-slate-900 mt-1">{formatBRL(valorPago)}</p>
+          </div>
+          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Restante</p>
+            <p className="text-2xl font-black text-slate-900 mt-1">{formatBRL(restante)}</p>
+          </div>
+          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Juros ao mês</p>
             <p className="text-base font-black text-slate-900 mt-1">{(emprestimo.jurosMes ?? 0).toString().replace('.', ',')}%</p>
           </div>
@@ -223,36 +264,66 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100">
-            <p className="text-sm font-black text-slate-900">Adicionar detalhe</p>
-            <p className="text-xs text-slate-500 mt-1">Campo obrigatório com salvamento imediato.</p>
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100">
+              <p className="text-sm font-black text-slate-900">Pagamento parcial</p>
+              <p className="text-xs text-slate-500 mt-1">Disponível apenas na tela de detalhes.</p>
+            </div>
+            <div className="p-6 space-y-3">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={pagamento}
+                onChange={(e) => setPagamento(formatBRL(parseBRL(e.target.value)))}
+                className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                placeholder="R$ 0,00"
+                disabled={isPending || status === 'CANCELADO' || status === 'QUITADO'}
+              />
+              <button
+                type="button"
+                disabled={isPending || status === 'CANCELADO' || status === 'QUITADO'}
+                onClick={handlePagamentoParcial}
+                className={`w-full px-5 py-3 rounded-2xl font-black text-sm transition-all ${
+                  isPending || status === 'CANCELADO' || status === 'QUITADO' ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
+                }`}
+              >
+                Registrar pagamento
+              </button>
+            </div>
           </div>
-          <div className="p-6 space-y-3">
-            <textarea
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              onBlur={() => {
-                if (descricao.trim() !== '') setErro(null)
-              }}
-              className={`w-full min-h-[140px] resize-none px-4 py-3 rounded-2xl border text-sm outline-none transition-all ${
-                erro ? 'border-red-400 focus:ring-4 focus:ring-red-500/10' : 'border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500'
-              }`}
-              placeholder="Descreva a ação, proposta, retorno do cliente, etc."
-              disabled={isPending}
-            />
-            {erro ? <p className="text-xs font-bold text-red-600">{erro}</p> : null}
 
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={handleAddEvento}
-              className={`w-full px-5 py-3 rounded-2xl font-black text-sm transition-all ${
-                isPending ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-95'
-              }`}
-            >
-              Adicionar ao histórico
-            </button>
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100">
+              <p className="text-sm font-black text-slate-900">Adicionar detalhe</p>
+              <p className="text-xs text-slate-500 mt-1">Campo obrigatório com salvamento imediato.</p>
+            </div>
+            <div className="p-6 space-y-3">
+              <textarea
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                onBlur={() => {
+                  if (descricao.trim() !== '') setErro(null)
+                }}
+                className={`w-full min-h-[140px] resize-none px-4 py-3 rounded-2xl border text-sm outline-none transition-all ${
+                  erro ? 'border-red-400 focus:ring-4 focus:ring-red-500/10' : 'border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500'
+                }`}
+                placeholder="Descreva a ação, proposta, retorno do cliente, etc."
+                disabled={isPending}
+              />
+              {erro ? <p className="text-xs font-bold text-red-600">{erro}</p> : null}
+
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={handleAddEvento}
+                className={`w-full px-5 py-3 rounded-2xl font-black text-sm transition-all ${
+                  isPending ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-95'
+                }`}
+              >
+                Adicionar ao histórico
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -305,4 +376,3 @@ function Timeline({ eventos }: { eventos: HistoricoEvento[] }) {
     </div>
   )
 }
-

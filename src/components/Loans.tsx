@@ -35,7 +35,7 @@ interface Loan {
 
 interface LoansProps {
   initialLoans: Loan[];
-  clientes: { id: string; nome: string }[];
+  clientes: { id: string; nome: string; email?: string | null; whatsapp?: string | null }[];
   colaboradores: { id: string; nome: string }[];
   userRole: 'ADMIN' | 'OPERADOR';
   analytics?: { id: string; nome: string; aberto: number; negociacao: number; quitado: number; total: number }[];
@@ -88,7 +88,6 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     jurosMes: shouldAutoOpenNew && initialJurosMes ? Number(initialJurosMes) || 0 : 0,
     vencimento: shouldAutoOpenNew ? initialVencimento : '',
     observacao: shouldAutoOpenNew ? initialObservacao : '',
-    quitadoEm: '',
   }));
 
   const formatCurrency = (value: number) => {
@@ -158,7 +157,6 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         jurosMes: (loan.jurosMes as any) ?? 0,
         vencimento: loan.vencimento ? format(new Date(loan.vencimento), 'yyyy-MM-dd') : '',
         observacao: loan.observacao || '',
-        quitadoEm: loan.quitadoEm ? format(new Date(loan.quitadoEm), 'yyyy-MM-dd') : '',
       });
     } else {
       setEditingLoan(null);
@@ -169,7 +167,6 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         jurosMes: !prefillConsumed && initialJurosMes ? Number(initialJurosMes) || 0 : 0,
         vencimento: !prefillConsumed ? initialVencimento : '',
         observacao: !prefillConsumed ? initialObservacao : '',
-        quitadoEm: '',
       });
     }
     setIsModalOpen(true);
@@ -207,6 +204,30 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     return true
   })
 
+  const draftClient = shouldAutoOpenNew ? clientes.find((c) => c.id === initialClienteId) : undefined
+  const draftLoan: Loan | null = draftClient
+    ? {
+        id: `draft-${draftClient.id}`,
+        clienteId: draftClient.id,
+        usuarioId: null,
+        cliente: {
+          nome: draftClient.nome,
+          email: (draftClient.email as any) || '',
+          whatsapp: (draftClient.whatsapp as any) || '',
+        },
+        usuario: null,
+        valor: !prefillConsumed && initialValor ? Number(initialValor) || 0 : 0,
+        jurosMes: !prefillConsumed && initialJurosMes ? Number(initialJurosMes) || 0 : 0,
+        vencimento: !prefillConsumed && initialVencimento ? (new Date(initialVencimento) as any) : null,
+        status: 'ABERTO',
+        observacao: !prefillConsumed ? initialObservacao : '',
+        quitadoEm: null,
+        createdAt: new Date(),
+      }
+    : null
+
+  const loansToRender = draftLoan ? [draftLoan, ...filteredLoans] : filteredLoans
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -216,7 +237,6 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         usuarioId: formData.usuarioId || null,
         jurosMes: Number(formData.jurosMes) || 0,
         vencimento: formData.vencimento ? new Date(formData.vencimento) : null,
-        quitadoEm: formData.quitadoEm ? new Date(formData.quitadoEm) : null,
       };
 
       if (editingLoan) {
@@ -530,11 +550,12 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
       {/* Grid Layout for Loans */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         <AnimatePresence mode='popLayout'>
-          {filteredLoans.map((loan, idx) => {
+          {loansToRender.map((loan, idx) => {
             const config = statusConfig[loan.status];
             const StatusIcon = config.icon;
             const borderColor =
               loan.status === 'CANCELADO' ? 'border-red-500' : loan.status === 'QUITADO' ? 'border-emerald-500' : 'border-amber-400'
+            const isDraft = loan.id.startsWith('draft-')
             
             return (
               <motion.div
@@ -549,32 +570,40 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                 <div className="p-6 border-b border-slate-50 flex items-center justify-between">
                   <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${config.bg} ${config.color} text-[10px] font-bold uppercase tracking-wider`}>
                     <StatusIcon className="w-3.5 h-3.5" />
-                    {config.label}
+                    {isDraft ? 'Cobrança inicial' : config.label}
                   </div>
-                  <div className="flex gap-1">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleOpenModal(loan)
-                      }}
-                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDelete(loan.id)
-                      }}
-                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                  {!isDraft && (
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenModal(loan)
+                        }}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(loan.id)
+                        }}
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Card Content */}
-                <div className="p-6 cursor-pointer" onClick={() => handleOpenDetail(loan)}>
+                <div
+                  className="p-6 cursor-pointer"
+                  onClick={() => {
+                    if (isDraft) handleOpenModal()
+                    else handleOpenDetail(loan)
+                  }}
+                >
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 font-bold border border-slate-100">
                       {loan.cliente.nome.charAt(0)}
@@ -609,16 +638,29 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        router.push(`/emprestimos/${loan.id}`)
-                      }}
-                      className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl hover:bg-slate-100 transition-colors"
-                    >
-                      Ver Detalhes
-                    </button>
+                    {isDraft ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenModal()
+                        }}
+                        className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl hover:bg-slate-100 transition-colors"
+                      >
+                        Continuar
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/emprestimos/${loan.id}`)
+                        }}
+                        className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl hover:bg-slate-100 transition-colors"
+                      >
+                        Ver Detalhes
+                      </button>
+                    )}
 
                     {contactFilter(loan) ? (
                       <a
