@@ -9,6 +9,7 @@ export async function getEmprestimos(filters?: {
   q?: string;
   startDate?: string;
   endDate?: string;
+  usuarioId?: string;
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -17,6 +18,11 @@ export async function getEmprestimos(filters?: {
   const userId = (session.user as any).id
 
   const where: any = role === 'OPERADOR' ? { usuarioId: userId } : {}
+
+  if (role !== 'OPERADOR' && filters?.usuarioId && filters.usuarioId.trim() !== '') {
+    if (filters.usuarioId === '__UNASSIGNED__') where.usuarioId = null
+    else where.usuarioId = filters.usuarioId
+  }
 
   if (filters?.status) {
     where.status = filters.status
@@ -43,13 +49,27 @@ export async function getEmprestimos(filters?: {
 
   return await prisma.emprestimo.findMany({
     where,
-    include: {
-      cliente: true,
+    select: {
+      id: true,
+      clienteId: true,
+      usuarioId: true,
+      valor: true,
+      valorPago: true,
+      jurosMes: true,
+      vencimento: true,
+      quitadoEm: true,
+      status: true,
+      observacao: true,
+      createdAt: true,
+      cliente: {
+        select: { nome: true, email: true, whatsapp: true },
+      },
       usuario: {
-        select: { nome: true }
-      }
+        select: { nome: true },
+      },
     },
     orderBy: { createdAt: 'desc' },
+    take: 200,
   })
 }
 

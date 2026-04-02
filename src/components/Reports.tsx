@@ -13,6 +13,7 @@ type ReportsFilters = {
   status: string
   cidade: string
   estado: string
+  usuarioId?: string
 }
 
 type ReportsData = {
@@ -28,7 +29,15 @@ type ReportsData = {
   defaultersData: { id: string; client: string; city: string; daysLate: number; amount: number }[]
 }
 
-export function Reports({ report, filters }: { report: ReportsData; filters: ReportsFilters }) {
+export function Reports({
+  report,
+  filters,
+  colaboradores,
+}: {
+  report: ReportsData
+  filters: ReportsFilters
+  colaboradores: { id: string; nome: string }[]
+}) {
   const router = useRouter()
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [draftFilters, setDraftFilters] = useState<ReportsFilters>(filters)
@@ -75,6 +84,7 @@ export function Reports({ report, filters }: { report: ReportsData; filters: Rep
     if (draftFilters.status) sp.set('status', draftFilters.status)
     if (draftFilters.cidade) sp.set('cidade', draftFilters.cidade)
     if (draftFilters.estado) sp.set('estado', draftFilters.estado)
+    if (draftFilters.usuarioId) sp.set('usuarioId', draftFilters.usuarioId)
     router.push(`/reports?${sp.toString()}`)
     setIsFiltersOpen(false)
   }
@@ -399,6 +409,24 @@ export function Reports({ report, filters }: { report: ReportsData; filters: Rep
                       <option value="ABERTO">Aberto</option>
                       <option value="NEGOCIACAO">Negociação</option>
                       <option value="QUITADO">Quitado</option>
+                      <option value="CANCELADO">Cancelado</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-slate-700 ml-1">Consultor</label>
+                    <select
+                      value={draftFilters.usuarioId ?? ''}
+                      onChange={(e) => setDraftFilters({ ...draftFilters, usuarioId: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                    >
+                      <option value="">Todos</option>
+                      <option value="__UNASSIGNED__">Sem atribuição</option>
+                      {colaboradores.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nome}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -429,7 +457,7 @@ export function Reports({ report, filters }: { report: ReportsData; filters: Rep
                 <div className="pt-6 flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setDraftFilters({ startDate: '', endDate: '', status: '', cidade: '', estado: '' })}
+                    onClick={() => setDraftFilters({ startDate: '', endDate: '', status: '', cidade: '', estado: '', usuarioId: '' })}
                     className="flex-1 py-3.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
                   >
                     Limpar

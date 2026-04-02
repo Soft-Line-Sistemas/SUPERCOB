@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -10,16 +10,45 @@ export async function GET() {
   const userId = (session.user as any).id
 
   try {
-    const clientes = role === 'OPERADOR'
-      ? await prisma.cliente.findMany({
-          where: { loans: { some: { usuarioId: userId } } },
-          orderBy: { createdAt: 'desc' },
-        })
-      : await prisma.cliente.findMany({
-          orderBy: { createdAt: 'desc' },
-        })
+    const { searchParams } = new URL(req.url)
+    const q = (searchParams.get('q') ?? '').trim()
+    const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1)
+    const limit = Math.min(50, Math.max(5, Number(searchParams.get('limit') ?? '30') || 30))
+    const skip = (page - 1) * limit
 
-    return NextResponse.json(clientes)
+    const baseWhere: any = role === 'OPERADOR' ? { loans: { some: { usuarioId: userId } } } : {}
+
+    const where: any = { ...baseWhere }
+    if (q !== '') {
+      const digits = q.replace(/\D/g, '')
+      where.OR = [
+        { nome: { contains: q } },
+        { email: { contains: q } },
+        digits ? { whatsapp: { startsWith: digits } } : undefined,
+        digits ? { cpf: { startsWith: digits } } : undefined,
+      ].filter(Boolean)
+    }
+
+    const orderBy = q !== '' ? { nome: 'asc' as const } : { createdAt: 'desc' as const }
+
+    const [items, total] = await Promise.all([
+      prisma.cliente.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        select: { id: true, nome: true, email: true, whatsapp: true, cpf: true, createdAt: true },
+      }),
+      prisma.cliente.count({ where }),
+    ])
+
+    return NextResponse.json({
+      items,
+      page,
+      limit,
+      total,
+      hasMore: skip + items.length < total,
+    })
   } catch (error) {
     return NextResponse.json({ error: 'Erro ao buscar clientes' }, { status: 500 })
   }

@@ -18,25 +18,16 @@ interface DashboardProps {
     };
     statusDistribution: { name: string; value: number; color: string }[];
     agentData: { name: string; value: number; color: string }[];
+    evolutionData: { name: string; valor: number }[];
   };
 }
-
-// Mock data for the area chart (Evolution)
-const evolutionData = [
-  { name: 'Jan', valor: 4000 },
-  { name: 'Fev', valor: 3000 },
-  { name: 'Mar', valor: 5000 },
-  { name: 'Abr', valor: 4500 },
-  { name: 'Mai', valor: 6000 },
-  { name: 'Jun', valor: 8500 },
-];
 
 export function Dashboard({ data }: DashboardProps) {
   const [period, setPeriod] = useState<'hoje' | 'semana' | 'mes'>('hoje')
   const [currentData, setCurrentData] = useState(data)
   const [isPending, startTransition] = useTransition()
 
-  const { metrics, statusDistribution, agentData } = currentData;
+  const { metrics, statusDistribution, agentData, evolutionData } = currentData;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -173,7 +164,7 @@ export function Dashboard({ data }: DashboardProps) {
             </div>
             <div className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
               <Calendar className="w-4 h-4" />
-              Jan - Jun 2026
+              Últimos 6 meses
             </div>
           </div>
           <div className="h-80 w-full">
@@ -201,6 +192,7 @@ export function Dashboard({ data }: DashboardProps) {
                 />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value: any) => [formatCurrency(value as number), 'Recuperado']}
                 />
                 <Area 
                   type="monotone" 
@@ -302,7 +294,7 @@ function ModernMetricCard({ title, value, trend, trendUp, icon: Icon, color }: a
     <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-4">
         <div className={`p-2.5 rounded-2xl bg-opacity-10 ${colorMap[color].split(' ')[0]} ${colorMap[color].split(' ')[1]}`}>
-          <Icon className="w-6 h-6" />
+          <Icon className="w-6 h-6  text-white" />
         </div>
         <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold ${trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
           {trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}

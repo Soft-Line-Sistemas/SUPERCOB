@@ -1,6 +1,5 @@
 import { Loans } from '@/components/Loans'
 import { getEmprestimos } from './actions'
-import { getClientes } from '../clientes/actions'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 // import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card'
@@ -19,33 +18,55 @@ export default async function EmprestimosPage({
     q: params.q as string,
     startDate: params.startDate as string,
     endDate: params.endDate as string,
+    usuarioId: params.usuarioId as string,
   }
   const clienteId = params.clienteId as string
+  const role = (session?.user as any)?.role as 'ADMIN' | 'OPERADOR'
+  const userId = (session?.user as any)?.id as string
+
+  const includeIds = clienteId ? [clienteId] : []
 
   const [emprestimos, clientes, colaboradores] = await Promise.all([
     getEmprestimos(filters),
-    getClientes({ includeIds: clienteId ? [clienteId] : [] }),
+    prisma.cliente.findMany({
+      where:
+        role === 'OPERADOR'
+          ? {
+              OR: [
+                { loans: { some: { usuarioId: userId } } },
+                ...(includeIds.length ? [{ id: { in: includeIds } }] : []),
+              ],
+            }
+          : includeIds.length
+            ? { id: { in: includeIds } }
+            : undefined,
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+      select: { id: true, nome: true, email: true, whatsapp: true },
+    }),
     prisma.usuario.findMany({
       where: { role: 'OPERADOR' },
-      select: { id: true, nome: true }
-    })
+      select: { id: true, nome: true },
+      orderBy: { nome: 'asc' },
+    }),
   ])
-
-  const role = (session?.user as any)?.role
   let analytics: any[] = []
   if (role === 'ADMIN') {
-    const where: any = {}
-    if (filters.status) where.status = filters.status
+    const analyticsWhere: any = {}
+    if (filters.status) analyticsWhere.status = filters.status
     if (filters.startDate && filters.endDate) {
-      where.createdAt = {
+      analyticsWhere.createdAt = {
         gte: new Date(filters.startDate),
         lte: new Date(filters.endDate),
       }
     }
+    if (filters.usuarioId) {
+      analyticsWhere.usuarioId = filters.usuarioId === '__UNASSIGNED__' ? null : filters.usuarioId
+    }
 
     const grouped = await prisma.emprestimo.groupBy({
       by: ['usuarioId', 'status'],
-      where: { ...where, usuarioId: { not: null } },
+      where: { ...analyticsWhere, usuarioId: { not: null } },
       _count: { _all: true },
     })
 

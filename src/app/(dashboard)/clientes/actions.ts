@@ -36,6 +36,25 @@ type ClienteInput = {
   contatoEmergencia3?: string | null
 }
 
+function validateClienteInput(data: ClienteInput) {
+  if (!data.nome || data.nome.trim() === '') throw new Error('Nome é obrigatório')
+
+  const whatsapp = (data.whatsapp ?? '').replace(/\D/g, '')
+  if (whatsapp.length < 10) throw new Error('WhatsApp inválido')
+
+  const cpf = (data.cpf ?? '').replace(/\D/g, '')
+  if (cpf.length !== 11) throw new Error('CPF inválido')
+
+  const cep = (data.cep ?? '').replace(/\D/g, '')
+  if (cep.length !== 8) throw new Error('CEP inválido')
+
+  if (!data.endereco || data.endereco.trim() === '') throw new Error('Endereço é obrigatório')
+  if (!data.numeroEndereco || data.numeroEndereco <= 0) throw new Error('Número do endereço é obrigatório')
+  if (!data.bairro || data.bairro.trim() === '') throw new Error('Bairro é obrigatório')
+  if (!data.cidade || data.cidade.trim() === '') throw new Error('Cidade é obrigatória')
+  if (!data.estado || data.estado.trim() === '') throw new Error('Estado é obrigatório')
+}
+
 export async function getClientes(options?: { includeIds?: string[] }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -70,6 +89,8 @@ export async function createCliente(data: ClienteInput) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
+  validateClienteInput(data)
+
   const cliente = await prisma.cliente.create({
     data,
   })
@@ -80,6 +101,8 @@ export async function createCliente(data: ClienteInput) {
 export async function updateCliente(id: string, data: ClienteInput) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
+
+  validateClienteInput(data)
 
   const cliente = await prisma.cliente.update({
     where: { id },

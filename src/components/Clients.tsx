@@ -57,7 +57,7 @@ export function Clients({ initialClients }: ClientsProps) {
     cpf: '',
   });
   const [editingClient, setEditingClient] = useState<Cliente | null>(null);
-  const [activeTab, setActiveTab] = useState<'basico' | 'documentos' | 'endereco' | 'profissao' | 'emergencia'>('basico');
+  const [activeTab, setActiveTab] = useState<'basico' | 'identificacao' | 'endereco' | 'profissao' | 'emergencia' | 'cobranca' | 'anexos'>('basico');
   const [formData, setFormData] = useState({
     nome: '',
     indicacao: '',
@@ -105,6 +105,7 @@ export function Clients({ initialClients }: ClientsProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const inputFileRef = useRef<HTMLInputElement>(null)
   const inputCameraRef = useRef<HTMLInputElement>(null)
+  const lastAutoAdvanceRef = useRef<string | null>(null)
 
   const normalizeDigits = (value: string) => value.replace(/\D/g, '');
   const normalizeText = (value: string) => value.trim().toLowerCase();
@@ -289,7 +290,7 @@ export function Clients({ initialClients }: ClientsProps) {
       const cpfDigits = normalizeDigits(formData.cpf)
       if (cpfDigits.length !== 11 || !isValidCPF(cpfDigits)) {
         toast.error('CPF inválido.')
-        setActiveTab('documentos')
+        setActiveTab('identificacao')
         return
       }
 
@@ -300,7 +301,7 @@ export function Clients({ initialClients }: ClientsProps) {
       })
       if (cpfDuplicado) {
         toast.error('Já existe um cliente cadastrado com esse CPF.')
-        setActiveTab('documentos')
+        setActiveTab('identificacao')
         return
       }
 
@@ -328,6 +329,20 @@ export function Clients({ initialClients }: ClientsProps) {
         toast.error('Preencha bairro, cidade e estado.')
         setActiveTab('endereco')
         return
+      }
+
+      if (chargeData.enabled) {
+        const valor = Number(chargeData.valor)
+        if (!Number.isFinite(valor) || valor <= 0) {
+          toast.error('Informe um valor válido para a cobrança inicial.')
+          setActiveTab('cobranca')
+          return
+        }
+        if (chargeData.vencimento.trim() === '') {
+          toast.error('Informe o vencimento da cobrança inicial.')
+          setActiveTab('cobranca')
+          return
+        }
       }
 
       const payload = {
@@ -364,9 +379,27 @@ export function Clients({ initialClients }: ClientsProps) {
       if (editingClient) {
         await updateCliente(editingClient.id, payload);
         toast.success('Cliente atualizado com sucesso!');
+        if (selectedFile) {
+          await uploadDocumento(editingClient.id, selectedFile)
+        }
+        setIsModalOpen(false);
+        if (chargeData.enabled) {
+          const q = new URLSearchParams()
+          q.set('clienteId', editingClient.id)
+          q.set('novo', '1')
+          if (chargeData.valor.trim() !== '') q.set('valor', chargeData.valor.trim())
+          if (chargeData.jurosMes.trim() !== '') q.set('jurosMes', chargeData.jurosMes.trim())
+          if (chargeData.vencimento.trim() !== '') q.set('vencimento', chargeData.vencimento.trim())
+          if (chargeData.observacao.trim() !== '') q.set('observacao', chargeData.observacao.trim())
+          router.push(`/emprestimos?${q.toString()}`)
+          return;
+        }
       } else {
         const created = await createCliente(payload);
         toast.success('Cliente cadastrado com sucesso!');
+        if (selectedFile) {
+          await uploadDocumento(created.id, selectedFile)
+        }
         setIsModalOpen(false);
         if (chargeData.enabled) {
           const q = new URLSearchParams()
@@ -379,16 +412,7 @@ export function Clients({ initialClients }: ClientsProps) {
           router.push(`/emprestimos?${q.toString()}`)
           return;
         }
-
-        toast.message('Deseja lançar uma cobrança agora?', {
-          action: {
-            label: 'Adicionar cobrança',
-            onClick: () => router.push(`/emprestimos?clienteId=${created.id}&novo=1`),
-          },
-        })
-        return;
       }
-      setIsModalOpen(false);
     } catch (error) {
       toast.error('Erro ao salvar cliente. Tente novamente.');
     } finally {
@@ -414,7 +438,7 @@ export function Clients({ initialClients }: ClientsProps) {
 
   useEffect(() => {
     const loadDocs = async () => {
-      if (!editingClient || activeTab !== 'documentos') return
+      if (!editingClient || activeTab !== 'anexos') return
       try {
         const res = await fetch(`/api/clientes/${editingClient.id}/documentos`)
         if (!res.ok) return
@@ -425,17 +449,21 @@ export function Clients({ initialClients }: ClientsProps) {
     if (isModalOpen) loadDocs()
   }, [isModalOpen, editingClient?.id, activeTab])
 
-  const tabOrder: Array<'basico' | 'documentos' | 'endereco' | 'profissao' | 'emergencia'> = ['basico', 'documentos', 'endereco', 'profissao', 'emergencia']
-  const getNextTab = (tab: typeof tabOrder[number]) => {
-    const idx = tabOrder.indexOf(tab)
-    return idx >= 0 && idx < tabOrder.length - 1 ? tabOrder[idx + 1] : null
+  type FlowTab = 'basico' | 'identificacao' | 'endereco' | 'profissao' | 'emergencia'
+  type Tab = FlowTab | 'cobranca' | 'anexos'
+  const flowOrder: FlowTab[] = ['basico', 'identificacao', 'endereco', 'profissao', 'emergencia']
+  const tabOrder: Tab[] = [...flowOrder, 'cobranca', 'anexos']
+
+  const getNextFlowTab = (tab: FlowTab) => {
+    const idx = flowOrder.indexOf(tab)
+    return idx >= 0 && idx < flowOrder.length - 1 ? flowOrder[idx + 1] : null
   }
 
-  const isTabComplete = (tab: typeof tabOrder[number]) => {
+  const isTabComplete = (tab: Tab) => {
     if (tab === 'basico') {
       return formData.nome.trim() !== '' && normalizeDigits(formData.whatsapp).length >= 10
     }
-    if (tab === 'documentos') {
+    if (tab === 'identificacao') {
       const cpfDigits = normalizeDigits(formData.cpf)
       if (cpfDigits.length !== 11 || !isValidCPF(cpfDigits)) return false
       const cpfDuplicado = initialClients.some((c) => {
@@ -450,10 +478,17 @@ export function Clients({ initialClients }: ClientsProps) {
       const numero = Number.parseInt(formData.numeroEndereco.trim(), 10)
       return cepDigits.length === 8 && formData.endereco.trim() !== '' && Number.isFinite(numero) && numero > 0 && formData.bairro.trim() !== '' && formData.cidade.trim() !== '' && formData.estado.trim() !== ''
     }
+    if (tab === 'cobranca') {
+      if (!chargeData.enabled) return true
+      const valor = Number(chargeData.valor)
+      if (!Number.isFinite(valor) || valor <= 0) return false
+      if (chargeData.vencimento.trim() === '') return false
+      return true
+    }
     return true
   }
 
-  const validateTabBeforeNavigate = (tab: typeof tabOrder[number]) => {
+  const validateTabBeforeNavigate = (tab: Tab) => {
     if (tab === 'basico') {
       if (formData.nome.trim() === '') {
         toast.error('Informe o nome do cliente.')
@@ -465,7 +500,7 @@ export function Clients({ initialClients }: ClientsProps) {
       }
       return true
     }
-    if (tab === 'documentos') {
+    if (tab === 'identificacao') {
       const cpfDigits = normalizeDigits(formData.cpf)
       if (cpfDigits.length !== 11 || !isValidCPF(cpfDigits)) {
         toast.error('CPF inválido.')
@@ -503,27 +538,51 @@ export function Clients({ initialClients }: ClientsProps) {
       }
       return true
     }
+    if (tab === 'cobranca') {
+      if (!chargeData.enabled) return true
+      const valor = Number(chargeData.valor)
+      if (!Number.isFinite(valor) || valor <= 0) {
+        toast.error('Informe um valor válido para a cobrança inicial.')
+        return false
+      }
+      if (chargeData.vencimento.trim() === '') {
+        toast.error('Informe o vencimento da cobrança inicial.')
+        return false
+      }
+      return true
+    }
     return true
   }
 
-  const handleTabNavigate = (target: typeof tabOrder[number]) => {
+  const handleTabNavigate = (target: Tab) => {
     const currentIdx = tabOrder.indexOf(activeTab)
     const targetIdx = tabOrder.indexOf(target)
     if (targetIdx <= currentIdx) {
       setActiveTab(target)
       return
     }
-    const ok = validateTabBeforeNavigate(activeTab)
-    if (!ok) return
+    for (let i = 0; i < targetIdx; i++) {
+      const tab = tabOrder[i]
+      const ok = validateTabBeforeNavigate(tab)
+      if (!ok) {
+        setActiveTab(tab)
+        return
+      }
+    }
     setActiveTab(target)
   }
 
   useEffect(() => {
     if (!isModalOpen) return
-    const next = getNextTab(activeTab)
+    if (!flowOrder.includes(activeTab as any)) return
+    const next = getNextFlowTab(activeTab as FlowTab)
     if (!next) return
-    if (!isTabComplete(activeTab)) return
-    const t = window.setTimeout(() => setActiveTab(next), 350)
+    if (!isTabComplete(activeTab as any)) return
+    if (lastAutoAdvanceRef.current === activeTab) return
+    const t = window.setTimeout(() => {
+      lastAutoAdvanceRef.current = activeTab
+      setActiveTab(next)
+    }, 350)
     return () => window.clearTimeout(t)
   }, [activeTab, formData, isModalOpen])
 
@@ -552,14 +611,13 @@ export function Clients({ initialClients }: ClientsProps) {
     }
   }
 
-  const handleUpload = async () => {
-    if (!editingClient || !selectedFile || uploading) return
+  const uploadDocumento = async (clienteId: string, file: File) => {
     setUploading(true)
     setProgress(0)
     try {
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest()
-        xhr.open('POST', `/api/clientes/${editingClient.id}/documentos`)
+        xhr.open('POST', `/api/clientes/${clienteId}/documentos`)
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100))
         }
@@ -570,10 +628,10 @@ export function Clients({ initialClients }: ClientsProps) {
           }
         }
         const form = new FormData()
-        form.append('file', selectedFile)
+        form.append('file', file)
         xhr.send(form)
       })
-      const res = await fetch(`/api/clientes/${editingClient.id}/documentos`)
+      const res = await fetch(`/api/clientes/${clienteId}/documentos`)
       if (res.ok) {
         const data = await res.json()
         setDocs(data)
@@ -590,6 +648,11 @@ export function Clients({ initialClients }: ClientsProps) {
     } finally {
       setUploading(false)
     }
+  }
+
+  const handleUpload = async () => {
+    if (!editingClient || !selectedFile || uploading) return
+    await uploadDocumento(editingClient.id, selectedFile)
   }
 
   const handleDeleteDoc = async (docId: string) => {
@@ -753,41 +816,55 @@ export function Clients({ initialClients }: ClientsProps) {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-2xl border border-slate-200 mb-6">
+                <div className="flex flex-wrap gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200 mb-6">
                   <button
                     type="button"
                     onClick={() => handleTabNavigate('basico')}
-                    className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${activeTab === 'basico' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'basico' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     Básico
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleTabNavigate('documentos')}
-                    className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${activeTab === 'documentos' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => handleTabNavigate('identificacao')}
+                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'identificacao' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
-                    Documentos
+                    Identificação
                   </button>
                   <button
                     type="button"
                     onClick={() => handleTabNavigate('endereco')}
-                    className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${activeTab === 'endereco' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'endereco' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     Endereço
                   </button>
                   <button
                     type="button"
                     onClick={() => handleTabNavigate('profissao')}
-                    className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${activeTab === 'profissao' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'profissao' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     Profissão
                   </button>
                   <button
                     type="button"
                     onClick={() => handleTabNavigate('emergencia')}
-                    className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${activeTab === 'emergencia' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'emergencia' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     Emergência
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTabNavigate('cobranca')}
+                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'cobranca' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    Cobrança
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTabNavigate('anexos')}
+                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'anexos' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    Anexos
                   </button>
                 </div>
                 
@@ -860,76 +937,10 @@ export function Clients({ initialClients }: ClientsProps) {
                           placeholder="@perfil"
                         />
                       </div>
-
-                      {!editingClient && (
-                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-black text-slate-900">Cobrança inicial</p>
-                              <p className="text-xs text-slate-500">Opcional: já abrir a cobrança após cadastrar.</p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setChargeData((p) => ({ ...p, enabled: !p.enabled }))}
-                              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                                chargeData.enabled ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-700'
-                              }`}
-                            >
-                              {chargeData.enabled ? 'Ativado' : 'Desativado'}
-                            </button>
-                          </div>
-
-                          {chargeData.enabled && (
-                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="space-y-1.5">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Valor (R$)</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={chargeData.valor}
-                                  onChange={(e) => setChargeData((p) => ({ ...p, valor: e.target.value }))}
-                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
-                                  placeholder="0,00"
-                                />
-                              </div>
-                              <div className="space-y-1.5">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Juros ao mês (%)</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={chargeData.jurosMes}
-                                  onChange={(e) => setChargeData((p) => ({ ...p, jurosMes: e.target.value }))}
-                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
-                                  placeholder="0"
-                                />
-                              </div>
-                              <div className="space-y-1.5">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Vencimento</label>
-                                <input
-                                  type="date"
-                                  value={chargeData.vencimento}
-                                  onChange={(e) => setChargeData((p) => ({ ...p, vencimento: e.target.value }))}
-                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
-                                />
-                              </div>
-                              <div className="space-y-1.5 sm:col-span-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Observação</label>
-                                <input
-                                  type="text"
-                                  value={chargeData.observacao}
-                                  onChange={(e) => setChargeData((p) => ({ ...p, observacao: e.target.value }))}
-                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
-                                  placeholder="Opcional"
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   )}
 
-                  {activeTab === 'documentos' && (
+                  {activeTab === 'identificacao' && (
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
@@ -999,130 +1010,200 @@ export function Clients({ initialClients }: ClientsProps) {
                           />
                         </div>
                       </div>
+                    </div>
+                  )}
 
-                      <div className="pt-2">
-                        <div className="p-4 rounded-2xl border border-slate-200 bg-white">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-bold text-slate-900">Anexos de Documentos</p>
-                            {!editingClient && <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Disponível após salvar</span>}
+                  {activeTab === 'cobranca' && (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-black text-slate-900">Cobrança inicial</p>
+                            <p className="text-xs text-slate-500">Opcional: criar uma cobrança vinculada ao cliente.</p>
                           </div>
-                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <button
-                              type="button"
-                              disabled={!editingClient}
-                              onClick={() => inputFileRef.current?.click()}
-                              className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white text-sm font-black rounded-2xl disabled:opacity-50"
-                            >
-                              <ImageIcon className="w-4 h-4" /> Selecionar Arquivo
-                            </button>
-                            <button
-                              type="button"
-                              disabled={!editingClient}
-                              onClick={() => inputCameraRef.current?.click()}
-                              className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white text-sm font-black rounded-2xl disabled:opacity-50"
-                            >
-                              <Camera className="w-4 h-4" /> Capturar Foto
-                            </button>
-                            <input
-                              ref={inputFileRef}
-                              type="file"
-                              accept="image/jpeg,image/png,application/pdf"
-                              className="hidden"
-                              onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-                            />
-                            <input
-                              ref={inputCameraRef}
-                              type="file"
-                              accept="image/*"
-                              capture="environment"
-                              className="hidden"
-                              onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-                            />
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setChargeData((p) => ({ ...p, enabled: !p.enabled }))}
+                            className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                              chargeData.enabled ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-700'
+                            }`}
+                          >
+                            {chargeData.enabled ? 'Ativado' : 'Desativado'}
+                          </button>
+                        </div>
 
-                          {selectedFile && (
-                            <div className="mt-3 p-3 rounded-xl border border-slate-200 bg-slate-50">
-                              <div className="flex items-center gap-3">
-                                {previewUrl ? (
-                                  <img src={previewUrl} alt="preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200" />
-                                ) : (
-                                  <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
-                                    <Download className="w-5 h-5 text-slate-400" />
-                                  </div>
-                                )}
-                                <div className="min-w-0">
-                                  <p className="text-sm font-bold text-slate-900 truncate">{selectedFile.name}</p>
-                                  <p className="text-xs text-slate-500">{formatSize(selectedFile.size)}</p>
-                                </div>
-                                <div className="ml-auto flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    disabled={uploading}
-                                    onClick={handleUpload}
-                                    className="px-4 py-2 bg-emerald-600 text-white text-xs font-black rounded-xl disabled:opacity-50"
-                                  >
-                                    Enviar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={uploading}
-                                    onClick={() => {
-                                      setSelectedFile(null)
-                                      if (previewUrl) {
-                                        URL.revokeObjectURL(previewUrl)
-                                        setPreviewUrl(null)
-                                      }
-                                    }}
-                                    className="px-3 py-2 bg-white border border-slate-200 text-xs font-black rounded-xl"
-                                  >
-                                    Cancelar
-                                  </button>
-                                </div>
-                              </div>
-                              {uploading && (
-                                <div className="mt-3 w-full h-2 bg-white border border-slate-200 rounded-full overflow-hidden">
-                                  <div className="h-full bg-emerald-500" style={{ width: `${progress}%` }} />
+                        {chargeData.enabled && (
+                          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Valor (R$)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={chargeData.valor}
+                                onChange={(e) => setChargeData((p) => ({ ...p, valor: e.target.value }))}
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
+                                placeholder="0,00"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Juros ao mês (%)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={chargeData.jurosMes}
+                                onChange={(e) => setChargeData((p) => ({ ...p, jurosMes: e.target.value }))}
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
+                                placeholder="0"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Vencimento</label>
+                              <input
+                                type="date"
+                                value={chargeData.vencimento}
+                                onChange={(e) => setChargeData((p) => ({ ...p, vencimento: e.target.value }))}
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
+                              />
+                            </div>
+                            <div className="space-y-1.5 sm:col-span-2">
+                              <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Observação</label>
+                              <input
+                                type="text"
+                                value={chargeData.observacao}
+                                onChange={(e) => setChargeData((p) => ({ ...p, observacao: e.target.value }))}
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
+                                placeholder="Opcional"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'anexos' && (
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-2xl border border-slate-200 bg-white">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-bold text-slate-900">Anexos de Documentos</p>
+                          {!editingClient && <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Pode anexar agora e enviar ao salvar</span>}
+                        </div>
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => inputFileRef.current?.click()}
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white text-sm font-black rounded-2xl"
+                          >
+                            <ImageIcon className="w-4 h-4" /> Selecionar Arquivo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => inputCameraRef.current?.click()}
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white text-sm font-black rounded-2xl"
+                          >
+                            <Camera className="w-4 h-4" /> Capturar Foto
+                          </button>
+                          <input
+                            ref={inputFileRef}
+                            type="file"
+                            accept="image/jpeg,image/png,application/pdf"
+                            className="hidden"
+                            onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
+                          />
+                          <input
+                            ref={inputCameraRef}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
+                          />
+                        </div>
+
+                        {selectedFile && (
+                          <div className="mt-3 p-3 rounded-xl border border-slate-200 bg-slate-50">
+                            <div className="flex items-center gap-3">
+                              {previewUrl ? (
+                                <img src={previewUrl} alt="preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200" />
+                              ) : (
+                                <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                                  <Download className="w-5 h-5 text-slate-400" />
                                 </div>
                               )}
+                              <div className="min-w-0">
+                                <p className="text-sm font-bold text-slate-900 truncate">{selectedFile.name}</p>
+                                <p className="text-xs text-slate-500">{formatSize(selectedFile.size)}</p>
+                              </div>
+                              <div className="ml-auto flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={uploading || !editingClient}
+                                  onClick={handleUpload}
+                                  className="px-4 py-2 bg-emerald-600 text-white text-xs font-black rounded-xl disabled:opacity-50"
+                                >
+                                  Enviar
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={uploading}
+                                  onClick={() => {
+                                    setSelectedFile(null)
+                                    if (previewUrl) {
+                                      URL.revokeObjectURL(previewUrl)
+                                      setPreviewUrl(null)
+                                    }
+                                  }}
+                                  className="px-3 py-2 bg-white border border-slate-200 text-xs font-black rounded-xl"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
                             </div>
-                          )}
-
-                          <div className="mt-4">
-                            {docs.length === 0 ? (
-                              <p className="text-xs text-slate-500">Nenhum documento anexado.</p>
-                            ) : (
-                              <div className="space-y-2">
-                                {docs.map((d) => (
-                                  <div key={d.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                                    <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
-                                      {d.mimeType.startsWith('image/') ? <ImageIcon className="w-5 h-5 text-slate-500" /> : <Download className="w-5 h-5 text-slate-500" />}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-bold text-slate-900 truncate">{d.originalName}</p>
-                                      <p className="text-[10px] font-bold text-slate-500">{formatSize(d.size)}</p>
-                                    </div>
-                                    <div className="ml-auto flex items-center gap-2">
-                                      <a
-                                        href={d.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="px-3 py-2 bg-white border border-slate-200 text-xs font-black rounded-xl flex items-center gap-1"
-                                      >
-                                        <Eye className="w-3.5 h-3.5" /> Ver
-                                      </a>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDeleteDoc(d.id)}
-                                        className="px-3 py-2 bg-red-600 text-white text-xs font-black rounded-xl flex items-center gap-1"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" /> Excluir
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
+                            {uploading && (
+                              <div className="mt-3 w-full h-2 bg-white border border-slate-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500" style={{ width: `${progress}%` }} />
                               </div>
                             )}
                           </div>
+                        )}
+
+                        <div className="mt-4">
+                          {!editingClient ? (
+                            <p className="text-xs text-slate-500">Após salvar o cliente, os anexos enviados aparecerão aqui.</p>
+                          ) : docs.length === 0 ? (
+                            <p className="text-xs text-slate-500">Nenhum documento anexado.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {docs.map((d) => (
+                                <div key={d.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                  <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                                    {d.mimeType.startsWith('image/') ? <ImageIcon className="w-5 h-5 text-slate-500" /> : <Download className="w-5 h-5 text-slate-500" />}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-bold text-slate-900 truncate">{d.originalName}</p>
+                                    <p className="text-[10px] font-bold text-slate-500">{formatSize(d.size)}</p>
+                                  </div>
+                                  <div className="ml-auto flex items-center gap-2">
+                                    <a
+                                      href={d.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-3 py-2 bg-white border border-slate-200 text-xs font-black rounded-xl flex items-center gap-1"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" /> Ver
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteDoc(d.id)}
+                                      className="px-3 py-2 bg-red-600 text-white text-xs font-black rounded-xl flex items-center gap-1"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" /> Excluir
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

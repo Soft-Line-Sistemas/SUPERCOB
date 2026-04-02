@@ -5,6 +5,35 @@ import { auth } from '@/auth'
 
 type DashboardPeriod = 'hoje' | 'semana' | 'mes'
 
+function parseYMD(value: string) {
+  const v = value.trim()
+  const [y, m, d] = v.split('-').map((x) => Number(x))
+  return { y, m, d }
+}
+
+function addMonthsYMD(ymd: string, months: number) {
+  const p = parseYMD(ymd)
+  const base = new Date(Date.UTC(p.y, p.m - 1, p.d, 12, 0, 0, 0))
+  base.setUTCMonth(base.getUTCMonth() + months)
+  const yyyy = base.getUTCFullYear()
+  const mm = String(base.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(base.getUTCDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function saoPauloMonthStartUtc(ymd: string) {
+  const p = parseYMD(ymd)
+  return new Date(Date.UTC(p.y, p.m - 1, 1, 3, 0, 0, 0))
+}
+
+function monthKey(date: Date) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit' }).format(date)
+}
+
+function monthLabel(date: Date) {
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', month: 'short' }).format(date).replace('.', '')
+}
+
 function getRange(period: DashboardPeriod) {
   const now = new Date()
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
@@ -79,6 +108,41 @@ export async function getDashboardData(period: DashboardPeriod = 'hoje') {
     { name: 'Quitado', value: paidCount, color: '#22C55E' }, // Green-500
   ].filter(s => s.value > 0)
 
+  const todayYMD = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+  const endYMD = todayYMD
+  const startYMD = addMonthsYMD(`${endYMD.slice(0, 7)}-01`, -5)
+  const evoStart = saoPauloMonthStartUtc(startYMD)
+  const evoEnd = new Date(saoPauloMonthStartUtc(`${endYMD.slice(0, 7)}-01`))
+  evoEnd.setUTCMonth(evoEnd.getUTCMonth() + 1)
+
+  const paidLoansForEvolution = await prisma.emprestimo.findMany({
+    where: {
+      ...where,
+      status: 'QUITADO',
+      OR: [
+        { quitadoEm: { gte: evoStart, lt: evoEnd } },
+        { quitadoEm: null, createdAt: { gte: evoStart, lt: evoEnd } },
+      ],
+    },
+    select: { valor: true, valorPago: true, quitadoEm: true, createdAt: true },
+  })
+
+  const byMonth = new Map<string, number>()
+  for (const loan of paidLoansForEvolution) {
+    const ref = (loan.quitadoEm ?? loan.createdAt) as Date
+    const key = monthKey(ref)
+    const value = Number(loan.valorPago ?? loan.valor) || 0
+    byMonth.set(key, (byMonth.get(key) ?? 0) + value)
+  }
+
+  const evolutionData: { name: string; valor: number }[] = []
+  for (let i = 5; i >= 0; i--) {
+    const ymd = addMonthsYMD(`${endYMD.slice(0, 7)}-01`, -i)
+    const start = saoPauloMonthStartUtc(ymd)
+    const key = monthKey(start)
+    evolutionData.push({ name: monthLabel(start), valor: Math.round(byMonth.get(key) ?? 0) })
+  }
+
   // Agent segmentation for Admin
   let agentData: { name: string; value: number; color: string }[] = []
   if (role === 'ADMIN') {
@@ -119,5 +183,6 @@ export async function getDashboardData(period: DashboardPeriod = 'hoje') {
     },
     statusDistribution,
     agentData,
+    evolutionData,
   }
 }

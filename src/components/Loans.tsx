@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { Search, Filter, MessageCircle, Plus, X, Edit2, Trash2, Calendar, Info, MoreHorizontal, User, Clock, CheckCircle2, AlertCircle as AlertIcon, Send, Download } from 'lucide-react';
 import { createEmprestimo, updateEmprestimo, deleteEmprestimo } from '@/app/(dashboard)/emprestimos/actions';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -25,6 +24,7 @@ interface Loan {
     nome: string;
   } | null;
   valor: number;
+  valorPago?: number | null;
   jurosMes?: number;
   vencimento?: Date | null;
   status: LoanStatus;
@@ -77,7 +77,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     const q = initialSearch?.get('q') ?? ''
     const startDate = initialSearch?.get('startDate') ?? ''
     const endDate = initialSearch?.get('endDate') ?? ''
-    return { status, q, startDate, endDate }
+    const usuarioId = initialSearch?.get('usuarioId') ?? ''
+    return { status, q, startDate, endDate, usuarioId }
   })
   const [contactOnly, setContactOnly] = useState(() => (initialSearch?.get('contactOnly') ?? '') === '1')
 
@@ -94,9 +95,15 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
+  const getSaldo = (loan: Loan) => {
+    if (loan.status === 'CANCELADO') return 0
+    const pago = Number(loan.valorPago ?? 0) || 0
+    return Math.max((Number(loan.valor) || 0) - pago, 0)
+  }
+
   const formatDate = (date: Date | null | undefined) => {
     if (!date) return '-';
-    return format(new Date(date), "dd/MM/yyyy", { locale: ptBR });
+    return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
   };
 
   const generateWhatsAppLink = (loan: Loan) => {
@@ -104,6 +111,13 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     const phone = loan.cliente.whatsapp.replace(/\D/g, '');
     return `https://wa.me/55${phone}?text=${encodeURIComponent(text)}`;
   };
+
+  const parseDateInputToUTCNoon = (value: string) => {
+    if (!value) return null
+    const [y, m, d] = value.split('-').map((x) => Number(x))
+    if (!y || !m || !d) return null
+    return new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0))
+  }
 
   useEffect(() => {
     if (!shouldAutoOpenNew) return
@@ -139,6 +153,9 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
       next.delete('endDate')
     }
 
+    if (userRole === 'ADMIN' && filters.usuarioId) next.set('usuarioId', filters.usuarioId)
+    else next.delete('usuarioId')
+
     if (contactOnly) next.set('contactOnly', '1')
     else next.delete('contactOnly')
 
@@ -171,6 +188,20 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     }
     setIsModalOpen(true);
   };
+
+  const resetFilters = () => {
+    setFilters({ status: '', q: '', startDate: '', endDate: '', usuarioId: '' })
+    setContactOnly(false)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete('status')
+    next.delete('q')
+    next.delete('startDate')
+    next.delete('endDate')
+    next.delete('usuarioId')
+    next.delete('contactOnly')
+    router.replace(`${pathname}?${next.toString()}`)
+    router.refresh()
+  }
 
   const handleOpenDetail = (loan: Loan) => {
     setSelectedLoan(loan);
@@ -217,6 +248,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         },
         usuario: null,
         valor: !prefillConsumed && initialValor ? Number(initialValor) || 0 : 0,
+        valorPago: 0,
         jurosMes: !prefillConsumed && initialJurosMes ? Number(initialJurosMes) || 0 : 0,
         vencimento: !prefillConsumed && initialVencimento ? (new Date(initialVencimento) as any) : null,
         status: 'ABERTO',
@@ -236,7 +268,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         ...formData,
         usuarioId: formData.usuarioId || null,
         jurosMes: Number(formData.jurosMes) || 0,
-        vencimento: formData.vencimento ? new Date(formData.vencimento) : null,
+        vencimento: parseDateInputToUTCNoon(formData.vencimento),
       };
 
       if (editingLoan) {
@@ -321,7 +353,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
           {isFiltersOpen && (
             <>
               <div className="hidden md:block mt-3 bg-white border border-slate-200 rounded-3xl p-4 shadow-sm">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                <div className={`grid grid-cols-1 ${userRole === 'ADMIN' ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-3 items-end`}>
                   <div className="space-y-1.5">
                     <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Status</label>
                     <select
@@ -336,6 +368,25 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                       <option value="CANCELADO">Cancelados</option>
                     </select>
                   </div>
+
+                  {userRole === 'ADMIN' && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Consultor</label>
+                      <select
+                        value={filters.usuarioId}
+                        onChange={(e) => setFilters({ ...filters, usuarioId: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                      >
+                        <option value="">Todos</option>
+                        <option value="__UNASSIGNED__">Sem atribuição</option>
+                        {colaboradores.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">De</label>
@@ -373,16 +424,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                   <button
                     type="button"
                     onClick={() => {
-                      setFilters({ status: '', q: '', startDate: '', endDate: '' })
-                      setContactOnly(false)
-                      const next = new URLSearchParams(searchParams.toString())
-                      next.delete('status')
-                      next.delete('q')
-                      next.delete('startDate')
-                      next.delete('endDate')
-                      next.delete('contactOnly')
-                      router.replace(`${pathname}?${next.toString()}`)
-                      router.refresh()
+                      resetFilters()
                       setIsFiltersOpen(false)
                     }}
                     className="flex-1 py-3 px-4 bg-slate-100 text-slate-700 font-black rounded-2xl hover:bg-slate-200 transition-colors"
@@ -450,6 +492,25 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                         </select>
                       </div>
 
+                      {userRole === 'ADMIN' && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Consultor</label>
+                          <select
+                            value={filters.usuarioId}
+                            onChange={(e) => setFilters({ ...filters, usuarioId: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                          >
+                            <option value="">Todos</option>
+                            <option value="__UNASSIGNED__">Sem atribuição</option>
+                            {colaboradores.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.nome}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">De</label>
@@ -487,8 +548,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                       <button
                         type="button"
                         onClick={() => {
-                          setFilters({ status: '', q: '', startDate: '', endDate: '' })
-                          setContactOnly(false)
+                          resetFilters()
                         }}
                         className="py-3 px-4 bg-slate-100 text-slate-700 font-black rounded-2xl hover:bg-slate-200 transition-colors"
                       >
@@ -510,7 +570,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         </div>
       </div>
 
-      {userRole === 'ADMIN' && analytics && analytics.length > 0 && (
+      {userRole === 'ADMIN' && !filters.usuarioId && analytics && analytics.length > 0 && (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
             <div>
@@ -610,6 +670,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-slate-900 truncate">{loan.cliente.nome}</h3>
+                      <p className="text-xs font-black text-slate-700 truncate">Saldo: {formatCurrency(getSaldo(loan))}</p>
                       <p className="text-xs text-slate-500 truncate">{loan.cliente.email}</p>
                     </div>
                   </div>

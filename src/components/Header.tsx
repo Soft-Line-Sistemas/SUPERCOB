@@ -88,7 +88,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
   }
 
   return (
-    <header className="h-20 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-100 dark:border-white/10 flex items-center justify-between px-8 sticky top-0 z-30">
+    <header className="h-20 bg-white/80 dark:bg-black-950/80 backdrop-blur-xl border-b border-slate-100 dark:border-white/10 flex items-center justify-between px-8 sticky top-0 z-30">
       {/* Page Title with Animation */}
       <motion.div 
         key={pathname}

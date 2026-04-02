@@ -3,21 +3,47 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 
-function parseDateOrUndefined(value: unknown) {
-  if (typeof value !== 'string' || value.trim() === '') return undefined
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return undefined
-  return date
+const SAO_PAULO_OFFSET_HOURS = 3
+
+function parseYMD(value: unknown) {
+  if (typeof value !== 'string') return null
+  const v = value.trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null
+  const [y, m, d] = v.split('-').map((x) => Number(x))
+  if (!y || !m || !d) return null
+  return { y, m, d, ymd: v }
 }
 
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+function addDaysYMD(ymd: string, days: number) {
+  const p = parseYMD(ymd)
+  if (!p) return ymd
+  const base = new Date(Date.UTC(p.y, p.m - 1, p.d, 12, 0, 0, 0))
+  base.setUTCDate(base.getUTCDate() + days)
+  const yyyy = base.getUTCFullYear()
+  const mm = String(base.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(base.getUTCDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
 }
 
-function addDays(date: Date, days: number) {
-  const d = new Date(date)
-  d.setDate(d.getDate() + days)
-  return d
+function addMonthsYMD(ymd: string, months: number) {
+  const p = parseYMD(ymd)
+  if (!p) return ymd
+  const base = new Date(Date.UTC(p.y, p.m - 1, p.d, 12, 0, 0, 0))
+  base.setUTCMonth(base.getUTCMonth() + months)
+  const yyyy = base.getUTCFullYear()
+  const mm = String(base.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(base.getUTCDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function saoPauloDayStartUtc(ymd: string) {
+  const p = parseYMD(ymd)
+  if (!p) return new Date()
+  return new Date(Date.UTC(p.y, p.m - 1, p.d, SAO_PAULO_OFFSET_HOURS, 0, 0, 0))
+}
+
+function todayYMDInSaoPaulo() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
 }
 
 function monthLabel(date: Date) {
@@ -39,20 +65,28 @@ export default async function ReportsPage({
   const statusParam = Array.isArray(params.status) ? params.status[0] : params.status
   const cidadeParam = Array.isArray(params.cidade) ? params.cidade[0] : params.cidade
   const estadoParam = Array.isArray(params.estado) ? params.estado[0] : params.estado
+  const usuarioIdParam = Array.isArray(params.usuarioId) ? params.usuarioId[0] : params.usuarioId
 
-  const parsedStart = parseDateOrUndefined(startDateParam)
-  const parsedEnd = parseDateOrUndefined(endDateParam)
+  const todayYMD = todayYMDInSaoPaulo()
+  const defaultEndYMD = todayYMD
+  const defaultStartYMD = addMonthsYMD(defaultEndYMD, -6)
 
-  const now = new Date()
-  const defaultEnd = startOfDay(addDays(now, 1))
-  const defaultStart = new Date(defaultEnd)
-  defaultStart.setMonth(defaultStart.getMonth() - 6)
+  let startYMD = parseYMD(startDateParam)?.ymd ?? defaultStartYMD
+  let endYMD = parseYMD(endDateParam)?.ymd ?? defaultEndYMD
+  if (startYMD > endYMD) {
+    const tmp = startYMD
+    startYMD = endYMD
+    endYMD = tmp
+  }
 
-  const rangeStart = parsedStart ? startOfDay(parsedStart) : defaultStart
-  const rangeEndExclusive = parsedEnd ? startOfDay(addDays(parsedEnd, 1)) : defaultEnd
+  const rangeStartUtc = saoPauloDayStartUtc(startYMD)
+  const rangeEndExclusiveUtc = saoPauloDayStartUtc(addDaysYMD(endYMD, 1))
 
   const where: any = {
-    createdAt: { gte: rangeStart, lt: rangeEndExclusive },
+    OR: [
+      { vencimento: { gte: rangeStartUtc, lt: rangeEndExclusiveUtc } },
+      { vencimento: null, createdAt: { gte: rangeStartUtc, lt: rangeEndExclusiveUtc } },
+    ],
   }
 
   if (statusParam && typeof statusParam === 'string' && statusParam.trim() !== '') {
@@ -69,21 +103,30 @@ export default async function ReportsPage({
     }
   }
 
-  const loans = await prisma.emprestimo.findMany({
+  if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
+    where.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
+  }
+
+  const [loans, colaboradores] = await Promise.all([
+    prisma.emprestimo.findMany({
     where,
     select: {
       id: true,
       valor: true,
+      valorPago: true,
       jurosMes: true,
       status: true,
       vencimento: true,
       createdAt: true,
       clienteId: true,
+        usuarioId: true,
       cliente: {
         select: { nome: true, cidade: true, estado: true },
       },
     },
-  })
+    }),
+    prisma.usuario.findMany({ where: { role: 'OPERADOR' }, select: { id: true, nome: true }, orderBy: { nome: 'asc' } }),
+  ])
 
   const expectedInterest = (valor: number, jurosMes: number | null) => valor * (((jurosMes ?? 0) as number) / 100)
 
@@ -92,25 +135,27 @@ export default async function ReportsPage({
   let projectedInterest = 0
   for (const loan of loans) {
     principalTotal += loan.valor
-    if (loan.status !== 'QUITADO') {
-      principalAtivo += loan.valor
-      projectedInterest += expectedInterest(loan.valor, loan.jurosMes)
+    if (loan.status !== 'QUITADO' && loan.status !== 'CANCELADO') {
+      const restante = Math.max(loan.valor - (loan.valorPago ?? 0), 0)
+      principalAtivo += restante
+      projectedInterest += expectedInterest(restante, loan.jurosMes)
     }
   }
 
   const totalProjetado = principalAtivo + projectedInterest
 
-  const endForMonth = new Date(rangeEndExclusive)
-  endForMonth.setDate(endForMonth.getDate() - 1)
-  const monthStart = new Date(endForMonth.getFullYear(), endForMonth.getMonth(), 1, 0, 0, 0, 0)
-  const nextMonthStart = new Date(endForMonth.getFullYear(), endForMonth.getMonth() + 1, 1, 0, 0, 0, 0)
-  const yearStart = new Date(endForMonth.getFullYear(), 0, 1, 0, 0, 0, 0)
-  const nextYearStart = new Date(endForMonth.getFullYear() + 1, 0, 1, 0, 0, 0, 0)
+  const endForMonth = new Date(rangeEndExclusiveUtc)
+  endForMonth.setUTCDate(endForMonth.getUTCDate() - 1)
+  const monthStart = new Date(Date.UTC(endForMonth.getUTCFullYear(), endForMonth.getUTCMonth(), 1, 0, 0, 0, 0))
+  const nextMonthStart = new Date(Date.UTC(endForMonth.getUTCFullYear(), endForMonth.getUTCMonth() + 1, 1, 0, 0, 0, 0))
+  const yearStart = new Date(Date.UTC(endForMonth.getUTCFullYear(), 0, 1, 0, 0, 0, 0))
+  const nextYearStart = new Date(Date.UTC(endForMonth.getUTCFullYear() + 1, 0, 1, 0, 0, 0, 0))
 
   let jurosMes = 0
   let jurosAno = 0
   for (const loan of loans) {
-    const interest = loan.status !== 'QUITADO' ? expectedInterest(loan.valor, loan.jurosMes) : 0
+    const interestBase = loan.status !== 'QUITADO' && loan.status !== 'CANCELADO' ? Math.max(loan.valor - (loan.valorPago ?? 0), 0) : 0
+    const interest = interestBase > 0 ? expectedInterest(interestBase, loan.jurosMes) : 0
     const refDate = loan.vencimento ?? loan.createdAt
     if (refDate >= monthStart && refDate < nextMonthStart) jurosMes += interest
     if (refDate >= yearStart && refDate < nextYearStart) jurosAno += interest
@@ -119,10 +164,11 @@ export default async function ReportsPage({
   const byMonth = new Map<string, { date: Date; juros: number }>()
   for (const loan of loans) {
     const base = loan.vencimento ?? loan.createdAt
-    const d = new Date(base.getFullYear(), base.getMonth(), 1, 0, 0, 0, 0)
-    const key = `${d.getFullYear()}-${d.getMonth()}`
+    const d = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), 1, 0, 0, 0, 0))
+    const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}`
     const current = byMonth.get(key) ?? { date: d, juros: 0 }
-    const interest = loan.status !== 'QUITADO' ? expectedInterest(loan.valor, loan.jurosMes) : 0
+    const interestBase = loan.status !== 'QUITADO' && loan.status !== 'CANCELADO' ? Math.max(loan.valor - (loan.valorPago ?? 0), 0) : 0
+    const interest = interestBase > 0 ? expectedInterest(interestBase, loan.jurosMes) : 0
     current.juros += interest
     byMonth.set(key, current)
   }
@@ -133,6 +179,7 @@ export default async function ReportsPage({
 
   const byLocation = new Map<string, number>()
   for (const loan of loans) {
+    if (loan.status === 'CANCELADO') continue
     const city = loan.cliente.cidade ?? ''
     const state = loan.cliente.estado ?? ''
     const label = [city, state].filter(Boolean).join(', ')
@@ -146,6 +193,7 @@ export default async function ReportsPage({
 
   const byClient = new Map<string, { nome: string; city: string; volume: number }>()
   for (const loan of loans) {
+    if (loan.status === 'CANCELADO') continue
     const city = [loan.cliente.cidade, loan.cliente.estado].filter(Boolean).join('/')
     const current = byClient.get(loan.clienteId) ?? { nome: loan.cliente.nome, city, volume: 0 }
     current.volume += loan.valor
@@ -171,15 +219,16 @@ export default async function ReportsPage({
 
   const now2 = new Date()
   const defaultersData = loans
-    .filter((l) => l.status !== 'QUITADO' && l.vencimento && l.vencimento.getTime() < now2.getTime())
+    .filter((l) => l.status !== 'QUITADO' && l.status !== 'CANCELADO' && l.vencimento && l.vencimento.getTime() < now2.getTime())
     .map((l) => {
       const daysLate = Math.floor((now2.getTime() - (l.vencimento as Date).getTime()) / (1000 * 60 * 60 * 24))
+      const restante = Math.max(l.valor - (l.valorPago ?? 0), 0)
       return {
         id: `COB-${l.id.slice(0, 6).toUpperCase()}`,
         client: l.cliente.nome,
         city: [l.cliente.cidade, l.cliente.estado].filter(Boolean).join('/'),
         daysLate,
-        amount: Math.round(l.valor),
+        amount: Math.round(restante),
       }
     })
     .filter((x) => x.daysLate > 5)
@@ -202,12 +251,14 @@ export default async function ReportsPage({
   return (
     <Reports
       report={report as any}
+      colaboradores={colaboradores}
       filters={{
-        startDate: rangeStart.toISOString().slice(0, 10),
-        endDate: addDays(rangeEndExclusive, -1).toISOString().slice(0, 10),
+        startDate: startYMD,
+        endDate: endYMD,
         status: (statusParam as string) || '',
         cidade: (cidadeParam as string) || '',
         estado: (estadoParam as string) || '',
+        usuarioId: (usuarioIdParam as string) || '',
       }}
     />
   )

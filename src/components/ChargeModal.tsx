@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Calendar, Search, User, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -39,17 +39,72 @@ export function ChargeModal({
   onSubmit: (e: React.FormEvent) => void
 }) {
   const [clientQuery, setClientQuery] = useState('')
-  const filteredClientes = useMemo(() => {
-    const q = clientQuery.trim().toLowerCase()
-    if (q === '') return clientes
-    const qDigits = q.replace(/\D/g, '')
-    return clientes.filter((c) => {
-      const nameOk = c.nome.toLowerCase().includes(q)
-      const emailOk = (c.email ?? '').toLowerCase().includes(q)
-      const whatsOk = qDigits ? (c.whatsapp ?? '').replace(/\D/g, '').includes(qDigits) : false
-      return nameOk || emailOk || whatsOk
-    })
-  }, [clientes, clientQuery])
+  const [results, setResults] = useState<{ id: string; nome: string; cpf?: string | null; whatsapp?: string | null }[]>([])
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
+  const lastQueryRef = useRef<string>('')
+  const lastPageRef = useRef<number>(1)
+
+  useEffect(() => {
+    if (!open) return
+    setClientQuery('')
+    setResults([])
+    setPage(1)
+    setHasMore(false)
+    setSearchLoading(false)
+    lastQueryRef.current = ''
+    lastPageRef.current = 1
+  }, [open, clientes])
+
+  const fetchClients = async (q: string, nextPage: number, append: boolean) => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    setSearchLoading(true)
+    try {
+      const sp = new URLSearchParams()
+      if (q.trim() !== '') sp.set('q', q.trim())
+      sp.set('page', String(nextPage))
+      sp.set('limit', '30')
+      const res = await fetch(`/api/clientes?${sp.toString()}`, { signal: controller.signal })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      const items = (data?.items ?? []) as any[]
+      const mapped = items.map((c) => ({ id: c.id, nome: c.nome, cpf: c.cpf, whatsapp: c.whatsapp }))
+      setResults((prev) => (append ? [...prev, ...mapped] : mapped))
+      setHasMore(!!data?.hasMore)
+      setPage(nextPage)
+      lastQueryRef.current = q
+      lastPageRef.current = nextPage
+    } catch {
+      if (!append) setResults([])
+      setHasMore(false)
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const q = clientQuery
+    const t = window.setTimeout(() => {
+      const trimmed = q.trim()
+      const digits = trimmed.replace(/\D/g, '')
+      const shouldSearch = trimmed.length >= 3 || digits.length >= 3
+      if (!shouldSearch) {
+        setResults([])
+        setHasMore(false)
+        setPage(1)
+        lastQueryRef.current = ''
+        lastPageRef.current = 1
+        return
+      }
+      fetchClients(trimmed, 1, false)
+    }, 250)
+    return () => window.clearTimeout(t)
+  }, [clientQuery, clientes, open])
 
   const disableSubmit = loading || formData.clienteId.trim() === '' || !Number.isFinite(formData.valor) || formData.valor <= 0
   const formatBRL = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(value) ? value : 0)
@@ -101,38 +156,84 @@ export function ChargeModal({
               <form onSubmit={onSubmit} className="p-6 max-h-[80vh] overflow-y-auto space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Cliente</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_220px] gap-3">
-                    <div className="relative group">
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                      <input
-                        type="text"
-                        value={clientQuery}
-                        onChange={(e) => setClientQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
-                        placeholder="Buscar cliente..."
-                      />
-                    </div>
-
-                    <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <select
-                        required
-                        value={formData.clienteId}
-                        onChange={(e) => setFormData((p) => ({ ...p, clienteId: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
-                      >
-                        <option value="">Selecione</option>
-                        {filteredClientes.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  <div className="relative group">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                    <input
+                      type="text"
+                      value={clientQuery}
+                      onChange={(e) => setClientQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
+                      placeholder="Buscar por nome, CPF ou WhatsApp (mín. 3)"
+                    />
                   </div>
-                  {clientes.length === 0 && (
-                    <div className="text-xs text-slate-500 font-bold">
-                      Nenhum cliente disponível para seleção.
+
+                  {formData.clienteId ? (
+                    <div className="flex items-center justify-between px-4 py-2 rounded-2xl border border-slate-200 bg-white">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <User className="w-4 h-4 text-slate-400" />
+                        <p className="text-sm font-black text-slate-900 truncate">
+                          {(clientes.find((c) => c.id === formData.clienteId)?.nome as any) ||
+                            (results.find((c) => c.id === formData.clienteId)?.nome as any) ||
+                            'Cliente selecionado'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData((p) => ({ ...p, clienteId: '' }))}
+                        className="p-2 rounded-xl hover:bg-slate-100 text-slate-600"
+                        aria-label="Remover cliente selecionado"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : null}
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                      {clientQuery.trim().length > 0 && clientQuery.trim().length < 3
+                        ? 'Digite ao menos 3 caracteres'
+                        : searchLoading
+                          ? 'Pesquisando...'
+                          : results.length
+                            ? `${results.length} resultados`
+                            : ''}
+                    </div>
+                    {hasMore && clientQuery.trim().length >= 3 && (
+                      <button
+                        type="button"
+                        disabled={searchLoading}
+                        onClick={() => fetchClients(lastQueryRef.current || clientQuery, (lastPageRef.current || page) + 1, true)}
+                        className="text-xs font-black text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                      >
+                        Carregar mais
+                      </button>
+                    )}
+                  </div>
+
+                  {clientQuery.trim().length >= 3 && (
+                    <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden max-h-60 overflow-y-auto">
+                      {results.length === 0 && !searchLoading ? (
+                        <div className="p-4 text-sm text-slate-600">Nenhum cliente encontrado.</div>
+                      ) : (
+                        <div className="divide-y divide-slate-100">
+                          {results.map((c) => {
+                            const isSelected = formData.clienteId === c.id
+                            const cpfDigits = (c.cpf ?? '').replace(/\D/g, '')
+                            const whatsDigits = (c.whatsapp ?? '').replace(/\D/g, '')
+                            const meta = [cpfDigits ? `CPF ${cpfDigits}` : null, whatsDigits ? `Whats ${whatsDigits}` : null].filter(Boolean).join(' • ')
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => setFormData((p) => ({ ...p, clienteId: c.id }))}
+                                className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
+                              >
+                                <p className="text-sm font-black text-slate-900 truncate">{c.nome}</p>
+                                <p className="text-[10px] font-bold text-slate-500 truncate">{meta || '—'}</p>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

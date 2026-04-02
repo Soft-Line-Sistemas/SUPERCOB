@@ -3,8 +3,6 @@
 import React, { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import { ArrowLeft, Calendar, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import { addEmprestimoHistorico, addPagamentoParcial, setEmprestimoStatus } from './actions'
 
@@ -40,12 +38,19 @@ const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style
 
 const formatDate = (date: Date | string | null | undefined) => {
   if (!date) return '-'
-  return format(new Date(date), 'dd/MM/yyyy', { locale: ptBR })
+  return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
 }
 
 const formatDateTime = (date: Date | string | null | undefined) => {
   if (!date) return '-'
-  return format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: ptBR })
+  return new Date(date).toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function getBorderClass(status: EmprestimoStatus) {
@@ -361,7 +366,14 @@ function Timeline({ eventos }: { eventos: HistoricoEvento[] }) {
                 <div className="p-4 rounded-3xl border border-slate-200 bg-white group-hover:shadow-sm transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <p className="text-xs font-black text-slate-500">
-                      {format(new Date(ev.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                      {new Date(ev.createdAt).toLocaleString('pt-BR', {
+                        timeZone: 'America/Sao_Paulo',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                       {who}
                     </p>
                     <p className="text-xs font-bold text-slate-400">{isOpen ? 'Ocultar' : 'Ver'}</p>
