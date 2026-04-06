@@ -234,7 +234,7 @@ export function Reports({
                 <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} tickFormatter={(value) => `${value / 1000}k`} />
                 <YAxis dataKey="city" type="category" axisLine={false} tickLine={false} tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }} width={100} />
                 <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
+                  cursor={{ fill: 'rgba(0,0,0,0.03)' }}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   formatter={(value: any) => [formatCurrency(value as number), 'Volume']}
                 />
@@ -253,7 +253,7 @@ export function Reports({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ABC Curve Table */}
         <motion.div variants={item} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+          <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
             <div>
               <h3 className="text-lg font-bold text-slate-900">Curva ABC de Clientes</h3>
               <p className="text-sm text-slate-500">Concentração de risco por tomador</p>
@@ -271,7 +271,7 @@ export function Reports({
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {report.abcCurveData.map((item) => (
-                  <tr key={item.rank} className="hover:bg-slate-50 transition-colors">
+                  <tr key={item.rank} className="hover:bg-slate-700 transition-colors">
                     <td className="px-8 py-4">
                       <div className="text-sm font-bold text-slate-900">{item.client}</div>
                       <div className="text-[10px] font-medium text-slate-400">{item.city}</div>

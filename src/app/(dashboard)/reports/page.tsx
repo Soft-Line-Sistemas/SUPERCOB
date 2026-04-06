@@ -130,6 +130,9 @@ export default async function ReportsPage({
 
   const expectedInterest = (valor: number, jurosMes: number | null) => valor * (((jurosMes ?? 0) as number) / 100)
 
+  const monthId = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth()
+  const startOfMonthUtc = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0, 0))
+
   let principalAtivo = 0
   let principalTotal = 0
   let projectedInterest = 0
@@ -138,7 +141,9 @@ export default async function ReportsPage({
     if (loan.status !== 'QUITADO' && loan.status !== 'CANCELADO') {
       const restante = Math.max(loan.valor - (loan.valorPago ?? 0), 0)
       principalAtivo += restante
-      projectedInterest += expectedInterest(restante, loan.jurosMes)
+      const base = loan.vencimento ?? loan.createdAt
+      const months = Math.max(1, monthId(startOfMonthUtc(new Date())) - monthId(startOfMonthUtc(base)) + 1)
+      projectedInterest += expectedInterest(restante, loan.jurosMes) * months
     }
   }
 
@@ -153,29 +158,33 @@ export default async function ReportsPage({
 
   let jurosMes = 0
   let jurosAno = 0
-  for (const loan of loans) {
-    const interestBase = loan.status !== 'QUITADO' && loan.status !== 'CANCELADO' ? Math.max(loan.valor - (loan.valorPago ?? 0), 0) : 0
-    const interest = interestBase > 0 ? expectedInterest(interestBase, loan.jurosMes) : 0
-    const refDate = loan.vencimento ?? loan.createdAt
-    if (refDate >= monthStart && refDate < nextMonthStart) jurosMes += interest
-    if (refDate >= yearStart && refDate < nextYearStart) jurosAno += interest
+  const monthBuckets: Date[] = []
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(Date.UTC(endForMonth.getUTCFullYear(), endForMonth.getUTCMonth() - i, 1, 0, 0, 0, 0))
+    monthBuckets.push(d)
   }
 
-  const byMonth = new Map<string, { date: Date; juros: number }>()
+  const interestByMonth = monthBuckets.map((d) => ({ month: monthLabel(d), juros: 0 }))
+
   for (const loan of loans) {
+    if (loan.status === 'QUITADO' || loan.status === 'CANCELADO') continue
+    const restante = Math.max(loan.valor - (loan.valorPago ?? 0), 0)
+    if (restante <= 0) continue
     const base = loan.vencimento ?? loan.createdAt
-    const d = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), 1, 0, 0, 0, 0))
-    const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}`
-    const current = byMonth.get(key) ?? { date: d, juros: 0 }
-    const interestBase = loan.status !== 'QUITADO' && loan.status !== 'CANCELADO' ? Math.max(loan.valor - (loan.valorPago ?? 0), 0) : 0
-    const interest = interestBase > 0 ? expectedInterest(interestBase, loan.jurosMes) : 0
-    current.juros += interest
-    byMonth.set(key, current)
+    const baseMonth = startOfMonthUtc(base)
+    const perMonth = expectedInterest(restante, loan.jurosMes)
+    for (let i = 0; i < monthBuckets.length; i++) {
+      const bucket = monthBuckets[i]
+      if (monthId(bucket) < monthId(baseMonth)) continue
+      interestByMonth[i].juros += perMonth
+    }
   }
-  const interestByMonth = Array.from(byMonth.values())
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .slice(-6)
-    .map((x) => ({ month: monthLabel(x.date), juros: Math.round(x.juros) }))
+
+  for (const item of interestByMonth) item.juros = Math.round(item.juros)
+  jurosMes = interestByMonth[interestByMonth.length - 1]?.juros ?? 0
+  jurosAno = interestByMonth
+    .filter((x, idx) => monthBuckets[idx].getUTCFullYear() === endForMonth.getUTCFullYear())
+    .reduce((acc, x) => acc + x.juros, 0)
 
   const byLocation = new Map<string, number>()
   for (const loan of loans) {

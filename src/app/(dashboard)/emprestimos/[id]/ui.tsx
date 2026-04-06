@@ -87,7 +87,6 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
   const borderClass = useMemo(() => getBorderClass(status), [status])
 
   const canCancel = status !== 'CANCELADO' && status !== 'QUITADO'
-  const canFinish = status !== 'QUITADO' && status !== 'CANCELADO'
 
   const formatBRL = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(value) ? value : 0)
   const parseBRL = (value: string) => {
@@ -96,6 +95,14 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
     return cents / 100
   }
   const restante = Math.max(emprestimo.valor - valorPago, 0)
+  const jurosPercent = Number(emprestimo.jurosMes ?? 0) || 0
+  const jurosMensalValor = Math.max(restante, 0) * (jurosPercent / 100)
+  const monthId = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth()
+  const now = new Date()
+  const baseDate = new Date((emprestimo.vencimento ?? emprestimo.createdAt) as any)
+  const monthsLate = baseDate.getTime() <= now.getTime() ? Math.max(1, monthId(now) - monthId(baseDate) + 1) : 0
+  const jurosAcumulado = jurosMensalValor * monthsLate
+  const canFinish = status !== 'QUITADO' && status !== 'CANCELADO' && restante <= 0
 
   const handleAddEvento = () => {
     const value = descricao.trim()
@@ -129,7 +136,7 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
         toast.success(nextStatus === 'QUITADO' ? 'Contrato concluído.' : 'Contrato cancelado.')
         router.refresh()
       } catch (e) {
-        toast.error('Erro ao atualizar status.')
+        toast.error(e instanceof Error ? e.message : 'Erro ao atualizar status.')
       }
     })
   }
@@ -194,6 +201,7 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
             type="button"
             disabled={!canFinish || isPending}
             onClick={() => handleSetStatus('QUITADO')}
+            title={!canFinish && restante > 0 ? 'Finalize após quitar (restante deve ser 0)' : undefined}
             className={`px-5 py-3 rounded-2xl font-black text-sm transition-all ${
               !canFinish || isPending ? 'bg-slate-100 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/15 active:scale-95'
             }`}
@@ -234,6 +242,16 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
           <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Juros ao mês</p>
             <p className="text-base font-black text-slate-900 mt-1">{(emprestimo.jurosMes ?? 0).toString().replace('.', ',')}%</p>
+          </div>
+          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Juros mensal (R$)</p>
+            <p className="text-2xl font-black text-slate-900 mt-1">{formatBRL(jurosMensalValor)}</p>
+            <p className="text-xs text-slate-500 mt-1">Recalculado pelo saldo atual.</p>
+          </div>
+          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Juros acumulado</p>
+            <p className="text-2xl font-black text-slate-900 mt-1">{formatBRL(jurosAcumulado)}</p>
+            <p className="text-xs text-slate-500 mt-1">{monthsLate > 0 ? `${monthsLate} mês(es)` : 'Ainda não venceu.'}</p>
           </div>
           <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Vencimento</p>

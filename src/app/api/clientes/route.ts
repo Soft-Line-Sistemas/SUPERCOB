@@ -6,9 +6,6 @@ export async function GET(req: Request) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const role = (session.user as any).role
-  const userId = (session.user as any).id
-
   try {
     const { searchParams } = new URL(req.url)
     const q = (searchParams.get('q') ?? '').trim()
@@ -16,14 +13,14 @@ export async function GET(req: Request) {
     const limit = Math.min(50, Math.max(5, Number(searchParams.get('limit') ?? '30') || 30))
     const skip = (page - 1) * limit
 
-    const baseWhere: any = role === 'OPERADOR' ? { loans: { some: { usuarioId: userId } } } : {}
-
-    const where: any = { ...baseWhere }
+    const where: any = {}
     if (q !== '') {
       const digits = q.replace(/\D/g, '')
+      if (q.length < 3 && digits.length < 3) {
+        return NextResponse.json({ items: [], page, limit, total: 0, hasMore: false })
+      }
       where.OR = [
         { nome: { contains: q } },
-        { email: { contains: q } },
         digits ? { whatsapp: { startsWith: digits } } : undefined,
         digits ? { cpf: { startsWith: digits } } : undefined,
       ].filter(Boolean)

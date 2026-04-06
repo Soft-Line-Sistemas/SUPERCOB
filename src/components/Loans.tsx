@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChargeModal } from './ChargeModal';
+import { parseDateInputToUTCNoon } from '@/lib/date-utils'
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
 
@@ -111,13 +112,6 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     const phone = loan.cliente.whatsapp.replace(/\D/g, '');
     return `https://wa.me/55${phone}?text=${encodeURIComponent(text)}`;
   };
-
-  const parseDateInputToUTCNoon = (value: string) => {
-    if (!value) return null
-    const [y, m, d] = value.split('-').map((x) => Number(x))
-    if (!y || !m || !d) return null
-    return new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0))
-  }
 
   useEffect(() => {
     if (!shouldAutoOpenNew) return

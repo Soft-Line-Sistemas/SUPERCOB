@@ -40,6 +40,17 @@ export async function setEmprestimoStatus(input: {
 
   const createdById = (session.user as any).id as string | undefined
 
+  if (input.status === 'QUITADO') {
+    const atual = await prisma.emprestimo.findUnique({
+      where: { id: input.emprestimoId },
+      select: { valor: true, valorPago: true, status: true },
+    })
+    if (!atual) throw new Error('Contrato não encontrado')
+    if (atual.status === 'CANCELADO') throw new Error('Contrato cancelado')
+    const pago = Number(atual.valorPago ?? 0) || 0
+    if (pago < atual.valor) throw new Error('Não é possível concluir: contrato ainda não está quitado')
+  }
+
   const updated = await prisma.emprestimo.update({
     where: { id: input.emprestimoId },
     data: {

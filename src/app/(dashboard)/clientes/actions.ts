@@ -45,6 +45,19 @@ function validateClienteInput(data: ClienteInput) {
   const cpf = (data.cpf ?? '').replace(/\D/g, '')
   if (cpf.length !== 11) throw new Error('CPF inválido')
 
+  const anyBirth = data.diaNasc != null || data.mesNasc != null || data.anoNasc != null
+  if (anyBirth) {
+    if (!data.diaNasc || !data.mesNasc || !data.anoNasc) throw new Error('Data de nascimento incompleta')
+    if (data.diaNasc < 1 || data.diaNasc > 31) throw new Error('Dia inválido (01-31)')
+    if (data.mesNasc < 1 || data.mesNasc > 12) throw new Error('Mês inválido (01-12)')
+    const anoAtual = new Date().getFullYear()
+    if (data.anoNasc < 1900 || data.anoNasc > anoAtual) throw new Error('Ano inválido')
+    const dt = new Date(Date.UTC(data.anoNasc, data.mesNasc - 1, data.diaNasc, 12, 0, 0, 0))
+    if (dt.getUTCFullYear() !== data.anoNasc || dt.getUTCMonth() !== data.mesNasc - 1 || dt.getUTCDate() !== data.diaNasc) {
+      throw new Error('Data de nascimento inválida')
+    }
+  }
+
   const cep = (data.cep ?? '').replace(/\D/g, '')
   if (cep.length !== 8) throw new Error('CEP inválido')
 

@@ -43,6 +43,7 @@ export function ChargeModal({
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const lastQueryRef = useRef<string>('')
   const lastPageRef = useRef<number>(1)
@@ -63,6 +64,7 @@ export function ChargeModal({
     const controller = new AbortController()
     abortRef.current = controller
     setSearchLoading(true)
+    setSearchError(null)
     try {
       const sp = new URLSearchParams()
       if (q.trim() !== '') sp.set('q', q.trim())
@@ -81,6 +83,7 @@ export function ChargeModal({
     } catch {
       if (!append) setResults([])
       setHasMore(false)
+      setSearchError('Falha ao buscar clientes. Tente novamente.')
     } finally {
       setSearchLoading(false)
     }
@@ -105,6 +108,23 @@ export function ChargeModal({
     }, 250)
     return () => window.clearTimeout(t)
   }, [clientQuery, clientes, open])
+
+  const query = clientQuery.trim()
+  const queryLower = query.toLowerCase()
+  const queryDigits = query.replace(/\D/g, '')
+  const sortedResults = [...results].sort((a, b) => {
+    const score = (c: { nome: string; cpf?: string | null; whatsapp?: string | null }) => {
+      const cpf = (c.cpf ?? '').replace(/\D/g, '')
+      const whats = (c.whatsapp ?? '').replace(/\D/g, '')
+      if (queryDigits && (cpf === queryDigits || whats === queryDigits)) return 300
+      if (queryDigits && (cpf.startsWith(queryDigits) || whats.startsWith(queryDigits))) return 200
+      if (queryLower && c.nome.toLowerCase().includes(queryLower)) return 100
+      return 0
+    }
+    const diff = score(b) - score(a)
+    if (diff !== 0) return diff
+    return a.nome.localeCompare(b.nome)
+  })
 
   const disableSubmit = loading || formData.clienteId.trim() === '' || !Number.isFinite(formData.valor) || formData.valor <= 0
   const formatBRL = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(value) ? value : 0)
@@ -209,13 +229,15 @@ export function ChargeModal({
                     )}
                   </div>
 
+                  {searchError ? <p className="text-xs font-black text-red-600">{searchError}</p> : null}
+
                   {clientQuery.trim().length >= 3 && (
                     <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden max-h-60 overflow-y-auto">
                       {results.length === 0 && !searchLoading ? (
                         <div className="p-4 text-sm text-slate-600">Nenhum cliente encontrado.</div>
                       ) : (
                         <div className="divide-y divide-slate-100">
-                          {results.map((c) => {
+                          {sortedResults.map((c) => {
                             const isSelected = formData.clienteId === c.id
                             const cpfDigits = (c.cpf ?? '').replace(/\D/g, '')
                             const whatsDigits = (c.whatsapp ?? '').replace(/\D/g, '')
@@ -278,9 +300,18 @@ export function ChargeModal({
                     <input
                       type="number"
                       step="0.01"
-                      value={Number.isFinite(formData.jurosMes) ? formData.jurosMes : 0}
+                      value={
+                        Number.isFinite(formData.jurosMes) && formData.jurosMes !== 0
+                          ? String(formData.jurosMes)
+                          : ''
+                      }
                       onChange={(e) => {
-                        const next = e.target.value === '' ? 0 : Number(e.target.value)
+                        const raw = e.target.value
+                        if (raw === '') {
+                          setFormData((p) => ({ ...p, jurosMes: 0 }))
+                          return
+                        }
+                        const next = Number(raw)
                         setFormData((p) => ({ ...p, jurosMes: Number.isFinite(next) ? next : 0 }))
                       }}
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"

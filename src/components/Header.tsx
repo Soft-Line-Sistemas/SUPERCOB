@@ -88,7 +88,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
   }
 
   return (
-    <header className="h-20 bg-white/80 dark:bg-black-950/80 backdrop-blur-xl border-b border-slate-100 dark:border-white/10 flex items-center justify-between px-8 sticky top-0 z-30">
+    <header className="h-20 bg-white dark:bg-slate-950 border-b border-slate-200/70 dark:border-white/10 flex items-center justify-between px-6 md:px-8 sticky top-0 z-30 shadow-sm shadow-slate-900/5 dark:shadow-none">
       {/* Page Title with Animation */}
       <motion.div 
         key={pathname}
@@ -103,18 +103,18 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
       </motion.div>
 
       {/* Action Icons */}
-      <div className="flex items-center gap-2 md:gap-4">
+      <div className="flex items-center gap-2 md:gap-3">
         {/* Search Bar - Desktop Only */}
-        <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 px-4 py-2 rounded-2xl w-64 group focus-within:ring-4 focus-within:ring-blue-500/5 focus-within:border-blue-500 transition-all">
-          <Search className="w-4 h-4 text-slate-400" />
+        <div className="hidden lg:flex items-center gap-2 bg-slate-100/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 py-2 rounded-2xl w-64 group focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 transition-all">
+          <Search className="w-4 h-4 text-slate-500 dark:text-slate-300" />
           <input 
             type="text" 
             placeholder="Comando rápido..." 
-            className="bg-transparent border-none outline-none text-xs font-bold text-slate-600 w-full placeholder:text-slate-400"
+            className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 dark:text-slate-100 w-full placeholder:text-slate-500 dark:placeholder:text-slate-500"
           />
-          <div className="flex items-center gap-1 bg-white border border-slate-200 px-1.5 py-0.5 rounded-lg shadow-sm">
-            <Command className="w-2.5 h-2.5 text-slate-400" />
-            <span className="text-[9px] font-black text-slate-400">K</span>
+          <div className="flex items-center gap-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 px-1.5 py-0.5 rounded-lg shadow-sm">
+            <Command className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500" />
+            <span className="text-[9px] font-black text-slate-400 dark:text-slate-500">K</span>
           </div>
         </div>
 
@@ -127,10 +127,10 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
               setIsHelpOpen(false)
             }}
             aria-label="Notificações"
-            className="relative p-2.5 text-slate-500 dark:text-slate-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-white/5 rounded-xl transition-all group"
+            className="relative p-2.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all group"
           >
             <Bell className="w-5 h-5 transition-transform group-hover:rotate-12" />
-            {hasUnread && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full" />}
+            {hasUnread && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white dark:border-slate-950 rounded-full" />}
           </button>
 
           {isNotificationsOpen && (
@@ -225,7 +225,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
               return next
             })
           }
-          className="p-2.5 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-all"
+          className="p-2.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"
         >
           {theme === 'dark' ? <Moon className="w-5 h-5" /> : theme === 'light' ? <Sun className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
         </button>
@@ -288,7 +288,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
           )}
         </div>
 
-        <div className="h-8 w-[1px] bg-slate-100 mx-2 hidden sm:block" />
+        <div className="h-8 w-[1px] bg-slate-200/80 dark:bg-white/10 mx-2 hidden sm:block" />
 
         {/* User Profile - Compact */}
         <Link href="/perfil" className="flex items-center gap-3 pl-2">
@@ -296,7 +296,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
             <p className="text-xs font-black text-slate-900 dark:text-slate-100">{user?.nome?.split(' ')[0]}</p>
             <p className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter">{user?.role}</p>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 border border-white shadow-sm flex items-center justify-center font-black text-slate-600 text-sm overflow-hidden">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-white/10 dark:to-white/5 border border-white/70 dark:border-white/10 shadow-sm flex items-center justify-center font-black text-slate-900 dark:text-slate-100 text-sm overflow-hidden">
             {user?.nome?.[0] || 'U'}
           </div>
         </Link>

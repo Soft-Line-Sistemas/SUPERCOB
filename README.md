@@ -80,6 +80,8 @@ Para testes rápidos sem banco de dados, utilize as seguintes credenciais:
   - Campo obrigatório "Número" no endereço (validação no fluxo de cadastro/edição).
   - Navegação por abas com validação progressiva e avanço automático quando a aba estiver completa.
   - Campo de anexos (JPEG/PNG/PDF, até 5MB) com preview, progresso, visualização e exclusão.
+  - Página de histórico do cliente em `/clientes/[id]` com filtro por período e exportação CSV.
+  - Cobrança inicial opcional no cadastro/edição (cria contrato automaticamente).
 
 - **Relatórios**
   - Acesso restrito a usuários administradores.

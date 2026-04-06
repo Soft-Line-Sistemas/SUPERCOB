@@ -1,8 +1,18 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter, Download, UserPlus, Camera, Image as ImageIcon, Eye } from 'lucide-react';
+import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter, Download, UserPlus } from 'lucide-react';
 import { createCliente, updateCliente, deleteCliente } from '@/app/(dashboard)/clientes/actions';
+import { createEmprestimo } from '@/app/(dashboard)/emprestimos/actions'
+import { parseDateInputToUTCNoon, sanitizeDigits, validateBirthDateParts } from '@/lib/date-utils'
+import { ClientStepAnexos } from './client-modal/StepAnexos'
+import { ClientStepBasic } from './client-modal/StepBasic'
+import { ClientStepCobranca } from './client-modal/StepCobranca'
+import { ClientStepEmergencia } from './client-modal/StepEmergencia'
+import { ClientStepEndereco } from './client-modal/StepEndereco'
+import { ClientStepIdentificacao } from './client-modal/StepIdentificacao'
+import { ClientStepProfissao } from './client-modal/StepProfissao'
+import { ClientStepRevisao } from './client-modal/StepRevisao'
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -57,7 +67,7 @@ export function Clients({ initialClients }: ClientsProps) {
     cpf: '',
   });
   const [editingClient, setEditingClient] = useState<Cliente | null>(null);
-  const [activeTab, setActiveTab] = useState<'basico' | 'identificacao' | 'endereco' | 'profissao' | 'emergencia' | 'cobranca' | 'anexos'>('basico');
+  const [activeTab, setActiveTab] = useState<'basico' | 'identificacao' | 'endereco' | 'profissao' | 'emergencia' | 'cobranca' | 'anexos' | 'revisao'>('basico');
   const [formData, setFormData] = useState({
     nome: '',
     indicacao: '',
@@ -106,6 +116,7 @@ export function Clients({ initialClients }: ClientsProps) {
   const inputFileRef = useRef<HTMLInputElement>(null)
   const inputCameraRef = useRef<HTMLInputElement>(null)
   const lastAutoAdvanceRef = useRef<string | null>(null)
+  const [birthErrors, setBirthErrors] = useState<{ dia?: string; mes?: string; ano?: string }>({})
 
   const normalizeDigits = (value: string) => value.replace(/\D/g, '');
   const normalizeText = (value: string) => value.trim().toLowerCase();
@@ -130,6 +141,29 @@ export function Clients({ initialClients }: ClientsProps) {
     const d = normalizeDigits(value).slice(0, 8)
     if (d.length <= 5) return d
     return `${d.slice(0, 5)}-${d.slice(5)}`
+  }
+
+  const parseEmergency = (value: string) => {
+    const raw = (value ?? '').trim()
+    if (raw === '') return { nome: '', telefone: '' }
+    if (raw.includes('|')) {
+      const [nome, telefone] = raw.split('|')
+      return { nome: (nome ?? '').trim(), telefone: (telefone ?? '').trim() }
+    }
+    const parts = raw.split('-')
+    if (parts.length >= 2) {
+      const telefone = parts.slice(1).join('-').trim()
+      const nome = parts[0].trim()
+      return { nome, telefone }
+    }
+    return { nome: raw, telefone: '' }
+  }
+
+  const buildEmergency = (nome: string, telefone: string) => {
+    const n = nome.trim()
+    const t = telefone.trim()
+    if (n === '' && t === '') return ''
+    return `${n}|${t}`
   }
 
   const isValidCPF = (cpf: string) => {
@@ -305,6 +339,14 @@ export function Clients({ initialClients }: ClientsProps) {
         return
       }
 
+      const birthCheck = validateBirthDateParts(formData.diaNasc, formData.mesNasc, formData.anoNasc)
+      if (birthCheck.dia || birthCheck.mes || birthCheck.ano) {
+        setBirthErrors(birthCheck)
+        toast.error('Data de nascimento inválida.')
+        setActiveTab('identificacao')
+        return
+      }
+
       const cepDigits = normalizeDigits(formData.cep)
       if (cepDigits.length !== 8) {
         toast.error('Informe um CEP válido.')
@@ -382,36 +424,36 @@ export function Clients({ initialClients }: ClientsProps) {
         if (selectedFile) {
           await uploadDocumento(editingClient.id, selectedFile)
         }
-        setIsModalOpen(false);
         if (chargeData.enabled) {
-          const q = new URLSearchParams()
-          q.set('clienteId', editingClient.id)
-          q.set('novo', '1')
-          if (chargeData.valor.trim() !== '') q.set('valor', chargeData.valor.trim())
-          if (chargeData.jurosMes.trim() !== '') q.set('jurosMes', chargeData.jurosMes.trim())
-          if (chargeData.vencimento.trim() !== '') q.set('vencimento', chargeData.vencimento.trim())
-          if (chargeData.observacao.trim() !== '') q.set('observacao', chargeData.observacao.trim())
-          router.push(`/emprestimos?${q.toString()}`)
-          return;
+          await createEmprestimo({
+            clienteId: editingClient.id,
+            valor: Number(chargeData.valor),
+            jurosMes: Number(chargeData.jurosMes) || 0,
+            vencimento: parseDateInputToUTCNoon(chargeData.vencimento),
+            observacao: chargeData.observacao.trim(),
+          })
+          toast.success('Cobrança inicial criada.')
         }
+        setIsModalOpen(false);
+        router.push(`/clientes/${editingClient.id}`)
       } else {
         const created = await createCliente(payload);
         toast.success('Cliente cadastrado com sucesso!');
         if (selectedFile) {
           await uploadDocumento(created.id, selectedFile)
         }
-        setIsModalOpen(false);
         if (chargeData.enabled) {
-          const q = new URLSearchParams()
-          q.set('clienteId', created.id)
-          q.set('novo', '1')
-          if (chargeData.valor.trim() !== '') q.set('valor', chargeData.valor.trim())
-          if (chargeData.jurosMes.trim() !== '') q.set('jurosMes', chargeData.jurosMes.trim())
-          if (chargeData.vencimento.trim() !== '') q.set('vencimento', chargeData.vencimento.trim())
-          if (chargeData.observacao.trim() !== '') q.set('observacao', chargeData.observacao.trim())
-          router.push(`/emprestimos?${q.toString()}`)
-          return;
+          await createEmprestimo({
+            clienteId: created.id,
+            valor: Number(chargeData.valor),
+            jurosMes: Number(chargeData.jurosMes) || 0,
+            vencimento: parseDateInputToUTCNoon(chargeData.vencimento),
+            observacao: chargeData.observacao.trim(),
+          })
+          toast.success('Cobrança inicial criada.')
         }
+        setIsModalOpen(false);
+        router.push(`/clientes/${created.id}`)
       }
     } catch (error) {
       toast.error('Erro ao salvar cliente. Tente novamente.');
@@ -449,14 +491,13 @@ export function Clients({ initialClients }: ClientsProps) {
     if (isModalOpen) loadDocs()
   }, [isModalOpen, editingClient?.id, activeTab])
 
-  type FlowTab = 'basico' | 'identificacao' | 'endereco' | 'profissao' | 'emergencia'
-  type Tab = FlowTab | 'cobranca' | 'anexos'
-  const flowOrder: FlowTab[] = ['basico', 'identificacao', 'endereco', 'profissao', 'emergencia']
-  const tabOrder: Tab[] = [...flowOrder, 'cobranca', 'anexos']
+  type Tab = 'basico' | 'identificacao' | 'endereco' | 'profissao' | 'emergencia' | 'cobranca' | 'anexos' | 'revisao'
+  const tabOrder: Tab[] = ['basico', 'identificacao', 'endereco', 'profissao', 'emergencia', 'cobranca', 'anexos', 'revisao']
+  const autoAdvanceOrder: Array<'basico' | 'identificacao' | 'endereco'> = ['basico', 'identificacao', 'endereco']
 
-  const getNextFlowTab = (tab: FlowTab) => {
-    const idx = flowOrder.indexOf(tab)
-    return idx >= 0 && idx < flowOrder.length - 1 ? flowOrder[idx + 1] : null
+  const getNextAutoTab = (tab: typeof autoAdvanceOrder[number]) => {
+    const idx = autoAdvanceOrder.indexOf(tab)
+    return idx >= 0 && idx < autoAdvanceOrder.length - 1 ? autoAdvanceOrder[idx + 1] : null
   }
 
   const isTabComplete = (tab: Tab) => {
@@ -471,21 +512,43 @@ export function Clients({ initialClients }: ClientsProps) {
         if (editingClient && c.id === editingClient.id) return false
         return other !== '' && other === cpfDigits
       })
-      return !cpfDuplicado
+      const birthCheck = validateBirthDateParts(formData.diaNasc, formData.mesNasc, formData.anoNasc)
+      return !cpfDuplicado && !birthCheck.dia && !birthCheck.mes && !birthCheck.ano
     }
     if (tab === 'endereco') {
       const cepDigits = normalizeDigits(formData.cep)
       const numero = Number.parseInt(formData.numeroEndereco.trim(), 10)
       return cepDigits.length === 8 && formData.endereco.trim() !== '' && Number.isFinite(numero) && numero > 0 && formData.bairro.trim() !== '' && formData.cidade.trim() !== '' && formData.estado.trim() !== ''
     }
+    if (tab === 'profissao') {
+      const any =
+        formData.profissao.trim() !== '' ||
+        formData.empresa.trim() !== '' ||
+        normalizeDigits(formData.cepEmpresa).length === 8 ||
+        formData.enderecoEmpresa.trim() !== '' ||
+        formData.cidadeEmpresa.trim() !== '' ||
+        formData.estadoEmpresa.trim() !== ''
+      return any
+    }
+    if (tab === 'emergencia') {
+      const any =
+        formData.contatoEmergencia1.trim() !== '' ||
+        formData.contatoEmergencia2.trim() !== '' ||
+        formData.contatoEmergencia3.trim() !== ''
+      return any
+    }
     if (tab === 'cobranca') {
-      if (!chargeData.enabled) return true
+      if (!chargeData.enabled) return false
       const valor = Number(chargeData.valor)
       if (!Number.isFinite(valor) || valor <= 0) return false
       if (chargeData.vencimento.trim() === '') return false
       return true
     }
-    return true
+    if (tab === 'anexos') {
+      return !!selectedFile || (editingClient ? docs.length > 0 : false)
+    }
+    if (tab === 'revisao') return false
+    return false
   }
 
   const validateTabBeforeNavigate = (tab: Tab) => {
@@ -513,6 +576,12 @@ export function Clients({ initialClients }: ClientsProps) {
       })
       if (cpfDuplicado) {
         toast.error('Já existe um cliente cadastrado com esse CPF.')
+        return false
+      }
+      const birthCheck = validateBirthDateParts(formData.diaNasc, formData.mesNasc, formData.anoNasc)
+      if (birthCheck.dia || birthCheck.mes || birthCheck.ano) {
+        setBirthErrors(birthCheck)
+        toast.error('Data de nascimento inválida.')
         return false
       }
       return true
@@ -558,6 +627,7 @@ export function Clients({ initialClients }: ClientsProps) {
     const currentIdx = tabOrder.indexOf(activeTab)
     const targetIdx = tabOrder.indexOf(target)
     if (targetIdx <= currentIdx) {
+      lastAutoAdvanceRef.current = null
       setActiveTab(target)
       return
     }
@@ -574,8 +644,8 @@ export function Clients({ initialClients }: ClientsProps) {
 
   useEffect(() => {
     if (!isModalOpen) return
-    if (!flowOrder.includes(activeTab as any)) return
-    const next = getNextFlowTab(activeTab as FlowTab)
+    if (!autoAdvanceOrder.includes(activeTab as any)) return
+    const next = getNextAutoTab(activeTab as any)
     if (!next) return
     if (!isTabComplete(activeTab as any)) return
     if (lastAutoAdvanceRef.current === activeTab) return
@@ -673,6 +743,69 @@ export function Clients({ initialClients }: ClientsProps) {
     return `${(n / (1024 * 1024)).toFixed(1)} MB`
   }
 
+  const flowCompleted = autoAdvanceOrder.filter((t) => isTabComplete(t)).length
+  const flowProgress = Math.round((flowCompleted / autoAdvanceOrder.length) * 100)
+  const emergencia1 = parseEmergency(formData.contatoEmergencia1)
+  const emergencia2 = parseEmergency(formData.contatoEmergencia2)
+  const emergencia3 = parseEmergency(formData.contatoEmergencia3)
+  const currentTabIndex = tabOrder.indexOf(activeTab)
+  const prevTab = currentTabIndex > 0 ? tabOrder[currentTabIndex - 1] : null
+  const nextTab = currentTabIndex >= 0 && currentTabIndex < tabOrder.length - 1 ? tabOrder[currentTabIndex + 1] : null
+
+  const handlePrevTab = () => {
+    if (!prevTab) return
+    lastAutoAdvanceRef.current = null
+    setActiveTab(prevTab)
+  }
+
+  const handleNextTab = () => {
+    if (!nextTab) return
+    handleTabNavigate(nextTab)
+  }
+
+  const printReview = () => {
+    const w = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700')
+    if (!w) return
+    const esc = (v: any) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c] as string))
+    const lines: Array<[string, string]> = [
+      ['Nome', formData.nome],
+      ['CPF', formData.cpf],
+      ['WhatsApp', formData.whatsapp],
+      ['Email', formData.email],
+      ['Nascimento', [formData.diaNasc, formData.mesNasc, formData.anoNasc].filter(Boolean).join('/')],
+      ['Endereço', [formData.endereco, formData.numeroEndereco, formData.bairro, formData.cidade, formData.estado].filter((x) => x != null && String(x).trim() !== '').join(' • ')],
+      ['Empresa', formData.empresa],
+      ['Contatos Emergência', [emergencia1.nome, emergencia2.nome, emergencia3.nome].filter((x) => (x ?? '').trim() !== '').join(' | ')],
+    ]
+    const html = `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Cliente - Revisão</title>
+          <style>
+            body{font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;margin:24px;color:#0f172a}
+            h1{margin:0 0 6px 0;font-size:20px}
+            .sub{color:#64748b;font-size:12px;margin-bottom:18px}
+            table{width:100%;border-collapse:collapse}
+            td{padding:10px 12px;border:1px solid #e2e8f0;font-size:13px;vertical-align:top}
+            td.k{width:220px;font-weight:700;background:#f8fafc}
+          </style>
+        </head>
+        <body>
+          <h1>Revisão do cadastro</h1>
+          <div class="sub">Supercob • ${new Date().toLocaleString('pt-BR')}</div>
+          <table>
+            ${lines.map(([k, v]) => `<tr><td class="k">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}
+          </table>
+          <script>window.focus(); setTimeout(()=>window.print(), 250);</script>
+        </body>
+      </html>
+    `
+    w.document.open()
+    w.document.write(html)
+    w.document.close()
+  }
+
   return (
     <div className="space-y-8">
       {/* Header Actions */}
@@ -765,7 +898,11 @@ export function Clients({ initialClients }: ClientsProps) {
 
               <div className="mt-6 pt-6 border-t border-slate-50 flex items-center justify-between">
                 <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Desde {new Date(client.createdAt).toLocaleDateString('pt-BR')}</span>
-                <button className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-600 hover:text-white transition-colors">
+                <button
+                  type="button"
+                  onClick={() => router.push(`/clientes/${client.id}`)}
+                  className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-600 hover:text-white transition-colors"
+                >
                   Ver Histórico
                 </button>
               </div>
@@ -798,9 +935,9 @@ export function Clients({ initialClients }: ClientsProps) {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100"
+              className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl md:max-w-4xl overflow-hidden border border-slate-100"
             >
-              <div className="p-8 max-h-[85vh] overflow-y-auto">
+              <div className="p-6 md:p-8 max-h-[80vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-8">
                   <div>
                     <h3 className="text-2xl font-bold text-slate-900">
@@ -816,686 +953,144 @@ export function Clients({ initialClients }: ClientsProps) {
                   </button>
                 </div>
 
-                <div className="flex flex-wrap gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200 mb-6">
-                  <button
-                    type="button"
-                    onClick={() => handleTabNavigate('basico')}
-                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'basico' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    Básico
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTabNavigate('identificacao')}
-                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'identificacao' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    Identificação
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTabNavigate('endereco')}
-                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'endereco' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    Endereço
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTabNavigate('profissao')}
-                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'profissao' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    Profissão
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTabNavigate('emergencia')}
-                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'emergencia' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    Emergência
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTabNavigate('cobranca')}
-                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'cobranca' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    Cobrança
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTabNavigate('anexos')}
-                    className={`px-3 py-2 text-xs font-black rounded-xl transition-colors ${activeTab === 'anexos' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    Anexos
-                  </button>
-                </div>
-                
-                <form className="space-y-6" onSubmit={handleSubmit}>
-                  {activeTab === 'basico' && (
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Nome Completo</label>
-                        <div className="relative group">
-                          <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                          <input
-                            type="text"
-                            required
-                            value={formData.nome}
-                            onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="Ex: João Silva"
-                          />
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6">
+                  <aside className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-black text-slate-500">Progresso</p>
+                        <p className="text-xs font-black text-slate-700">{flowProgress}%</p>
                       </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Indicação</label>
-                        <input
-                          type="text"
-                          value={formData.indicacao}
-                          onChange={(e) => setFormData({ ...formData, indicacao: e.target.value })}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="Quem indicou?"
-                        />
+                      <div className="mt-2 h-2 rounded-full bg-white overflow-hidden border border-slate-200">
+                        <div className="h-full bg-blue-600" style={{ width: `${flowProgress}%` }} />
                       </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">E-mail</label>
-                        <div className="relative group">
-                          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                          <input
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="email@empresa.com"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">WhatsApp</label>
-                        <div className="relative group">
-                          <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                          <input
-                            type="text"
-                            inputMode="tel"
-                            required
-                            value={formData.whatsapp}
-                            onChange={(e) => setFormData({ ...formData, whatsapp: formatPhoneBR(e.target.value) })}
-                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="(00) 00000-0000"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Instagram</label>
-                        <input
-                          type="text"
-                          value={formData.instagram}
-                          onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="@perfil"
-                        />
-                      </div>
+                      <p className="text-[10px] font-bold text-slate-500 mt-2">
+                        Obrigatórios: {autoAdvanceOrder.filter((t) => isTabComplete(t)).length}/{autoAdvanceOrder.length}
+                      </p>
                     </div>
-                  )}
 
-                  {activeTab === 'identificacao' && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">CPF</label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            required
-                            value={formData.cpf}
-                            onChange={(e) => setFormData({ ...formData, cpf: formatCPF(e.target.value) })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="000.000.000-00"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">RG</label>
-                          <input
-                            type="text"
-                            value={formData.rg}
-                            onChange={(e) => setFormData({ ...formData, rg: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="00.000.000-0"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Órgão Expedidor</label>
-                        <input
-                          type="text"
-                          value={formData.orgao}
-                          onChange={(e) => setFormData({ ...formData, orgao: e.target.value })}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="SSP/UF"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Data de Nascimento</label>
-                        <div className="grid grid-cols-3 gap-3">
-                          <input
-                            type="number"
-                            min={1}
-                            max={31}
-                            value={formData.diaNasc}
-                            onChange={(e) => setFormData({ ...formData, diaNasc: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="Dia"
-                          />
-                          <input
-                            type="number"
-                            min={1}
-                            max={12}
-                            value={formData.mesNasc}
-                            onChange={(e) => setFormData({ ...formData, mesNasc: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="Mês"
-                          />
-                          <input
-                            type="number"
-                            min={1900}
-                            max={2100}
-                            value={formData.anoNasc}
-                            onChange={(e) => setFormData({ ...formData, anoNasc: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="Ano"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'cobranca' && (
-                    <div className="space-y-4">
-                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-black text-slate-900">Cobrança inicial</p>
-                            <p className="text-xs text-slate-500">Opcional: criar uma cobrança vinculada ao cliente.</p>
-                          </div>
+                    <div className="space-y-1">
+                      {tabOrder.map((tab) => {
+                        const labels: Record<Tab, string> = {
+                          basico: 'Básico',
+                          identificacao: 'Identificação',
+                          endereco: 'Endereço',
+                          profissao: 'Profissão',
+                          emergencia: 'Emergência',
+                          cobranca: 'Cobrança',
+                          anexos: 'Anexos',
+                          revisao: 'Revisão',
+                        }
+                        const done = isTabComplete(tab)
+                        const isActive = activeTab === tab
+                        return (
                           <button
+                            key={tab}
                             type="button"
-                            onClick={() => setChargeData((p) => ({ ...p, enabled: !p.enabled }))}
-                            className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                              chargeData.enabled ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-700'
+                            onClick={() => handleTabNavigate(tab)}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-2xl border transition-colors ${
+                              isActive
+                                ? 'bg-white border-slate-200 text-slate-900 shadow-sm'
+                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                             }`}
                           >
-                            {chargeData.enabled ? 'Ativado' : 'Desativado'}
+                            <span
+                              className={`h-2.5 w-2.5 rounded-full ${
+                                done ? 'bg-emerald-500' : isActive ? 'bg-blue-600' : 'bg-slate-300'
+                              }`}
+                            />
+                            <span className={`text-xs ${done ? 'font-black text-emerald-700' : 'font-black'}`}>{labels[tab]}</span>
                           </button>
-                        </div>
-
-                        {chargeData.enabled && (
-                          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Valor (R$)</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={chargeData.valor}
-                                onChange={(e) => setChargeData((p) => ({ ...p, valor: e.target.value }))}
-                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
-                                placeholder="0,00"
-                              />
-                            </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Juros ao mês (%)</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={chargeData.jurosMes}
-                                onChange={(e) => setChargeData((p) => ({ ...p, jurosMes: e.target.value }))}
-                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
-                                placeholder="0"
-                              />
-                            </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Vencimento</label>
-                              <input
-                                type="date"
-                                value={chargeData.vencimento}
-                                onChange={(e) => setChargeData((p) => ({ ...p, vencimento: e.target.value }))}
-                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
-                              />
-                            </div>
-                            <div className="space-y-1.5 sm:col-span-2">
-                              <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Observação</label>
-                              <input
-                                type="text"
-                                value={chargeData.observacao}
-                                onChange={(e) => setChargeData((p) => ({ ...p, observacao: e.target.value }))}
-                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
-                                placeholder="Opcional"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                        )
+                      })}
                     </div>
+                  </aside>
+
+                  <div className="min-w-0">
+                    <form className="space-y-6" onSubmit={handleSubmit}>
+                  {activeTab === 'basico' && <ClientStepBasic formData={formData} setFormData={setFormData} formatPhoneBR={formatPhoneBR} />}
+
+                  {activeTab === 'identificacao' && (
+                    <ClientStepIdentificacao
+                      formData={formData}
+                      setFormData={setFormData}
+                      formatCPF={formatCPF}
+                      birthErrors={birthErrors}
+                      setBirthErrors={setBirthErrors}
+                      sanitizeDigits={sanitizeDigits}
+                      validateBirthDateParts={validateBirthDateParts}
+                    />
                   )}
 
+                  {activeTab === 'cobranca' && <ClientStepCobranca chargeData={chargeData} setChargeData={setChargeData} />}
+
                   {activeTab === 'anexos' && (
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-2xl border border-slate-200 bg-white">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-bold text-slate-900">Anexos de Documentos</p>
-                          {!editingClient && <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Pode anexar agora e enviar ao salvar</span>}
-                        </div>
-                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => inputFileRef.current?.click()}
-                            className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white text-sm font-black rounded-2xl"
-                          >
-                            <ImageIcon className="w-4 h-4" /> Selecionar Arquivo
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => inputCameraRef.current?.click()}
-                            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white text-sm font-black rounded-2xl"
-                          >
-                            <Camera className="w-4 h-4" /> Capturar Foto
-                          </button>
-                          <input
-                            ref={inputFileRef}
-                            type="file"
-                            accept="image/jpeg,image/png,application/pdf"
-                            className="hidden"
-                            onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-                          />
-                          <input
-                            ref={inputCameraRef}
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            className="hidden"
-                            onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-                          />
-                        </div>
-
-                        {selectedFile && (
-                          <div className="mt-3 p-3 rounded-xl border border-slate-200 bg-slate-50">
-                            <div className="flex items-center gap-3">
-                              {previewUrl ? (
-                                <img src={previewUrl} alt="preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200" />
-                              ) : (
-                                <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
-                                  <Download className="w-5 h-5 text-slate-400" />
-                                </div>
-                              )}
-                              <div className="min-w-0">
-                                <p className="text-sm font-bold text-slate-900 truncate">{selectedFile.name}</p>
-                                <p className="text-xs text-slate-500">{formatSize(selectedFile.size)}</p>
-                              </div>
-                              <div className="ml-auto flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  disabled={uploading || !editingClient}
-                                  onClick={handleUpload}
-                                  className="px-4 py-2 bg-emerald-600 text-white text-xs font-black rounded-xl disabled:opacity-50"
-                                >
-                                  Enviar
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={uploading}
-                                  onClick={() => {
-                                    setSelectedFile(null)
-                                    if (previewUrl) {
-                                      URL.revokeObjectURL(previewUrl)
-                                      setPreviewUrl(null)
-                                    }
-                                  }}
-                                  className="px-3 py-2 bg-white border border-slate-200 text-xs font-black rounded-xl"
-                                >
-                                  Cancelar
-                                </button>
-                              </div>
-                            </div>
-                            {uploading && (
-                              <div className="mt-3 w-full h-2 bg-white border border-slate-200 rounded-full overflow-hidden">
-                                <div className="h-full bg-emerald-500" style={{ width: `${progress}%` }} />
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="mt-4">
-                          {!editingClient ? (
-                            <p className="text-xs text-slate-500">Após salvar o cliente, os anexos enviados aparecerão aqui.</p>
-                          ) : docs.length === 0 ? (
-                            <p className="text-xs text-slate-500">Nenhum documento anexado.</p>
-                          ) : (
-                            <div className="space-y-2">
-                              {docs.map((d) => (
-                                <div key={d.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                                  <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
-                                    {d.mimeType.startsWith('image/') ? <ImageIcon className="w-5 h-5 text-slate-500" /> : <Download className="w-5 h-5 text-slate-500" />}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-bold text-slate-900 truncate">{d.originalName}</p>
-                                    <p className="text-[10px] font-bold text-slate-500">{formatSize(d.size)}</p>
-                                  </div>
-                                  <div className="ml-auto flex items-center gap-2">
-                                    <a
-                                      href={d.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="px-3 py-2 bg-white border border-slate-200 text-xs font-black rounded-xl flex items-center gap-1"
-                                    >
-                                      <Eye className="w-3.5 h-3.5" /> Ver
-                                    </a>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteDoc(d.id)}
-                                      className="px-3 py-2 bg-red-600 text-white text-xs font-black rounded-xl flex items-center gap-1"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" /> Excluir
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <ClientStepAnexos
+                      editingClient={!!editingClient}
+                      docs={docs}
+                      selectedFile={selectedFile}
+                      previewUrl={previewUrl}
+                      inputFileRef={inputFileRef}
+                      inputCameraRef={inputCameraRef}
+                      onPickFile={onPickFile}
+                      handleUpload={handleUpload}
+                      uploading={uploading}
+                      progress={progress}
+                      setSelectedFile={setSelectedFile}
+                      setPreviewUrl={setPreviewUrl}
+                      formatSize={formatSize}
+                      handleDeleteDoc={handleDeleteDoc}
+                    />
                   )}
 
                   {activeTab === 'endereco' && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">CEP</label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={formData.cep}
-                            onChange={(e) => setFormData({ ...formData, cep: formatCEP(e.target.value) })}
-                            onBlur={async () => {
-                              const d = normalizeDigits(formData.cep)
-                              if (d.length !== 8 || loadingCep) return
-                              setLoadingCep(true)
-                              try {
-                                const data = await fetchCep(formData.cep)
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  endereco: prev.endereco || data.endereco,
-                                  complemento: prev.complemento || data.complemento,
-                                  bairro: prev.bairro || data.bairro,
-                                  cidade: prev.cidade || data.cidade,
-                                  estado: prev.estado || data.estado,
-                                }))
-                              } catch (err: any) {
-                                toast.error(err?.message || 'Erro ao consultar CEP')
-                              } finally {
-                                setLoadingCep(false)
-                              }
-                            }}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="00000-000"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          disabled={loadingCep}
-                          onClick={async () => {
-                            if (loadingCep) return
-                            setLoadingCep(true)
-                            try {
-                              const data = await fetchCep(formData.cep)
-                              setFormData((prev) => ({
-                                ...prev,
-                                endereco: prev.endereco || data.endereco,
-                                complemento: prev.complemento || data.complemento,
-                                bairro: prev.bairro || data.bairro,
-                                cidade: prev.cidade || data.cidade,
-                                estado: prev.estado || data.estado,
-                              }))
-                            } catch (err: any) {
-                              toast.error(err?.message || 'Erro ao consultar CEP')
-                            } finally {
-                              setLoadingCep(false)
-                            }
-                          }}
-                          className="h-12 px-5 bg-slate-900 text-white text-sm font-black rounded-2xl hover:bg-slate-800 transition-all disabled:opacity-50"
-                        >
-                          {loadingCep ? 'Buscando...' : 'Buscar'}
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">Endereço</label>
-                          <input
-                            type="text"
-                            value={formData.endereco}
-                            onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="Rua, avenida..."
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">Número</label>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            required
-                            value={formData.numeroEndereco}
-                            onChange={(e) => setFormData({ ...formData, numeroEndereco: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="000"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">Complemento</label>
-                          <input
-                            type="text"
-                            value={formData.complemento}
-                            onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="Apto, bloco..."
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">Bairro</label>
-                          <input
-                            type="text"
-                            value={formData.bairro}
-                            onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="Bairro"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">Cidade</label>
-                          <input
-                            type="text"
-                            value={formData.cidade}
-                            onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="Cidade"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">Estado</label>
-                          <input
-                            type="text"
-                            value={formData.estado}
-                            onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="UF"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Ponto de Referência</label>
-                        <input
-                          type="text"
-                          value={formData.pontoReferencia}
-                          onChange={(e) => setFormData({ ...formData, pontoReferencia: e.target.value })}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="Próximo a..."
-                        />
-                      </div>
-                    </div>
+                    <ClientStepEndereco
+                      formData={formData}
+                      setFormData={setFormData}
+                      formatCEP={formatCEP}
+                      normalizeDigits={normalizeDigits}
+                      fetchCep={fetchCep}
+                      loadingCep={loadingCep}
+                      setLoadingCep={setLoadingCep}
+                    />
                   )}
 
                   {activeTab === 'profissao' && (
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Profissão</label>
-                        <input
-                          type="text"
-                          value={formData.profissao}
-                          onChange={(e) => setFormData({ ...formData, profissao: e.target.value })}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="Profissão"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Empresa</label>
-                        <input
-                          type="text"
-                          value={formData.empresa}
-                          onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="Empresa"
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">CEP (Empresa)</label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={formData.cepEmpresa}
-                            onChange={(e) => setFormData({ ...formData, cepEmpresa: formatCEP(e.target.value) })}
-                            onBlur={async () => {
-                              const d = normalizeDigits(formData.cepEmpresa)
-                              if (d.length !== 8 || loadingCepEmpresa) return
-                              setLoadingCepEmpresa(true)
-                              try {
-                                const data = await fetchCep(formData.cepEmpresa)
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  enderecoEmpresa: prev.enderecoEmpresa || [data.endereco, data.complemento].filter(Boolean).join(' ').trim(),
-                                  cidadeEmpresa: prev.cidadeEmpresa || data.cidade,
-                                  estadoEmpresa: prev.estadoEmpresa || data.estado,
-                                }))
-                              } catch (err: any) {
-                                toast.error(err?.message || 'Erro ao consultar CEP')
-                              } finally {
-                                setLoadingCepEmpresa(false)
-                              }
-                            }}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="00000-000"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          disabled={loadingCepEmpresa}
-                          onClick={async () => {
-                            if (loadingCepEmpresa) return
-                            setLoadingCepEmpresa(true)
-                            try {
-                              const data = await fetchCep(formData.cepEmpresa)
-                              setFormData((prev) => ({
-                                ...prev,
-                                enderecoEmpresa: prev.enderecoEmpresa || [data.endereco, data.complemento].filter(Boolean).join(' ').trim(),
-                                cidadeEmpresa: prev.cidadeEmpresa || data.cidade,
-                                estadoEmpresa: prev.estadoEmpresa || data.estado,
-                              }))
-                            } catch (err: any) {
-                              toast.error(err?.message || 'Erro ao consultar CEP')
-                            } finally {
-                              setLoadingCepEmpresa(false)
-                            }
-                          }}
-                          className="h-12 px-5 bg-slate-900 text-white text-sm font-black rounded-2xl hover:bg-slate-800 transition-all disabled:opacity-50"
-                        >
-                          {loadingCepEmpresa ? 'Buscando...' : 'Buscar'}
-                        </button>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Endereço da Empresa</label>
-                        <input
-                          type="text"
-                          value={formData.enderecoEmpresa}
-                          onChange={(e) => setFormData({ ...formData, enderecoEmpresa: e.target.value })}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="Rua, número"
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">Cidade (Empresa)</label>
-                          <input
-                            type="text"
-                            value={formData.cidadeEmpresa}
-                            onChange={(e) => setFormData({ ...formData, cidadeEmpresa: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="Cidade"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-bold text-slate-700 ml-1">Estado (Empresa)</label>
-                          <input
-                            type="text"
-                            value={formData.estadoEmpresa}
-                            onChange={(e) => setFormData({ ...formData, estadoEmpresa: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                            placeholder="UF"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    <ClientStepProfissao
+                      formData={formData}
+                      setFormData={setFormData}
+                      formatCEP={formatCEP}
+                      normalizeDigits={normalizeDigits}
+                      fetchCep={fetchCep}
+                      loadingCepEmpresa={loadingCepEmpresa}
+                      setLoadingCepEmpresa={setLoadingCepEmpresa}
+                    />
                   )}
 
                   {activeTab === 'emergencia' && (
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Contato de Emergência 1</label>
-                        <input
-                          type="text"
-                          value={formData.contatoEmergencia1}
-                          onChange={(e) => setFormData({ ...formData, contatoEmergencia1: e.target.value })}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="Nome e telefone"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Contato de Emergência 2</label>
-                        <input
-                          type="text"
-                          value={formData.contatoEmergencia2}
-                          onChange={(e) => setFormData({ ...formData, contatoEmergencia2: e.target.value })}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="Nome e telefone"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Contato de Emergência 3</label>
-                        <input
-                          type="text"
-                          value={formData.contatoEmergencia3}
-                          onChange={(e) => setFormData({ ...formData, contatoEmergencia3: e.target.value })}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="Nome e telefone"
-                        />
-                      </div>
-                    </div>
+                    <ClientStepEmergencia
+                      formData={formData}
+                      setFormData={setFormData}
+                      emergencia1={emergencia1}
+                      emergencia2={emergencia2}
+                      emergencia3={emergencia3}
+                      buildEmergency={buildEmergency}
+                      formatPhoneBR={formatPhoneBR}
+                    />
+                  )}
+
+                  {activeTab === 'revisao' && (
+                    <ClientStepRevisao
+                      formData={formData}
+                      chargeData={chargeData}
+                      selectedFile={selectedFile}
+                      docs={docs}
+                      editingClient={!!editingClient}
+                      emergencia1={emergencia1}
+                      emergencia2={emergencia2}
+                      emergencia3={emergencia3}
+                      printReview={printReview}
+                      setActiveTab={setActiveTab}
+                    />
                   )}
 
                   <div className="pt-4 flex gap-3">
@@ -1506,15 +1101,37 @@ export function Clients({ initialClients }: ClientsProps) {
                     >
                       Cancelar
                     </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="flex-[2] py-3.5 px-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all disabled:opacity-50"
-                    >
-                      {loading ? 'Processando...' : (editingClient ? 'Atualizar Dados' : 'Cadastrar Cliente')}
-                    </button>
+                    {activeTab !== 'basico' ? (
+                      <button
+                        type="button"
+                        onClick={handlePrevTab}
+                        className="flex-1 py-3.5 px-4 bg-white border border-slate-200 text-slate-700 font-black rounded-2xl hover:bg-slate-50 transition-colors"
+                      >
+                        Anterior
+                      </button>
+                    ) : null}
+
+                    {activeTab !== 'revisao' ? (
+                      <button
+                        type="button"
+                        onClick={handleNextTab}
+                        className="flex-[2] py-3.5 px-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
+                      >
+                        Próxima
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="flex-[2] py-3.5 px-4 bg-emerald-600 text-white font-black rounded-2xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-50"
+                      >
+                        {loading ? 'Processando...' : (editingClient ? 'Confirmar atualização' : 'Confirmar cadastro')}
+                      </button>
+                    )}
                   </div>
-                </form>
+                    </form>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>
