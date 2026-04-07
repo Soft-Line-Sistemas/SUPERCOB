@@ -36,6 +36,18 @@ model Usuario {
   permissaoAuditorias PermissaoAuditoria[] @relation("PermissaoAuditoriaAlvo")
 
   permissaoAuditoriasAutor PermissaoAuditoria[] @relation("PermissaoAuditoriaAutor")
+
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
 }
 
 model MensagemInterna {

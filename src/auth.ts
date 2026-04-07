@@ -31,8 +31,8 @@ export const { auth, signIn, signOut, handlers: { GET, POST } } = NextAuth({
             } as any
           }
 
-          // --- LOGIN TEMPORÁRIO (SEM BANCO DE DADOS) ---
-          if (email === 'admin@supercob.com.br' && senha === 'admin123') {
+          const allowDevLogin = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_LOGIN === 'true'
+          if (allowDevLogin && email === 'admin@supercob.com.br' && senha === 'admin123') {
             const created = await prisma.usuario.upsert({
               where: { email },
               update: {
@@ -65,7 +65,7 @@ export const { auth, signIn, signOut, handlers: { GET, POST } } = NextAuth({
             } as any
           }
 
-          if (email === 'op@supercob.com.br' && senha === 'op123456') {
+          if (allowDevLogin && email === 'op@supercob.com.br' && senha === 'op123456') {
             const created = await prisma.usuario.upsert({
               where: { email },
               update: {
@@ -97,7 +97,6 @@ export const { auth, signIn, signOut, handlers: { GET, POST } } = NextAuth({
               role: created.role,
             } as any
           }
-          // ---------------------------------------------
         }
 
         return null

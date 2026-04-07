@@ -120,6 +120,14 @@ export async function updateMyPassword(currentPassword: string, newPassword: str
     data: { senha: hashed },
   })
 
+  const after = await prisma.usuario.findUnique({
+    where: { id },
+    select: { senha: true },
+  })
+  if (!after) throw new Error('Falha ao salvar nova senha')
+  const check = await bcrypt.compare(newPassword, after.senha)
+  if (!check) throw new Error('Falha ao salvar nova senha')
+
   revalidatePath('/perfil')
   return { ok: true }
 }

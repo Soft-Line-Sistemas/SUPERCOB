@@ -50,6 +50,12 @@ O **SUPERCOB** é uma plataforma SaaS robusta desenvolvida para otimizar e autom
    ```env
    DATABASE_URL="sqlserver://SEU_SERVIDOR;database=SUPERCOB;user=SEU_USUARIO;password=SUA_SENHA;encrypt=true"
    AUTH_SECRET="seu-segredo-aqui"
+   APP_URL="http://localhost:3000"
+   SMTP_HOST="smtp.seu-provedor.com"
+   SMTP_PORT="587"
+   SMTP_USER="seu-usuario"
+   SMTP_PASS="sua-senha"
+   EMAIL_FROM="SUPERCOB <no-reply@supercob.com.br>"
    ```
 
 3. **Migrar o banco de dados**:
@@ -62,9 +68,15 @@ O **SUPERCOB** é uma plataforma SaaS robusta desenvolvida para otimizar e autom
    npm run dev
    ```
 
-## 🔑 Acessos Temporários (Bypass)
+## 🔑 Acessos Temporários (Dev)
 
-Para testes rápidos sem banco de dados, utilize as seguintes credenciais:
+Para facilitar testes em desenvolvimento, habilite o login temporário via variável de ambiente:
+
+```env
+ALLOW_DEV_LOGIN="true"
+```
+
+Credenciais:
 
 - **Admin**: `admin@supercob.com.br` / `admin123`
 - **Operador**: `op@supercob.com.br` / `op123456`

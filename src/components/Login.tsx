@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight, ShieldCheck, CreditCard, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { signIn } from 'next-auth/react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -141,9 +142,9 @@ export function Login() {
             <div className="space-y-2">
               <div className="flex items-center justify-between px-1">
                 <label className="text-sm font-medium text-slate-300">Senha</label>
-                <button type="button" className="text-sm text-blue-500 hover:text-blue-400 font-medium transition-colors">
+                <Link href="/recuperar-senha" className="text-sm text-blue-500 hover:text-blue-400 font-medium transition-colors">
                   Esqueceu a senha?
-                </button>
+                </Link>
               </div>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-500">
