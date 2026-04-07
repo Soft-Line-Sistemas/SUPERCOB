@@ -1,10 +1,13 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter, Download, UserPlus } from 'lucide-react';
 import { createCliente, updateCliente, deleteCliente } from '@/app/(dashboard)/clientes/actions';
 import { createEmprestimo } from '@/app/(dashboard)/emprestimos/actions'
 import { parseDateInputToUTCNoon, sanitizeDigits, validateBirthDateParts } from '@/lib/date-utils'
+import { clientFormDefaults, clientSchema, formatCEP, formatCPF, formatPhoneBR, isValidCPF, normalizeClientPayload, normalizeDigits, tabRequiredFields } from './client-modal/form-schema'
 import { ClientStepAnexos } from './client-modal/StepAnexos'
 import { ClientStepBasic } from './client-modal/StepBasic'
 import { ClientStepCobranca } from './client-modal/StepCobranca'
@@ -68,36 +71,20 @@ export function Clients({ initialClients }: ClientsProps) {
   });
   const [editingClient, setEditingClient] = useState<Cliente | null>(null);
   const [activeTab, setActiveTab] = useState<'basico' | 'identificacao' | 'endereco' | 'profissao' | 'emergencia' | 'cobranca' | 'anexos' | 'revisao'>('basico');
-  const [formData, setFormData] = useState({
-    nome: '',
-    indicacao: '',
-    cpf: '',
-    rg: '',
-    orgao: '',
-    diaNasc: '',
-    mesNasc: '',
-    anoNasc: '',
-    email: '',
-    whatsapp: '',
-    instagram: '',
-    cep: '',
-    endereco: '',
-    numeroEndereco: '',
-    complemento: '',
-    bairro: '',
-    cidade: '',
-    estado: '',
-    pontoReferencia: '',
-    profissao: '',
-    empresa: '',
-    cepEmpresa: '',
-    enderecoEmpresa: '',
-    cidadeEmpresa: '',
-    estadoEmpresa: '',
-    contatoEmergencia1: '',
-    contatoEmergencia2: '',
-    contatoEmergencia3: '',
-  });
+  const form = useForm({
+    resolver: zodResolver(clientSchema),
+    mode: 'onChange',
+    defaultValues: clientFormDefaults,
+  })
+  const formData = form.watch()
+  const fieldErrors = form.formState.errors
+  const setFormData = (next: any) => {
+    const payload = typeof next === 'function' ? next(form.getValues()) : next
+    for (const [key, value] of Object.entries(payload)) {
+      form.setValue(key as any, value as any, { shouldDirty: true, shouldTouch: true, shouldValidate: true })
+    }
+  }
+
   const [loading, setLoading] = useState(false);
   const [loadingCep, setLoadingCep] = useState(false);
   const [loadingCepEmpresa, setLoadingCepEmpresa] = useState(false);
@@ -118,30 +105,11 @@ export function Clients({ initialClients }: ClientsProps) {
   const lastAutoAdvanceRef = useRef<string | null>(null)
   const [birthErrors, setBirthErrors] = useState<{ dia?: string; mes?: string; ano?: string }>({})
 
-  const normalizeDigits = (value: string) => value.replace(/\D/g, '');
-  const normalizeText = (value: string) => value.trim().toLowerCase();
+  const formErrorMessages = Object.fromEntries(
+    Object.entries(fieldErrors).map(([key, value]) => [key, value?.message ? String(value.message) : undefined]),
+  ) as Partial<Record<keyof typeof formData, string>>
 
-  const formatCPF = (value: string) => {
-    const d = normalizeDigits(value).slice(0, 11)
-    if (d.length <= 3) return d
-    if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
-    if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
-    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
-  }
-
-  const formatPhoneBR = (value: string) => {
-    const d = normalizeDigits(value).slice(0, 11)
-    if (d.length <= 2) return d
-    if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
-    if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
-    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
-  }
-
-  const formatCEP = (value: string) => {
-    const d = normalizeDigits(value).slice(0, 8)
-    if (d.length <= 5) return d
-    return `${d.slice(0, 5)}-${d.slice(5)}`
-  }
+const normalizeText = (value: string) => value.trim().toLowerCase();
 
   const parseEmergency = (value: string) => {
     const raw = (value ?? '').trim()
@@ -164,23 +132,6 @@ export function Clients({ initialClients }: ClientsProps) {
     const t = telefone.trim()
     if (n === '' && t === '') return ''
     return `${n}|${t}`
-  }
-
-  const isValidCPF = (cpf: string) => {
-    const digits = normalizeDigits(cpf)
-    if (digits.length !== 11) return false
-    if (/^(\d)\1{10}$/.test(digits)) return false
-
-    const calc = (len: number) => {
-      let sum = 0
-      for (let i = 0; i < len; i++) sum += Number(digits[i]) * (len + 1 - i)
-      const mod = sum % 11
-      return mod < 2 ? 0 : 11 - mod
-    }
-
-    const d1 = calc(9)
-    const d2 = calc(10)
-    return d1 === Number(digits[9]) && d2 === Number(digits[10])
   }
 
   const fetchCep = async (cep: string) => {
@@ -224,7 +175,7 @@ export function Clients({ initialClients }: ClientsProps) {
   const handleOpenModal = (client?: Cliente) => {
     if (client) {
       setEditingClient(client);
-      setFormData({
+      form.reset({
         nome: client.nome ?? '',
         indicacao: client.indicacao ?? '',
         cpf: formatCPF(client.cpf ?? ''),
@@ -257,7 +208,7 @@ export function Clients({ initialClients }: ClientsProps) {
       setChargeData({ enabled: false, valor: '', jurosMes: '', vencimento: '', observacao: '' })
     } else {
       setEditingClient(null);
-      setFormData({
+      form.reset({
         nome: '',
         indicacao: '',
         cpf: '',
@@ -293,83 +244,19 @@ export function Clients({ initialClients }: ClientsProps) {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = form.handleSubmit(async (values) => {
     setLoading(true);
     try {
-      const normalizeOptional = (value: string) => {
-        const trimmed = value.trim();
-        return trimmed === '' ? null : trimmed;
-      };
-      const parseIntOrNull = (value: string) => {
-        const trimmed = value.trim();
-        if (trimmed === '') return null;
-        const num = Number.parseInt(trimmed, 10);
-        return Number.isFinite(num) ? num : null;
-      };
-
-      if (formData.nome.trim() === '') {
-        toast.error('Informe o nome do cliente.')
-        setActiveTab('basico')
-        return
-      }
-
-      const whatsappDigits = normalizeDigits(formData.whatsapp)
-      if (whatsappDigits.length < 10) {
-        toast.error('Informe um WhatsApp válido.')
-        setActiveTab('basico')
-        return
-      }
-
+      const formData = values
       const cpfDigits = normalizeDigits(formData.cpf)
-      if (cpfDigits.length !== 11 || !isValidCPF(cpfDigits)) {
-        toast.error('CPF inválido.')
-        setActiveTab('identificacao')
-        return
-      }
-
       const cpfDuplicado = initialClients.some((c) => {
         const other = normalizeDigits(c.cpf ?? '')
         if (editingClient && c.id === editingClient.id) return false
         return other !== '' && other === cpfDigits
       })
       if (cpfDuplicado) {
-        toast.error('Já existe um cliente cadastrado com esse CPF.')
+        form.setError('cpf', { message: 'Já existe um cliente cadastrado com esse CPF.' })
         setActiveTab('identificacao')
-        return
-      }
-
-      const birthCheck = validateBirthDateParts(formData.diaNasc, formData.mesNasc, formData.anoNasc)
-      if (birthCheck.dia || birthCheck.mes || birthCheck.ano) {
-        setBirthErrors(birthCheck)
-        toast.error('Data de nascimento inválida.')
-        setActiveTab('identificacao')
-        return
-      }
-
-      const cepDigits = normalizeDigits(formData.cep)
-      if (cepDigits.length !== 8) {
-        toast.error('Informe um CEP válido.')
-        setActiveTab('endereco')
-        return
-      }
-
-      if (formData.endereco.trim() === '') {
-        toast.error('Informe o endereço.')
-        setActiveTab('endereco')
-        return
-      }
-
-      const numeroEndereco = parseIntOrNull(formData.numeroEndereco)
-      if (!numeroEndereco || numeroEndereco <= 0) {
-        toast.error('Informe o número do endereço.')
-        setActiveTab('endereco')
-        return
-      }
-
-      if (formData.bairro.trim() === '' || formData.cidade.trim() === '' || formData.estado.trim() === '') {
-        toast.error('Preencha bairro, cidade e estado.')
-        setActiveTab('endereco')
         return
       }
 
@@ -387,36 +274,7 @@ export function Clients({ initialClients }: ClientsProps) {
         }
       }
 
-      const payload = {
-        nome: formData.nome.trim(),
-        indicacao: normalizeOptional(formData.indicacao),
-        cpf: cpfDigits,
-        rg: normalizeOptional(formData.rg),
-        orgao: normalizeOptional(formData.orgao),
-        diaNasc: parseIntOrNull(formData.diaNasc),
-        mesNasc: parseIntOrNull(formData.mesNasc),
-        anoNasc: parseIntOrNull(formData.anoNasc),
-        email: normalizeOptional(formData.email),
-        whatsapp: whatsappDigits,
-        instagram: normalizeOptional(formData.instagram),
-        cep: normalizeOptional(formData.cep),
-        endereco: normalizeOptional(formData.endereco),
-        numeroEndereco: parseIntOrNull(formData.numeroEndereco),
-        complemento: normalizeOptional(formData.complemento),
-        bairro: normalizeOptional(formData.bairro),
-        cidade: normalizeOptional(formData.cidade),
-        estado: normalizeOptional(formData.estado),
-        pontoReferencia: normalizeOptional(formData.pontoReferencia),
-        profissao: normalizeOptional(formData.profissao),
-        empresa: normalizeOptional(formData.empresa),
-        cepEmpresa: normalizeOptional(formData.cepEmpresa),
-        enderecoEmpresa: normalizeOptional(formData.enderecoEmpresa),
-        cidadeEmpresa: normalizeOptional(formData.cidadeEmpresa),
-        estadoEmpresa: normalizeOptional(formData.estadoEmpresa),
-        contatoEmergencia1: normalizeOptional(formData.contatoEmergencia1),
-        contatoEmergencia2: normalizeOptional(formData.contatoEmergencia2),
-        contatoEmergencia3: normalizeOptional(formData.contatoEmergencia3),
-      };
+      const payload = normalizeClientPayload(formData)
 
       if (editingClient) {
         await updateCliente(editingClient.id, payload);
@@ -460,7 +318,7 @@ export function Clients({ initialClients }: ClientsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  });
 
   const handleDelete = async (id: string) => {
     toast.info('Ação de exclusão solicitada', {
@@ -480,7 +338,7 @@ export function Clients({ initialClients }: ClientsProps) {
 
   useEffect(() => {
     const loadDocs = async () => {
-      if (!editingClient || activeTab !== 'anexos') return
+      if (!editingClient?.id || activeTab !== 'anexos') return
       try {
         const res = await fetch(`/api/clientes/${editingClient.id}/documentos`)
         if (!res.ok) return
@@ -489,16 +347,11 @@ export function Clients({ initialClients }: ClientsProps) {
       } catch {}
     }
     if (isModalOpen) loadDocs()
-  }, [isModalOpen, editingClient?.id, activeTab])
+  }, [isModalOpen, editingClient, activeTab])
 
   type Tab = 'basico' | 'identificacao' | 'endereco' | 'profissao' | 'emergencia' | 'cobranca' | 'anexos' | 'revisao'
   const tabOrder: Tab[] = ['basico', 'identificacao', 'endereco', 'profissao', 'emergencia', 'cobranca', 'anexos', 'revisao']
   const autoAdvanceOrder: Array<'basico' | 'identificacao' | 'endereco'> = ['basico', 'identificacao', 'endereco']
-
-  const getNextAutoTab = (tab: typeof autoAdvanceOrder[number]) => {
-    const idx = autoAdvanceOrder.indexOf(tab)
-    return idx >= 0 && idx < autoAdvanceOrder.length - 1 ? autoAdvanceOrder[idx + 1] : null
-  }
 
   const isTabComplete = (tab: Tab) => {
     if (tab === 'basico') {
@@ -551,64 +404,26 @@ export function Clients({ initialClients }: ClientsProps) {
     return false
   }
 
-  const validateTabBeforeNavigate = (tab: Tab) => {
-    if (tab === 'basico') {
-      if (formData.nome.trim() === '') {
-        toast.error('Informe o nome do cliente.')
-        return false
-      }
-      if (normalizeDigits(formData.whatsapp).length < 10) {
-        toast.error('Informe um WhatsApp válido.')
-        return false
-      }
-      return true
-    }
+  const validateTabBeforeNavigate = async (tab: Tab) => {
+    const fields = tabRequiredFields[tab]
+    if (!fields.length) return true
+    const ok = await form.trigger(fields as any)
+    if (!ok) return false
+
     if (tab === 'identificacao') {
       const cpfDigits = normalizeDigits(formData.cpf)
-      if (cpfDigits.length !== 11 || !isValidCPF(cpfDigits)) {
-        toast.error('CPF inválido.')
-        return false
-      }
       const cpfDuplicado = initialClients.some((c) => {
         const other = normalizeDigits(c.cpf ?? '')
         if (editingClient && c.id === editingClient.id) return false
         return other !== '' && other === cpfDigits
       })
       if (cpfDuplicado) {
-        toast.error('Já existe um cliente cadastrado com esse CPF.')
+        form.setError('cpf', { message: 'Já existe um cliente cadastrado com esse CPF.' })
         return false
       }
-      const birthCheck = validateBirthDateParts(formData.diaNasc, formData.mesNasc, formData.anoNasc)
-      if (birthCheck.dia || birthCheck.mes || birthCheck.ano) {
-        setBirthErrors(birthCheck)
-        toast.error('Data de nascimento inválida.')
-        return false
-      }
-      return true
     }
-    if (tab === 'endereco') {
-      const cepDigits = normalizeDigits(formData.cep)
-      if (cepDigits.length !== 8) {
-        toast.error('Informe um CEP válido.')
-        return false
-      }
-      if (formData.endereco.trim() === '') {
-        toast.error('Informe o endereço.')
-        return false
-      }
-      const numero = Number.parseInt(formData.numeroEndereco.trim(), 10)
-      if (!Number.isFinite(numero) || numero <= 0) {
-        toast.error('Informe o número do endereço.')
-        return false
-      }
-      if (formData.bairro.trim() === '' || formData.cidade.trim() === '' || formData.estado.trim() === '') {
-        toast.error('Preencha bairro, cidade e estado.')
-        return false
-      }
-      return true
-    }
-    if (tab === 'cobranca') {
-      if (!chargeData.enabled) return true
+
+    if (tab === 'cobranca' && chargeData.enabled) {
       const valor = Number(chargeData.valor)
       if (!Number.isFinite(valor) || valor <= 0) {
         toast.error('Informe um valor válido para a cobrança inicial.')
@@ -618,43 +433,15 @@ export function Clients({ initialClients }: ClientsProps) {
         toast.error('Informe o vencimento da cobrança inicial.')
         return false
       }
-      return true
     }
     return true
   }
 
+
   const handleTabNavigate = (target: Tab) => {
-    const currentIdx = tabOrder.indexOf(activeTab)
-    const targetIdx = tabOrder.indexOf(target)
-    if (targetIdx <= currentIdx) {
-      lastAutoAdvanceRef.current = null
-      setActiveTab(target)
-      return
-    }
-    for (let i = 0; i < targetIdx; i++) {
-      const tab = tabOrder[i]
-      const ok = validateTabBeforeNavigate(tab)
-      if (!ok) {
-        setActiveTab(tab)
-        return
-      }
-    }
+    lastAutoAdvanceRef.current = null
     setActiveTab(target)
   }
-
-  useEffect(() => {
-    if (!isModalOpen) return
-    if (!autoAdvanceOrder.includes(activeTab as any)) return
-    const next = getNextAutoTab(activeTab as any)
-    if (!next) return
-    if (!isTabComplete(activeTab as any)) return
-    if (lastAutoAdvanceRef.current === activeTab) return
-    const t = window.setTimeout(() => {
-      lastAutoAdvanceRef.current = activeTab
-      setActiveTab(next)
-    }, 350)
-    return () => window.clearTimeout(t)
-  }, [activeTab, formData, isModalOpen])
 
   const validateFile = (file: File) => {
     const allowed = ['image/jpeg', 'image/png', 'application/pdf']
@@ -758,9 +545,10 @@ export function Clients({ initialClients }: ClientsProps) {
     setActiveTab(prevTab)
   }
 
-  const handleNextTab = () => {
+  const handleNextTab = async () => {
     if (!nextTab) return
-    handleTabNavigate(nextTab)
+    const ok = await validateTabBeforeNavigate(activeTab)
+    if (ok) setActiveTab(nextTab)
   }
 
   const printReview = () => {
@@ -1007,7 +795,7 @@ export function Clients({ initialClients }: ClientsProps) {
 
                   <div className="min-w-0">
                     <form className="space-y-6" onSubmit={handleSubmit}>
-                  {activeTab === 'basico' && <ClientStepBasic formData={formData} setFormData={setFormData} formatPhoneBR={formatPhoneBR} />}
+                  {activeTab === 'basico' && <ClientStepBasic formData={formData} setFormData={setFormData} formatPhoneBR={formatPhoneBR} errors={formErrorMessages} />}
 
                   {activeTab === 'identificacao' && (
                     <ClientStepIdentificacao
@@ -1018,6 +806,7 @@ export function Clients({ initialClients }: ClientsProps) {
                       setBirthErrors={setBirthErrors}
                       sanitizeDigits={sanitizeDigits}
                       validateBirthDateParts={validateBirthDateParts}
+                      errors={formErrorMessages}
                     />
                   )}
 
@@ -1051,6 +840,7 @@ export function Clients({ initialClients }: ClientsProps) {
                       fetchCep={fetchCep}
                       loadingCep={loadingCep}
                       setLoadingCep={setLoadingCep}
+                      errors={formErrorMessages}
                     />
                   )}
 
@@ -1107,7 +897,7 @@ export function Clients({ initialClients }: ClientsProps) {
                         onClick={handlePrevTab}
                         className="flex-1 py-3.5 px-4 bg-white border border-slate-200 text-slate-700 font-black rounded-2xl hover:bg-slate-50 transition-colors"
                       >
-                        Anterior
+                        Voltar
                       </button>
                     ) : null}
 
