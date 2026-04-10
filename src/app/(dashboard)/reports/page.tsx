@@ -109,24 +109,22 @@ export default async function ReportsPage({
 
   const [loans, colaboradores] = await Promise.all([
     prisma.emprestimo.findMany({
-    where,
-    select: {
-    where,
-    select: {
-      id: true,
-      valor: true,
-      valorPago: true,
-      jurosMes: true,
-      status: true,
-      vencimento: true,
-      createdAt: true,
-      clienteId: true,
-      usuarioId: true,
-      jurosPagos: true,
-      cliente: {
-        select: { nome: true, cidade: true, estado: true },
+      where,
+      select: {
+        id: true,
+        valor: true,
+        valorPago: true,
+        jurosMes: true,
+        status: true,
+        vencimento: true,
+        createdAt: true,
+        clienteId: true,
+        usuarioId: true,
+        jurosPagos: true,
+        cliente: {
+          select: { nome: true, cidade: true, estado: true },
+        },
       },
-    },
     }),
     prisma.usuario.findMany({ where: { role: 'OPERADOR' }, select: { id: true, nome: true }, orderBy: { nome: 'asc' } }),
   ])
