@@ -70,8 +70,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
 
   const [isModalOpen, setIsModalOpen] = useState(shouldAutoOpenNew);
   const [prefillConsumed, setPrefillConsumed] = useState(!shouldAutoOpenNew)
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [loading, setLoading] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
@@ -200,8 +199,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
   }
 
   const handleOpenDetail = (loan: Loan) => {
-    setSelectedLoan(loan);
-    setIsDetailModalOpen(true);
+    if (loan.id.startsWith('draft-')) return;
+    router.push(`/emprestimos/${loan.id}`);
   };
 
   const normalizeDigits = (value: string) => value.replace(/\D/g, '')
@@ -642,57 +641,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
       />
 
       {/* Modal Detalhes */}
-      {isDetailModalOpen && selectedLoan && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsDetailModalOpen(false)}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-[2.5rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-slate-100">
-               <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                    <Info className="h-5 w-5 text-blue-600" /> Detalhes
-                  </h3>
-                  <button onClick={() => setIsDetailModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-2xl transition-colors">
-                    <X className="h-6 w-6 text-slate-400" />
-                  </button>
-               </div>
-               
-               <div className="p-6 space-y-6">
-                 <div className="grid grid-cols-2 gap-6">
-                   <div>
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cliente</p>
-                     <p className="text-sm font-bold text-slate-900">{selectedLoan.cliente.nome}</p>
-                   </div>
-                   <div>
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
-                     <span className={`px-2 py-0.5 inline-flex text-[10px] font-black uppercase rounded-lg border ${statusConfig[selectedLoan.status].bg} ${statusConfig[selectedLoan.status].color}`}>
-                        {statusConfig[selectedLoan.status].label}
-                     </span>
-                   </div>
-                 </div>
 
-                 <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Resumo Financeiro</p>
-                    <div className="flex items-baseline gap-2">
-                       <span className="text-2xl font-black text-slate-900">{formatCurrency(selectedLoan.valor)}</span>
-                       <span className="text-xs text-slate-500 font-bold">valor bruto</span>
-                    </div>
-                 </div>
-
-                 <a
-                    href={generateWhatsAppLink(selectedLoan)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 py-4 bg-emerald-600 text-white font-black rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 active:scale-95 transition-all"
-                 >
-                    <Send className="h-5 w-5" />
-                    Falar com Cliente
-                 </a>
-               </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
