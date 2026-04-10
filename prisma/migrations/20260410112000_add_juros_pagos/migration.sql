@@ -1,0 +1,22 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- AlterTable
+IF COL_LENGTH('dbo.Emprestimo', 'jurosPagos') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Emprestimo] ADD [jurosPagos] FLOAT(53) NOT NULL CONSTRAINT [Emprestimo_jurosPagos_df] DEFAULT 0;
+END
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH
