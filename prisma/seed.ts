@@ -61,7 +61,6 @@ async function main() {
       whatsapp: '11999999999',
       cep: '01001000',
       endereco: 'Praça da Sé',
-      numeroEndereco: 100,
       bairro: 'Sé',
       cidade: 'São Paulo',
       estado: 'SP',
@@ -100,11 +99,11 @@ async function main() {
 
   // Clientes adicionais com movimentações e status variados
   const clientesSeed = [
-    { nome: 'Ana Silva', email: 'ana.silva@example.com', whatsapp: '11911112222', cep: '01311000', endereco: 'Av. Paulista', numeroEndereco: 1578, bairro: 'Bela Vista', cidade: 'São Paulo', estado: 'SP' },
-    { nome: 'Bruno Costa', email: 'bruno.costa@example.com', whatsapp: '21922223333', cep: '20040002', endereco: 'Rua da Assembleia', numeroEndereco: 10, bairro: 'Centro', cidade: 'Rio de Janeiro', estado: 'RJ' },
-    { nome: 'Carla Souza', email: 'carla.souza@example.com', whatsapp: '31933334444', cep: '30140071', endereco: 'Av. Afonso Pena', numeroEndereco: 900, bairro: 'Centro', cidade: 'Belo Horizonte', estado: 'MG' },
-    { nome: 'Diego Lima', email: 'diego.lima@example.com', whatsapp: '41944445555', cep: '80010000', endereco: 'Rua XV de Novembro', numeroEndereco: 55, bairro: 'Centro', cidade: 'Curitiba', estado: 'PR' },
-    { nome: 'Elisa Rocha', email: 'elisa.rocha@example.com', whatsapp: '51955556666', cep: '90010150', endereco: 'Rua dos Andradas', numeroEndereco: 123, bairro: 'Centro Histórico', cidade: 'Porto Alegre', estado: 'RS' },
+    { nome: 'Ana Silva', email: 'ana.silva@example.com', whatsapp: '11911112222', cep: '01311000', endereco: 'Av. Paulista', bairro: 'Bela Vista', cidade: 'São Paulo', estado: 'SP' },
+    { nome: 'Bruno Costa', email: 'bruno.costa@example.com', whatsapp: '21922223333', cep: '20040002', endereco: 'Rua da Assembleia', bairro: 'Centro', cidade: 'Rio de Janeiro', estado: 'RJ' },
+    { nome: 'Carla Souza', email: 'carla.souza@example.com', whatsapp: '31933334444', cep: '30140071', endereco: 'Av. Afonso Pena', bairro: 'Centro', cidade: 'Belo Horizonte', estado: 'MG' },
+    { nome: 'Diego Lima', email: 'diego.lima@example.com', whatsapp: '41944445555', cep: '80010000', endereco: 'Rua XV de Novembro', bairro: 'Centro', cidade: 'Curitiba', estado: 'PR' },
+    { nome: 'Elisa Rocha', email: 'elisa.rocha@example.com', whatsapp: '51955556666', cep: '90010150', endereco: 'Rua dos Andradas', bairro: 'Centro Histórico', cidade: 'Porto Alegre', estado: 'RS' },
   ]
 
   const createdClients = []
@@ -163,7 +162,6 @@ async function main() {
       clienteId: carla.id,
       usuarioId: operador.id,
       valor: 600,
-      valorPago: 600,
       jurosMes: 1.5,
       vencimento: new Date(now - 10 * 24 * 60 * 60 * 1000),
       quitadoEm: new Date(now - 2 * 24 * 60 * 60 * 1000),
