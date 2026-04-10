@@ -294,7 +294,9 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
         <Link href="/perfil" className="flex items-center gap-3 pl-2">
           <div className="hidden md:block text-right">
             <p className="text-xs font-black text-slate-900 dark:text-slate-100">{user?.nome?.split(' ')[0]}</p>
-            <p className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter">{user?.role}</p>
+            <p className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter">
+              {user?.role === 'OPERADOR' ? 'GERÊNCIA' : user?.role}
+            </p>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-white/10 dark:to-white/5 border border-white/70 dark:border-white/10 shadow-sm flex items-center justify-center font-black text-slate-900 dark:text-slate-100 text-sm overflow-hidden">
             {user?.nome?.[0] || 'U'}

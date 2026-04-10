@@ -117,9 +117,10 @@ model Emprestimo {
   usuario     Usuario?  @relation(fields: [usuarioId], references: [id])
   
   valor       Float
-  valorPago   Float     @default(0)
-  jurosMes    Float     @default(0)
-  vencimento  DateTime?
+  valorPago        Float        @default(0)
+  jurosMes         Float        @default(0)
+  jurosPagos       Float        @default(0)
+  vencimento       DateTime?
   quitadoEm   DateTime?
   status      String    @default("ABERTO") @db.VarChar(20)
   observacao  String?   @db.Text
@@ -133,6 +134,7 @@ model Emprestimo {
   arquivo5    String?
   
   createdAt   DateTime  @default(now())
+  cobrancaAtiva Boolean   @default(false)
 }
 
 model EmprestimoHistorico {

@@ -148,7 +148,7 @@ export function Users({ initialUsers }: UsersProps) {
               <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[10px] font-black uppercase tracking-widest ${
                 user.role === 'ADMIN' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'
               }`}>
-                {user.role}
+                {user.role === 'OPERADOR' ? 'GERÊNCIA' : user.role}
               </div>
 
               <div className="flex items-center gap-4 mb-6">
@@ -295,7 +295,7 @@ export function Users({ initialUsers }: UsersProps) {
                           }`}
                         >
                           <User className={`w-6 h-6 ${formData.role === 'OPERADOR' ? 'text-blue-600' : 'text-slate-400'}`} />
-                          <span className={`text-xs font-bold ${formData.role === 'OPERADOR' ? 'text-blue-700' : 'text-slate-500'}`}>OPERADOR</span>
+                          <span className={`text-xs font-bold ${formData.role === 'OPERADOR' ? 'text-blue-700' : 'text-slate-500'}`}>GERÊNCIA</span>
                         </button>
                         <button
                           type="button"

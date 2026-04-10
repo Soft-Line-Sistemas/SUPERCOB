@@ -11,13 +11,13 @@ export async function getChatUsers() {
   const { id, role } = session.user as any;
 
   if (role === 'ADMIN') {
-    // Admin vê todos os operadores
+    // Admin vê todos da Gerência
     return await prisma.usuario.findMany({
       where: { role: 'OPERADOR', isActive: true },
       select: { id: true, nome: true, email: true, role: true }
     });
   } else {
-    // Operador vê apenas os admins
+    // Gerência vê apenas os admins
     return await prisma.usuario.findMany({
       where: { role: 'ADMIN', isActive: true },
       select: { id: true, nome: true, email: true, role: true }

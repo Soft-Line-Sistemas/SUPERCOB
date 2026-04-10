@@ -32,6 +32,7 @@ type EmprestimoDetalhes = {
   }
   usuario?: { nome: string } | null
   historico: HistoricoEvento[]
+  jurosPagos?: number | null
 }
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
@@ -101,8 +102,11 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
   const now = new Date()
   const baseDate = new Date((emprestimo.vencimento ?? emprestimo.createdAt) as any)
   const monthsLate = baseDate.getTime() <= now.getTime() ? Math.max(1, monthId(now) - monthId(baseDate) + 1) : 0
-  const jurosAcumulado = jurosMensalValor * monthsLate
-  const canFinish = status !== 'QUITADO' && status !== 'CANCELADO' && restante <= 0
+  
+  const jurosAcumuladoTotal = jurosMensalValor * monthsLate
+  const jurosPendente = Math.max(jurosAcumuladoTotal - (emprestimo.jurosPagos || 0), 0)
+  
+  const canFinish = status !== 'QUITADO' && status !== 'CANCELADO' && restante <= 0 && jurosPendente <= 0
 
   const handleAddEvento = () => {
     const value = descricao.trim()
@@ -249,9 +253,14 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
             <p className="text-xs text-slate-500 mt-1">Recalculado pelo saldo atual.</p>
           </div>
           <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Juros acumulado</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{formatBRL(jurosAcumulado)}</p>
-            <p className="text-xs text-slate-500 mt-1">{monthsLate > 0 ? `${monthsLate} mês(es)` : 'Ainda não venceu.'}</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Juros Pendente</p>
+            <p className="text-2xl font-black text-red-600 mt-1">{formatBRL(jurosPendente)}</p>
+            <p className="text-xs text-slate-500 mt-1">Acumulado: {formatBRL(jurosAcumuladoTotal)}</p>
+          </div>
+          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Juros Já Pagos</p>
+            <p className="text-2xl font-black text-emerald-600 mt-1">{formatBRL(emprestimo.jurosPagos || 0)}</p>
+            <p className="text-xs text-slate-500 mt-1">{monthsLate > 0 ? `${monthsLate} mês(es) decorridos` : 'Ainda no 1º mês'}</p>
           </div>
           <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Vencimento</p>

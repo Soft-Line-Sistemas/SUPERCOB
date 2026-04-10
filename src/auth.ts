@@ -69,7 +69,7 @@ export const { auth, signIn, signOut, handlers: { GET, POST } } = NextAuth({
             const created = await prisma.usuario.upsert({
               where: { email },
               update: {
-                nome: 'Operador',
+                nome: 'Gerência',
                 role: 'OPERADOR',
                 isActive: true,
                 canManageUsers: false,
@@ -77,7 +77,7 @@ export const { auth, signIn, signOut, handlers: { GET, POST } } = NextAuth({
                 canManageLoans: true,
               },
               create: {
-                nome: 'Operador',
+                nome: 'Gerência',
                 email,
                 senha: await bcrypt.hash(senha, 10),
                 role: 'OPERADOR',

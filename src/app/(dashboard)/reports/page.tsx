@@ -111,6 +111,8 @@ export default async function ReportsPage({
     prisma.emprestimo.findMany({
     where,
     select: {
+    where,
+    select: {
       id: true,
       valor: true,
       valorPago: true,
@@ -119,7 +121,8 @@ export default async function ReportsPage({
       vencimento: true,
       createdAt: true,
       clienteId: true,
-        usuarioId: true,
+      usuarioId: true,
+      jurosPagos: true,
       cliente: {
         select: { nome: true, cidade: true, estado: true },
       },
@@ -127,7 +130,6 @@ export default async function ReportsPage({
     }),
     prisma.usuario.findMany({ where: { role: 'OPERADOR' }, select: { id: true, nome: true }, orderBy: { nome: 'asc' } }),
   ])
-
   const expectedInterest = (valor: number, jurosMes: number | null) => valor * (((jurosMes ?? 0) as number) / 100)
 
   const monthId = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth()
@@ -143,7 +145,8 @@ export default async function ReportsPage({
       principalAtivo += restante
       const base = loan.vencimento ?? loan.createdAt
       const months = Math.max(1, monthId(startOfMonthUtc(new Date())) - monthId(startOfMonthUtc(base)) + 1)
-      projectedInterest += expectedInterest(restante, loan.jurosMes) * months
+      const jurosTotal = expectedInterest(restante, loan.jurosMes) * months
+      projectedInterest += Math.max(jurosTotal - (loan.jurosPagos || 0), 0)
     }
   }
 

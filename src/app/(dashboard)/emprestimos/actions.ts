@@ -10,6 +10,7 @@ export async function getEmprestimos(filters?: {
   startDate?: string;
   endDate?: string;
   usuarioId?: string;
+  cobrancaOnly?: boolean;
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -47,6 +48,10 @@ export async function getEmprestimos(filters?: {
     }
   }
 
+  if (filters?.cobrancaOnly) {
+    where.cobrancaAtiva = true
+  }
+
   return await prisma.emprestimo.findMany({
     where,
     select: {
@@ -61,6 +66,8 @@ export async function getEmprestimos(filters?: {
       status: true,
       observacao: true,
       createdAt: true,
+      cobrancaAtiva: true,
+      jurosPagos: true,
       cliente: {
         select: { nome: true, email: true, whatsapp: true },
       },
@@ -152,4 +159,15 @@ export async function deleteEmprestimo(id: string) {
   })
   revalidatePath('/emprestimos')
   revalidatePath('/dashboard')
+}
+
+export async function toggleCobrancaAtiva(id: string, active: boolean) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  await prisma.emprestimo.update({
+    where: { id },
+    data: { cobrancaAtiva: active }
+  })
+  revalidatePath('/emprestimos')
 }

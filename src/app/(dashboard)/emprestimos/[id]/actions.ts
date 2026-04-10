@@ -90,23 +90,62 @@ export async function addPagamentoParcial(input: { emprestimoId: string; valor: 
   if (!emprestimoAtual) throw new Error('Contrato não encontrado')
   if (emprestimoAtual.status === 'CANCELADO') throw new Error('Contrato cancelado')
 
-  const novoPago = (emprestimoAtual.valorPago || 0) + valor
-  const quitado = novoPago >= emprestimoAtual.valor
+  // --- REGRAS DE CÁLCULO DE JUROS (Sincronizado com UI) ---
+  const principalRestante = Math.max(emprestimoAtual.valor - (emprestimoAtual.valorPago || 0), 0)
+  const jurosPercent = Number(emprestimoAtual.jurosMes ?? 0) || 0
+  const jurosMensalValor = principalRestante * (jurosPercent / 100)
+  
+  const monthId = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth()
+  const now = new Date()
+  const baseDate = new Date((emprestimoAtual.vencimento ?? emprestimoAtual.createdAt) as any)
+  const monthsLate = baseDate.getTime() <= now.getTime() ? Math.max(1, monthId(now) - monthId(baseDate) + 1) : 0
+  
+  const jurosAcumuladoTotal = jurosMensalValor * monthsLate
+  const jurosPendente = Math.max(jurosAcumuladoTotal - (emprestimoAtual.jurosPagos || 0), 0)
+  // --------------------------------------------------------
+
+  let pagamentoParaJuros = 0
+  let pagamentoParaPrincipal = 0
+
+  if (valor <= jurosPendente) {
+    // Pagamento cobre apenas parte ou o total do juros pendente
+    pagamentoParaJuros = valor
+    pagamentoParaPrincipal = 0
+  } else {
+    // Pagamento cobre todo o juros e o resto vai para o principal
+    pagamentoParaJuros = jurosPendente
+    pagamentoParaPrincipal = valor - jurosPendente
+  }
+
+  const novoJurosPagos = (emprestimoAtual.jurosPagos || 0) + pagamentoParaJuros
+  const novoValorPago = (emprestimoAtual.valorPago || 0) + pagamentoParaPrincipal
+  const quitado = novoValorPago >= emprestimoAtual.valor
 
   const updated = await prisma.emprestimo.update({
     where: { id: input.emprestimoId },
     data: {
-      valorPago: novoPago,
+      valorPago: novoValorPago,
+      jurosPagos: novoJurosPagos,
       status: quitado ? 'QUITADO' : emprestimoAtual.status,
       quitadoEm: quitado ? new Date() : emprestimoAtual.quitadoEm,
     },
   })
 
   const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+  
+  let desc = `Pagamento registrado: ${fmt.format(valor)}.`
+  if (pagamentoParaJuros > 0 && pagamentoParaPrincipal > 0) {
+    desc += ` (${fmt.format(pagamentoParaJuros)} em juros e ${fmt.format(pagamentoParaPrincipal)} no principal).`
+  } else if (pagamentoParaJuros > 0) {
+    desc += ` (Total aplicado em juros).`
+  } else {
+    desc += ` (Total aplicado no principal).`
+  }
+
   const eventoPagamento = await prisma.emprestimoHistorico.create({
     data: {
       emprestimoId: input.emprestimoId,
-      descricao: `Pagamento parcial registrado: ${fmt.format(valor)}.`,
+      descricao: desc,
       createdById,
     },
     include: { createdBy: { select: { nome: true } } },

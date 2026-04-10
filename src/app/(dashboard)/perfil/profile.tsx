@@ -46,7 +46,7 @@ export function Profile({ me }: { me: { id: string; nome: string; email: string;
             <div className="min-w-0">
               <p className="text-sm font-black text-slate-900 truncate">{me.nome}</p>
               <p className="text-xs font-bold text-slate-500 truncate">{me.email}</p>
-              <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider mt-1">{me.role}</p>
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-wider mt-1">{me.role === 'OPERADOR' ? 'GERÊNCIA' : me.role}</p>
             </div>
           </div>
         </div>
