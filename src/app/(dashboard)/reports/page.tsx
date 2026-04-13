@@ -245,6 +245,62 @@ export default async function ReportsPage({
     .sort((a, b) => b.daysLate - a.daysLate)
     .slice(0, 12)
 
+  const dailyInterestData: { date: string; dateObj: Date; client: string; loanId: string; amount: number; isPaid: boolean }[] = []
+  
+  const todayStart = saoPauloDayStartUtc(todayYMD)
+  const todayEnd = saoPauloDayStartUtc(addDaysYMD(todayYMD, 1))
+
+  // Calcular entradas diárias de juros apenas para o DIA EM CURSO
+  for (const loan of loans) {
+    if (loan.status === 'CANCELADO') continue
+    const base = loan.vencimento ?? loan.createdAt
+    const jurosPercent = Number(loan.jurosMes ?? 0) || 0
+    if (jurosPercent <= 0) continue
+
+    const monthlyAmount = loan.valor * (jurosPercent / 100)
+    
+    // Gerar ocorrências de juros
+    let currentOccurrence = new Date(base)
+    currentOccurrence.setUTCMonth(currentOccurrence.getUTCMonth() + 1)
+    
+    let occurrenceIndex = 1
+    let safety = 0
+    // Precisamos de um limite para o loop, mas queremos encontrar a ocorrência do dia de hoje
+    // Como os juros são mensais, verificamos se o dia do mês bate com o dia de hoje
+    const maxDate = new Date(todayEnd)
+    maxDate.setUTCMonth(maxDate.getUTCMonth() + 1) 
+
+    while (currentOccurrence <= maxDate && safety < 500) {
+      safety++
+      const occurrenceTime = currentOccurrence.getTime()
+      
+      // APENAS SE FOR HOJE (dia em curso)
+      if (occurrenceTime >= todayStart.getTime() && occurrenceTime < todayEnd.getTime()) {
+        const totalOwedUntilNow = monthlyAmount * occurrenceIndex
+        const isPaid = (loan.jurosPagos || 0) >= (totalOwedUntilNow - 0.01)
+        
+        dailyInterestData.push({
+          date: currentOccurrence.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+          dateObj: new Date(currentOccurrence),
+          client: loan.cliente.nome,
+          loanId: `COB-${loan.id.slice(0, 6).toUpperCase()}`,
+          amount: monthlyAmount,
+          isPaid
+        })
+        break // Já achamos a de hoje para este empréstimo
+      }
+      
+      if (occurrenceTime >= todayEnd.getTime()) break
+
+      currentOccurrence = new Date(currentOccurrence)
+      currentOccurrence.setUTCMonth(currentOccurrence.getUTCMonth() + 1)
+      occurrenceIndex++
+    }
+  }
+
+  // Ordenar por data decrescente
+  dailyInterestData.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime())
+
   const report = {
     kpis: {
       principalAtivo: Math.round(principalAtivo),
@@ -256,6 +312,7 @@ export default async function ReportsPage({
     volumeByLocation,
     abcCurveData,
     defaultersData,
+    dailyInterestData: dailyInterestData.map(({ dateObj, ...rest }) => rest),
   }
 
   return (

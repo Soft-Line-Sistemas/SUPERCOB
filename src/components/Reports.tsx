@@ -27,6 +27,7 @@ type ReportsData = {
   volumeByLocation: { city: string; volume: number }[]
   abcCurveData: { rank: number; client: string; city: string; volume: number; class: 'A' | 'B' | 'C'; acc: string }[]
   defaultersData: { id: string; client: string; city: string; daysLate: number; amount: number }[]
+  dailyInterestData: { date: string; client: string; loanId: string; amount: number; isPaid: boolean }[]
 }
 
 export function Reports({
@@ -41,6 +42,15 @@ export function Reports({
   const router = useRouter()
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [draftFilters, setDraftFilters] = useState<ReportsFilters>(filters)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
+
+  const paginatedDailyInterest = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return report.dailyInterestData.slice(start, start + itemsPerPage)
+  }, [report.dailyInterestData, currentPage])
+
+  const totalPages = Math.ceil(report.dailyInterestData.length / itemsPerPage)
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -74,6 +84,27 @@ export function Reports({
       toast.success('Relatório exportado com sucesso!', { id: 'pdf' })
     } catch (e) {
       toast.error('Erro ao gerar PDF.', { id: 'pdf' })
+    }
+  }
+
+  const handleExportDailyPDF = async () => {
+    try {
+      toast.loading('Gerando resumo diário...', { id: 'daily-pdf' })
+      const res = await fetch('/api/export/pdf-diario')
+
+      if (!res.ok) throw new Error('Erro ao gerar resumo')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Resumo_Diario_${new Date().toISOString().split('T')[0]}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast.success('Resumo diário pronto para compartilhar!', { id: 'daily-pdf' })
+    } catch (e) {
+      toast.error('Erro ao gerar resumo diário.', { id: 'daily-pdf' })
     }
   }
 
@@ -135,6 +166,13 @@ export function Reports({
             <Download className="w-4 h-4" />
             Exportar PDF
           </button>
+          <button 
+            onClick={handleExportDailyPDF}
+            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-2xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+          >
+            <CalendarDays className="w-4 h-4" />
+            Relatório Diário
+          </button>
           <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
             <Share2 className="w-5 h-5" />
           </button>
@@ -180,6 +218,92 @@ export function Reports({
           />
         </motion.div>
       </div>
+
+      {/* Daily Interest Entries Table */}
+      <motion.div variants={item} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-indigo-50/30">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-indigo-500" />
+              Agenda de Juros do Dia
+            </h3>
+            <p className="text-sm text-slate-500">Clientes com vencimento de juros hoje ({new Date().toLocaleDateString('pt-BR')})</p>
+          </div>
+          <span className="bg-indigo-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg uppercase">
+            {report.dailyInterestData.length} Lançamentos
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-indigo-50/50 dark:bg-indigo-950/50 backdrop-blur-xl border-b border-indigo-100/50 dark:border-indigo-900/50 sticky top-0 z-10">
+              <tr>
+                <th className="px-8 py-4 text-left text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Data</th>
+                <th className="px-8 py-4 text-left text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Cliente</th>
+                <th className="px-8 py-4 text-right text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Valor Juros</th>
+                <th className="px-8 py-4 text-center text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {paginatedDailyInterest.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-8 py-10 text-center text-sm text-slate-400">
+                    Nenhuma entrada de juros identificada hoje.
+                  </td>
+                </tr>
+              ) : (
+                paginatedDailyInterest.map((entry, idx) => (
+                  <tr key={`${entry.loanId}-${entry.date}-${idx}`} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-8 py-4">
+                      <div className="text-sm font-black text-slate-700">{entry.date}</div>
+                    </td>
+                    <td className="px-8 py-4">
+                      <div className="text-sm font-bold text-slate-900">{entry.client}</div>
+                      <div className="text-[10px] font-medium text-slate-400">{entry.loanId}</div>
+                    </td>
+                    <td className="px-8 py-4 text-right">
+                      <div className="text-sm font-black text-slate-900">{formatCurrency(entry.amount)}</div>
+                    </td>
+                    <td className="px-8 py-4 text-center">
+                      <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black ${
+                        entry.isPaid 
+                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200/50' 
+                        : 'bg-amber-100 text-amber-700 border border-amber-200/50'
+                      }`}>
+                        {entry.isPaid ? 'Pago' : 'A Pagar'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+            <p className="text-xs font-bold text-slate-500">
+              Mostrando {Math.min(report.dailyInterestData.length, (currentPage - 1) * itemsPerPage + 1)} a {Math.min(report.dailyInterestData.length, currentPage * itemsPerPage)} de {report.dailyInterestData.length} entries
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-white disabled:opacity-50 transition-colors"
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-white disabled:opacity-50 transition-colors"
+              >
+                Próxima
+              </button>
+            </div>
+          </div>
+        )}
+      </motion.div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -249,6 +373,8 @@ export function Reports({
         </motion.div>
       </div>
 
+      
+
       {/* Detailed Tables Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ABC Curve Table */}
@@ -262,11 +388,11 @@ export function Reports({
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-white border-b border-slate-100">
+              <thead className="bg-indigo-50/50 dark:bg-indigo-950/50 backdrop-blur-xl border-b border-indigo-100/50 dark:border-indigo-900/50">
                 <tr>
-                  <th className="px-8 py-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</th>
-                  <th className="px-8 py-4 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest">Volume</th>
-                  <th className="px-8 py-4 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">Classe</th>
+                  <th className="px-8 py-4 text-left text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Cliente</th>
+                  <th className="px-8 py-4 text-right text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Volume</th>
+                  <th className="px-8 py-4 text-center text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Classe</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -312,11 +438,11 @@ export function Reports({
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-white border-b border-slate-100">
+              <thead className="bg-indigo-50/50 dark:bg-indigo-950/50 backdrop-blur-xl border-b border-indigo-100/50 dark:border-indigo-900/50">
                 <tr>
-                  <th className="px-8 py-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contrato</th>
-                  <th className="px-8 py-4 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">Atraso</th>
-                  <th className="px-8 py-4 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dívida Total</th>
+                  <th className="px-8 py-4 text-left text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Contrato</th>
+                  <th className="px-8 py-4 text-center text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Atraso</th>
+                  <th className="px-8 py-4 text-right text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Dívida Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
