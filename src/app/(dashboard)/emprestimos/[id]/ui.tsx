@@ -45,7 +45,7 @@ type EmprestimoDetalhes = {
     email?: string | null
     whatsapp?: string | null
   }
-  usuario?: { nome: string } | null
+  usuario?: { id?: string; nome: string } | null
   historico: HistoricoEvento[]
   jurosPagos?: number | null
 }
