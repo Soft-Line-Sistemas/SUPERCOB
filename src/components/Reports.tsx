@@ -154,7 +154,7 @@ export function Reports({
               setDraftFilters(filters)
               setIsFiltersOpen(true)
             }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 hover:bg-slate-950 transition-all shadow-sm"
           >
             <Filter className="w-4 h-4" />
             Filtros
@@ -173,7 +173,7 @@ export function Reports({
             <CalendarDays className="w-4 h-4" />
             Relatório Diário
           </button>
-          <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
+          <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-950 transition-colors shadow-sm">
             <Share2 className="w-5 h-5" />
           </button>
         </div>
@@ -252,7 +252,7 @@ export function Reports({
                 </tr>
               ) : (
                 paginatedDailyInterest.map((entry, idx) => (
-                  <tr key={`${entry.loanId}-${entry.date}-${idx}`} className="hover:bg-slate-50 transition-colors">
+                  <tr key={`${entry.loanId}-${entry.date}-${idx}`} className="hover:bg-slate-950 transition-colors">
                     <td className="px-8 py-4">
                       <div className="text-sm font-black text-slate-700">{entry.date}</div>
                     </td>
@@ -281,7 +281,7 @@ export function Reports({
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+          <div className="px-8 py-4 bg-slate-950/50 border-t border-slate-100 flex items-center justify-between">
             <p className="text-xs font-bold text-slate-500">
               Mostrando {Math.min(report.dailyInterestData.length, (currentPage - 1) * itemsPerPage + 1)} a {Math.min(report.dailyInterestData.length, currentPage * itemsPerPage)} de {report.dailyInterestData.length} entries
             </p>
@@ -379,7 +379,7 @@ export function Reports({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ABC Curve Table */}
         <motion.div variants={item} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+          <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-950/30">
             <div>
               <h3 className="text-lg font-bold text-slate-900">Curva ABC de Clientes</h3>
               <p className="text-sm text-slate-500">Concentração de risco por tomador</p>
@@ -465,7 +465,7 @@ export function Reports({
               </tbody>
             </table>
           </div>
-          <div className="p-4 bg-slate-50 mt-auto text-center border-t border-slate-100">
+          <div className="p-4 bg-slate-950 mt-auto text-center border-t border-slate-100">
             <button className="text-xs font-bold text-blue-600 hover:underline">Ver todos os inadimplentes</button>
           </div>
         </motion.div>
@@ -510,7 +510,7 @@ export function Reports({
                         type="date"
                         value={draftFilters.startDate}
                         onChange={(e) => setDraftFilters({ ...draftFilters, startDate: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -519,7 +519,7 @@ export function Reports({
                         type="date"
                         value={draftFilters.endDate}
                         onChange={(e) => setDraftFilters({ ...draftFilters, endDate: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -529,7 +529,7 @@ export function Reports({
                     <select
                       value={draftFilters.status}
                       onChange={(e) => setDraftFilters({ ...draftFilters, status: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
                     >
                       <option value="">Todos</option>
                       <option value="ABERTO">Aberto</option>
@@ -544,7 +544,7 @@ export function Reports({
                     <select
                       value={draftFilters.usuarioId ?? ''}
                       onChange={(e) => setDraftFilters({ ...draftFilters, usuarioId: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
                     >
                       <option value="">Todos</option>
                       <option value="__UNASSIGNED__">Sem atribuição</option>
@@ -563,7 +563,7 @@ export function Reports({
                         type="text"
                         value={draftFilters.cidade}
                         onChange={(e) => setDraftFilters({ ...draftFilters, cidade: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                         placeholder="Cidade"
                       />
                     </div>
@@ -573,7 +573,7 @@ export function Reports({
                         type="text"
                         value={draftFilters.estado}
                         onChange={(e) => setDraftFilters({ ...draftFilters, estado: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                         placeholder="UF"
                       />
                     </div>

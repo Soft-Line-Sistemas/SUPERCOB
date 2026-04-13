@@ -35,7 +35,7 @@ const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any
   ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', icon: Clock },
   NEGOCIACAO: { label: 'Em Negociação', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-400', icon: AlertIcon },
   QUITADO: { label: 'Quitado', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-500', icon: CheckCircle2 },
-  CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-300', icon: X },
+  CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-950', border: 'border-slate-300', icon: X },
 };
 
 interface LoanCardProps {
@@ -136,7 +136,7 @@ export function LoanCard({
         onClick={() => onDetail(loan)}
       >
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 font-bold border border-slate-100 shadow-inner">
+          <div className="w-12 h-12 rounded-2xl bg-slate-950 flex items-center justify-center text-slate-400 font-bold border border-slate-100 shadow-inner">
             {loan.cliente.nome.charAt(0)}
           </div>
           <div className="flex-1 min-w-0">
@@ -149,11 +149,11 @@ export function LoanCard({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="p-3 bg-slate-950 rounded-2xl border border-slate-100">
             <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Valor Total</p>
             <p className="text-lg font-black text-slate-900">{formatCurrency(loan.valor)}</p>
           </div>
-          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="p-3 bg-slate-950 rounded-2xl border border-slate-100">
             <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Data Início</p>
             <p className="text-sm font-bold text-slate-700">{formatDate(loan.createdAt)}</p>
           </div>
@@ -161,7 +161,7 @@ export function LoanCard({
       </div>
 
       {/* Card Footer */}
-      <div className="px-6 py-4 bg-slate-50 flex items-center justify-between gap-2 border-t border-slate-100">
+      <div className="px-6 py-4 bg-slate-950 flex items-center justify-between gap-2 border-t border-slate-100">
         <div className="flex items-center gap-3">
           {/* Atribuição/Consultor Info */}
           <div className="flex items-center gap-2">

@@ -3,8 +3,22 @@
 import React, { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ArrowLeft, Calendar, CheckCircle2, Clock, XCircle } from 'lucide-react'
-import { addEmprestimoHistorico, addPagamentoParcial, setEmprestimoStatus } from './actions'
+import { 
+  ArrowLeft, 
+  Calendar, 
+  CheckCircle2, 
+  Clock, 
+  XCircle, 
+  AlertTriangle, 
+  TrendingUp, 
+  HelpCircle,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  ArrowUpDown
+} from 'lucide-react'
+import { addEmprestimoHistorico, addPagamentoParcial, setEmprestimoStatus, updateLoanUser } from './actions'
+import { WhatsAppTemplates } from '@/components/WhatsAppTemplates'
 
 type EmprestimoStatus = string
 
@@ -12,6 +26,7 @@ type HistoricoEvento = {
   id: string
   descricao: string
   createdAt: Date | string
+  tipo?: string | null
   createdBy?: { nome: string } | null
 }
 
@@ -72,7 +87,15 @@ function getStatusPillClass(status: EmprestimoStatus) {
   return 'bg-amber-50 text-amber-700 border-amber-200'
 }
 
-export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes }) {
+export function ContractDetails({ 
+  emprestimo, 
+  myRole, 
+  availableUsers = [] 
+}: { 
+  emprestimo: EmprestimoDetalhes, 
+  myRole?: string,
+  availableUsers?: { id: string, nome: string }[] 
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -106,7 +129,15 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
   const jurosAcumuladoTotal = jurosMensalValor * monthsLate
   const jurosPendente = Math.max(jurosAcumuladoTotal - (emprestimo.jurosPagos || 0), 0)
   
+  const totalDevido = restante + jurosPendente
   const canFinish = status !== 'QUITADO' && status !== 'CANCELADO' && restante <= 0 && jurosPendente <= 0
+
+  const priorityLevel = useMemo(() => {
+    if (status === 'QUITADO' || status === 'CANCELADO') return 'BLOQUEADO'
+    if (totalDevido > 5000 && monthsLate > 2) return 'URGENTE'
+    if (totalDevido > 1000 || monthsLate > 1) return 'ALTA'
+    return 'NORMAL'
+  }, [totalDevido, monthsLate, status])
 
   const handleAddEvento = () => {
     const value = descricao.trim()
@@ -120,7 +151,7 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
     startTransition(async () => {
       try {
         const evento = await addEmprestimoHistorico({ emprestimoId: emprestimo.id, descricao: value })
-        setEventos((prev) => [...prev, evento as any].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)))
+        setEventos((prev) => [...prev, evento as any].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)))
         setDescricao('')
         toast.success('Detalhe adicionado ao histórico.')
         router.refresh()
@@ -136,7 +167,7 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
         const { emprestimo: updated, evento } = await setEmprestimoStatus({ emprestimoId: emprestimo.id, status: nextStatus })
         setStatus(updated.status)
         setQuitadoEm(updated.quitadoEm)
-        setEventos((prev) => [...prev, evento as any].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)))
+        setEventos((prev) => [...prev, evento as any].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)))
         toast.success(nextStatus === 'QUITADO' ? 'Contrato concluído.' : 'Contrato cancelado.')
         router.refresh()
       } catch (e) {
@@ -168,34 +199,44 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-start gap-3">
+    <div className="space-y-6 w-full max-w-[1600px] mx-auto">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between px-2">
+        <div className="flex items-start gap-4">
           <button
             type="button"
             onClick={() => router.back()}
-            className="p-2 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
+            className="p-3 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors shadow-sm"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0">
-            <h1 className="text-2xl font-black text-slate-900 truncate">Contrato #{emprestimo.id}</h1>
+            <h1 className="text-2xl md:text-3xl font-black text-slate-900 truncate">Contrato #{emprestimo.id.slice(0, 8).toUpperCase()}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-black ${getStatusPillClass(status)}`}>
                 {status === 'QUITADO' ? <CheckCircle2 className="h-4 w-4" /> : status === 'CANCELADO' ? <XCircle className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
                 {statusLabel}
               </span>
-              <span className="text-xs font-bold text-slate-500">Criado em {formatDate(emprestimo.createdAt)}</span>
+              {priorityLevel !== 'BLOQUEADO' && (
+                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${
+                  priorityLevel === 'URGENTE' ? 'bg-red-600 text-white border-red-700 shadow-md shadow-red-600/20' : 
+                  priorityLevel === 'ALTA' ? 'bg-orange-100 text-orange-700 border-orange-200' : 
+                  'bg-slate-50 text-slate-500 border-slate-200'
+                }`}>
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Prioridade: {priorityLevel}
+                </span>
+              )}
+              <span className="text-xs font-bold text-slate-400">Criado em {formatDate(emprestimo.createdAt)}</span>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex gap-3">
           <button
             type="button"
             disabled={!canCancel || isPending}
             onClick={() => handleSetStatus('CANCELADO')}
-            className={`px-5 py-3 rounded-2xl font-black text-sm transition-all ${
+            className={`flex-1 md:flex-none px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
               !canCancel || isPending ? 'bg-slate-100 text-slate-400' : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-600/15 active:scale-95'
             }`}
           >
@@ -205,8 +246,7 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
             type="button"
             disabled={!canFinish || isPending}
             onClick={() => handleSetStatus('QUITADO')}
-            title={!canFinish && restante > 0 ? 'Finalize após quitar (restante deve ser 0)' : undefined}
-            className={`px-5 py-3 rounded-2xl font-black text-sm transition-all ${
+            className={`flex-1 md:flex-none px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
               !canFinish || isPending ? 'bg-slate-100 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/15 active:scale-95'
             }`}
           >
@@ -215,147 +255,164 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
         </div>
       </div>
 
-      <div className={`bg-white rounded-3xl border-2 ${borderClass} shadow-sm overflow-hidden`}>
-        <div className="p-6 border-b border-slate-100">
-          <p className="text-sm font-black text-slate-900">Resumo</p>
-          <p className="text-xs text-slate-500 mt-1">Informações do contrato e status atual.</p>
+      <div className={`bg-white rounded-[2.5rem] border-2 ${borderClass} shadow-sm overflow-hidden mx-2`}>
+        <div className="p-8 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-black text-slate-900 uppercase tracking-widest">Resumo Estratégico</p>
+            <p className="text-xs text-slate-500 mt-1">Métricas de débito atualizadas em tempo real.</p>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+             <div className="flex-1 sm:flex-none px-6 py-3 bg-slate-900 rounded-2xl text-center">
+                <p className="text-[9px] font-black text-white/50 uppercase tracking-tighter">Saldo Total à Receber</p>
+                <p className="text-lg font-black text-white">{formatBRL(totalDevido)}</p>
+             </div>
+          </div>
         </div>
 
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Cliente</p>
+        <div className="p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cliente titular</p>
             <p className="text-base font-black text-slate-900 mt-1 truncate">{emprestimo.cliente.nome}</p>
             <p className="text-xs text-slate-500 truncate">{emprestimo.cliente.email || '-'}</p>
           </div>
-          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Responsável</p>
-            <p className="text-base font-black text-slate-900 mt-1 truncate">{emprestimo.usuario?.nome || 'Não atribuído'}</p>
+          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Responsável Atual</p>
+            {myRole === 'ADM' ? (
+              <select 
+                value={emprestimo.usuario?.id || 'unassigned'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  startTransition(async () => {
+                    try {
+                      await updateLoanUser(emprestimo.id, val);
+                      toast.success('Responsável alterado com sucesso.');
+                      router.refresh();
+                    } catch (err) {
+                      toast.error('Erro ao alterar responsável.');
+                    }
+                  });
+                }}
+                disabled={isPending}
+                className="w-full mt-1 bg-transparent border-none p-0 text-base font-black text-blue-600 outline-none focus:ring-0 cursor-pointer hover:underline"
+              >
+                <option value="unassigned" disabled>Não atribuído</option>
+                {availableUsers.map(u => (
+                  <option key={u.id} value={u.id}>{u.nome}</option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-base font-black text-slate-900 mt-1 truncate">{emprestimo.usuario?.nome || 'Supercob Central'}</p>
+            )}
           </div>
-          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Valor</p>
+          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor do Empréstimo</p>
             <p className="text-2xl font-black text-slate-900 mt-1">{formatCurrency(emprestimo.valor)}</p>
           </div>
-          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Pago</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{formatBRL(valorPago)}</p>
+          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Principal Amortizado</p>
+            <p className="text-2xl font-black text-emerald-600 mt-1">{formatBRL(valorPago)}</p>
           </div>
-          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Restante</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{formatBRL(restante)}</p>
+          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Principal</p>
+            <p className="text-2xl font-black text-indigo-600 mt-1">{formatBRL(restante)}</p>
           </div>
-          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Juros ao mês</p>
-            <p className="text-base font-black text-slate-900 mt-1">{(emprestimo.jurosMes ?? 0).toString().replace('.', ',')}%</p>
-          </div>
-          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Juros mensal (R$)</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{formatBRL(jurosMensalValor)}</p>
-            <p className="text-xs text-slate-500 mt-1">Recalculado pelo saldo atual.</p>
-          </div>
-          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Juros Pendente</p>
+          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Juros Pendente</p>
             <p className="text-2xl font-black text-red-600 mt-1">{formatBRL(jurosPendente)}</p>
-            <p className="text-xs text-slate-500 mt-1">Acumulado: {formatBRL(jurosAcumuladoTotal)}</p>
+            <p className="text-xs text-slate-500 mt-1">Acumulado ({monthsLate}m): {formatBRL(jurosAcumuladoTotal)}</p>
           </div>
-          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Juros Já Pagos</p>
-            <p className="text-2xl font-black text-emerald-600 mt-1">{formatBRL(emprestimo.jurosPagos || 0)}</p>
-            <p className="text-xs text-slate-500 mt-1">{monthsLate > 0 ? `${monthsLate} mês(es) decorridos` : 'Ainda no 1º mês'}</p>
-          </div>
-          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Vencimento</p>
-            <div className="mt-1 flex items-center gap-2 text-slate-900">
+          <div className="p-6 rounded-[2rem] bg-slate-100 border border-slate-200">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Vencimento Original</p>
+            <div className="mt-2 flex items-center gap-2 text-slate-900">
               <Calendar className="h-4 w-4 text-slate-400" />
               <p className="text-base font-black">{formatDate(emprestimo.vencimento)}</p>
             </div>
           </div>
-          <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Concluído em</p>
-            <p className="text-base font-black text-slate-900 mt-1">{formatDateTime(quitadoEm)}</p>
+          <div className="p-6 rounded-[2rem] bg-slate-900 border border-slate-800 text-white">
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Configuração Taxa</p>
+            <p className="text-xl font-black mt-1">{(emprestimo.jurosMes ?? 0).toString().replace('.', ',')}% <span className="text-[10px] text-white/30">/ mês</span></p>
           </div>
         </div>
 
-        {emprestimo.observacao ? (
-          <div className="px-6 pb-6">
-            <div className="p-4 rounded-3xl bg-white border border-slate-200">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Observações</p>
-              <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{emprestimo.observacao}</p>
+        {emprestimo.observacao && (
+          <div className="px-8 pb-8">
+            <div className="p-6 rounded-[2rem] bg-amber-50 border border-amber-100">
+              <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Notas de Observação</p>
+              <p className="text-sm text-amber-900 mt-2 whitespace-pre-wrap leading-relaxed font-medium">{emprestimo.observacao}</p>
             </div>
           </div>
-        ) : null}
+        )}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100">
-            <p className="text-sm font-black text-slate-900">Histórico de negociação</p>
-            <p className="text-xs text-slate-500 mt-1">Eventos em ordem cronológica.</p>
-          </div>
-          <div className="p-6">
-            <Timeline eventos={eventos} />
-          </div>
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 px-2">
+        <div className="xl:col-span-3 space-y-6">
+          <Timeline eventos={eventos} />
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100">
-              <p className="text-sm font-black text-slate-900">Pagamento parcial</p>
-              <p className="text-xs text-slate-500 mt-1">Disponível apenas na tela de detalhes.</p>
-            </div>
-            <div className="p-6 space-y-3">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={pagamento}
-                onChange={(e) => setPagamento(formatBRL(parseBRL(e.target.value)))}
-                className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
-                placeholder="R$ 0,00"
-                disabled={isPending || status === 'CANCELADO' || status === 'QUITADO'}
-              />
-              <button
-                type="button"
-                disabled={isPending || status === 'CANCELADO' || status === 'QUITADO'}
-                onClick={handlePagamentoParcial}
-                className={`w-full px-5 py-3 rounded-2xl font-black text-sm transition-all ${
-                  isPending || status === 'CANCELADO' || status === 'QUITADO' ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
-                }`}
-              >
-                Registrar pagamento
-              </button>
-            </div>
-          </div>
+          <div className="bg-slate-900 rounded-[3rem] p-8 text-white relative shadow-2xl sticky top-6">
+            <div className="relative z-10 space-y-8">
+              <div>
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4" />
+                  Central de Cobrança
+                </p>
+                <WhatsAppTemplates 
+                  clienteNome={emprestimo.cliente.nome}
+                  contratoId={`#${emprestimo.id.slice(0, 8).toUpperCase()}`}
+                  vencimento={formatDate(emprestimo.vencimento)}
+                  valorPendente={formatBRL(totalDevido)}
+                  whatsapp={emprestimo.cliente.whatsapp || ''}
+                />
+              </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100">
-              <p className="text-sm font-black text-slate-900">Adicionar detalhe</p>
-              <p className="text-xs text-slate-500 mt-1">Campo obrigatório com salvamento imediato.</p>
-            </div>
-            <div className="p-6 space-y-3">
-              <textarea
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-                onBlur={() => {
-                  if (descricao.trim() !== '') setErro(null)
-                }}
-                className={`w-full min-h-[140px] resize-none px-4 py-3 rounded-2xl border text-sm outline-none transition-all ${
-                  erro ? 'border-red-400 focus:ring-4 focus:ring-red-500/10' : 'border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500'
-                }`}
-                placeholder="Descreva a ação, proposta, retorno do cliente, etc."
-                disabled={isPending}
-              />
-              {erro ? <p className="text-xs font-bold text-red-600">{erro}</p> : null}
+              <div className="space-y-4 pt-6 border-t border-white/10">
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Receber Pagamento</p>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={pagamento}
+                    onChange={(e) => setPagamento(formatBRL(parseBRL(e.target.value)))}
+                    className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-[2rem] text-xl font-black text-white outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-white/10"
+                    placeholder="R$ 0,00"
+                    disabled={isPending || status === 'CANCELADO' || status === 'QUITADO'}
+                  />
+                  <button
+                    type="button"
+                    disabled={isPending || status === 'CANCELADO' || status === 'QUITADO'}
+                    onClick={handlePagamentoParcial}
+                    className={`w-full py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all ${
+                      isPending || status === 'CANCELADO' || status === 'QUITADO' ? 'bg-white/5 text-white/10' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-600/20'
+                    }`}
+                  >
+                    Confirmar Recebimento
+                  </button>
+                </div>
+              </div>
 
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={handleAddEvento}
-                className={`w-full px-5 py-3 rounded-2xl font-black text-sm transition-all ${
-                  isPending ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-95'
-                }`}
-              >
-                Adicionar ao histórico
-              </button>
+              <div className="space-y-4 pt-6 border-t border-white/10">
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Nova Anotação</p>
+                <textarea
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  className="w-full min-h-[120px] bg-white/5 border border-white/10 rounded-[2rem] p-6 text-xs text-white resize-none outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all placeholder:text-white/10"
+                  placeholder="Ex: Cliente prometeu pagar na segunda-feira..."
+                  disabled={isPending}
+                />
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleAddEvento}
+                  className={`w-full py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all ${
+                    isPending ? 'bg-white/5 text-white/10' : 'bg-white text-slate-900 hover:bg-slate-100 shadow-xl'
+                  }`}
+                >
+                  Salvar no Histórico
+                </button>
+              </div>
             </div>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 blur-[120px] rounded-full opacity-10 -mr-32 -mt-32" />
           </div>
         </div>
       </div>
@@ -364,54 +421,141 @@ export function ContractDetails({ emprestimo }: { emprestimo: EmprestimoDetalhes
 }
 
 function Timeline({ eventos }: { eventos: HistoricoEvento[] }) {
-  const [expanded, setExpanded] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+  const [filterType, setFilterType] = useState<'ALL' | 'JUROS' | 'NOTA' | 'PAGAMENTO'>('ALL')
 
-  if (!eventos.length) {
-    return (
-      <div className="p-6 rounded-3xl bg-slate-50 border border-slate-100 text-slate-600 text-sm">
-        Nenhum evento registrado.
-      </div>
-    )
-  }
+  const filteredEventos = useMemo(() => {
+    if (filterType === 'ALL') return eventos
+    return eventos.filter(ev => {
+      if (filterType === 'JUROS') return ev.tipo === 'JUROS'
+      if (filterType === 'PAGAMENTO') return ev.tipo === 'PAGAMENTO'
+      return ev.tipo !== 'JUROS' && ev.tipo !== 'PAGAMENTO'
+    })
+  }, [eventos, filterType])
+
+  const totalPages = Math.ceil(filteredEventos.length / itemsPerPage)
+  const currentItems = filteredEventos.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+  const monthName = (date: Date) => date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  
+  const groupedEvents = useMemo(() => {
+    const groups: Record<string, HistoricoEvento[]> = {}
+    currentItems.forEach(ev => {
+      const month = monthName(new Date(ev.createdAt))
+      if (!groups[month]) groups[month] = []
+      groups[month].push(ev)
+    })
+    return groups
+  }, [currentItems])
 
   return (
-    <div className="relative">
-      <div className="absolute left-3 top-0 bottom-0 w-px bg-slate-200" />
-      <div className="space-y-4">
-        {eventos.map((ev) => {
-          const isOpen = expanded === ev.id
-          const who = ev.createdBy?.nome ? ` • ${ev.createdBy.nome}` : ''
-          return (
+    <div className="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+      <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-black text-slate-900 uppercase tracking-widest">Extrato de Negociação</p>
+          <p className="text-xs text-slate-500 mt-1">Histórico completo de ações e cobranças.</p>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-2">
+          {['ALL', 'NOTA', 'JUROS', 'PAGAMENTO'].map((t) => (
             <button
-              key={ev.id}
-              type="button"
-              onClick={() => setExpanded((prev) => (prev === ev.id ? null : ev.id))}
-              className="w-full text-left group"
+              key={t}
+              onClick={() => { setFilterType(t as any); setCurrentPage(1); }}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
+                filterType === t ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+              }`}
             >
-              <div className="relative pl-10">
-                <div className="absolute left-1.5 top-4 h-3 w-3 rounded-full bg-white border-2 border-slate-300 group-hover:border-blue-500 transition-colors" />
-                <div className="p-4 rounded-3xl border border-slate-200 bg-white group-hover:shadow-sm transition-all">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <p className="text-xs font-black text-slate-500">
-                      {new Date(ev.createdAt).toLocaleString('pt-BR', {
-                        timeZone: 'America/Sao_Paulo',
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                      {who}
-                    </p>
-                    <p className="text-xs font-bold text-slate-400">{isOpen ? 'Ocultar' : 'Ver'}</p>
-                  </div>
-                  <p className={`mt-2 text-sm text-slate-800 whitespace-pre-wrap ${isOpen ? '' : 'line-clamp-2'}`}>{ev.descricao}</p>
-                </div>
-              </div>
+              {t === 'ALL' ? 'Tudo' : t === 'NOTA' ? 'Notas' : t === 'JUROS' ? 'Juros' : 'Pagos'}
             </button>
-          )
-        })}
+          ))}
+        </div>
       </div>
+
+      <div className="flex-1 p-4 md:p-8 space-y-10">
+        {filteredEventos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 opacity-30">
+            <Filter className="w-12 h-12 mb-4" />
+            <p className="font-black text-sm uppercase">Nenhum registro encontrado</p>
+          </div>
+        ) : (
+          Object.entries(groupedEvents).map(([month, items]) => (
+            <div key={month} className="space-y-4">
+              <div className="flex items-center gap-4 px-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">{month}</p>
+                <div className="h-px w-full bg-slate-100" />
+              </div>
+              
+              <div className="space-y-3 relative">
+                <div className="absolute left-6 top-4 bottom-4 w-px bg-slate-100 hidden md:block" />
+                {items.map((ev: any) => {
+                  const isJuros = ev.tipo === 'JUROS'
+                  const isPagamento = ev.tipo === 'PAGAMENTO'
+                  
+                  return (
+                    <div key={ev.id} className="relative md:pl-12 group">
+                      <div className={`absolute left-[21px] top-6 h-1.5 w-1.5 rounded-full ring-4 ring-white z-10 hidden md:block ${
+                        isJuros ? 'bg-orange-500 ring-orange-50' : 
+                        isPagamento ? 'bg-emerald-500 ring-emerald-50' : 
+                        'bg-slate-400 ring-slate-50'
+                      }`} />
+                      
+                      <div className={`p-5 rounded-[2rem] border transition-all ${
+                        isJuros ? 'bg-orange-50/30 border-orange-100/50' : 
+                        isPagamento ? 'bg-emerald-50/30 border-emerald-100/50' : 
+                        'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
+                      }`}>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter ${
+                              isJuros ? 'bg-orange-100 text-orange-700' : 
+                              isPagamento ? 'bg-emerald-100 text-emerald-700' : 
+                              'bg-slate-100 text-slate-500'
+                            }`}>
+                              {isJuros ? 'Correção Mensal' : isPagamento ? 'Recibo' : 'Anotaão'}
+                            </span>
+                            <p className="text-[10px] font-bold text-slate-400 italic">
+                               {new Date(ev.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • {ev.createdBy?.nome || 'Sistema'}
+                            </p>
+                          </div>
+                          <p className="text-[10px] font-black text-slate-300">#{ev.id.slice(-4).toUpperCase()}</p>
+                        </div>
+                        <p className="text-sm text-slate-700 leading-relaxed font-medium">
+                          {ev.descricao}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="p-8 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <p className="text-xs font-bold text-slate-400">
+            Mostrando página <span className="text-slate-900">{currentPage}</span> de <span className="text-slate-900">{totalPages}</span>
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-3 rounded-xl bg-white border border-slate-200 disabled:opacity-30 hover:bg-slate-50 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-3 rounded-xl bg-white border border-slate-200 disabled:opacity-30 hover:bg-slate-50 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

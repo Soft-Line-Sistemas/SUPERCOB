@@ -33,7 +33,8 @@ export const authConfig = {
       
       if (isOnProtectedRoute) {
         if (!isLoggedIn) return false
-        if (isOnAdmin && role !== 'ADMIN') {
+        const isAdmin = role === 'ADM' || role === 'ADMIN'
+        if (isOnAdmin && !isAdmin) {
           return Response.redirect(new URL('/dashboard', nextUrl))
         }
         return true

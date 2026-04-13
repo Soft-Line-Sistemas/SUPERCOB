@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,165 +8,138 @@ datasource db {
 }
 
 model Usuario {
-  id               String       @id @default(cuid())
-  nome             String
-  email            String       @unique
-  senha            String
-  role             String       @default("OPERADOR") @db.VarChar(20)
-  avatarUrl        String?
-  isActive         Boolean      @default(true)
-  
-  // Permissões baseadas na imagem (Op8, Op91, Op34, Op52)
-  canManageUsers   Boolean      @default(false)
-  canManageClients Boolean      @default(true)
-  canManageLoans   Boolean      @default(true)
-
-  createdAt        DateTime     @default(now())
-  emprestimos      Emprestimo[]
-  
-  // Relações para Mensagens Internas
-  mensagensEnviadas   MensagemInterna[] @relation("MensagensEnviadas")
-  mensagensRecebidas  MensagemInterna[] @relation("MensagensRecebidas")
-
+  id                   String                @id @default(cuid())
+  nome                 String
+  email                String                @unique
+  senha                String
+  role                 String                @default("GERENTE") @db.VarChar(20)
+  avatarUrl            String?
+  isActive             Boolean               @default(true)
+  canManageUsers       Boolean               @default(false)
+  canManageClients     Boolean               @default(true)
+  canManageLoans       Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  auditoriasGeradas    AuditoriaGeral[]      @relation("AuditoriaAutor")
+  emprestimos          Emprestimo[]
   emprestimoHistoricos EmprestimoHistorico[] @relation("EmprestimoHistoricoCreatedBy")
-
-  permissaoAuditorias PermissaoAuditoria[] @relation("PermissaoAuditoriaAlvo")
-
-  permissaoAuditoriasAutor PermissaoAuditoria[] @relation("PermissaoAuditoriaAutor")
-
-  passwordResetTokens PasswordResetToken[]
+  mensagensRecebidas   MensagemInterna[]     @relation("MensagensRecebidas")
+  mensagensEnviadas    MensagemInterna[]     @relation("MensagensEnviadas")
+  passwordResetTokens  PasswordResetToken[]
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
-  tokenHash String   @unique
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
   userId    String
-  user      Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  user      Usuario   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model MensagemInterna {
-  id          String   @id @default(cuid())
-  conteudo    String   @db.Text
-  isLida      Boolean  @default(false)
-  isMassiva   Boolean  @default(false)
-  
-  remetenteId String
-  remetente   Usuario  @relation("MensagensEnviadas", fields: [remetenteId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  
-  destinatarioId String? // Pode ser nulo se for uma mensagem em massa para todos
-  destinatario   Usuario? @relation("MensagensRecebidas", fields: [destinatarioId], references: [id], onUpdate: NoAction, onDelete: SetNull)
-  
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  conteudo       String   @db.Text
+  isLida         Boolean  @default(false)
+  isMassiva      Boolean  @default(false)
+  remetenteId    String
+  destinatarioId String?
+  createdAt      DateTime @default(now())
+  destinatario   Usuario? @relation("MensagensRecebidas", fields: [destinatarioId], references: [id], onUpdate: NoAction)
+  remetente      Usuario  @relation("MensagensEnviadas", fields: [remetenteId], references: [id], onUpdate: NoAction)
 }
 
 model Cliente {
-  id                   String       @id @default(cuid())
-  nome                 String
-  indicacao            String?
-  cpf                  String?
-  rg                   String?
-  orgao                String?
-  
-  diaNasc              Int?
-  mesNasc              Int?
-  anoNasc              Int?
-  
-  email                String?
-  whatsapp             String?
-  instagram            String?
-  cep                  String?
-  
-  // Endereço Residencial
-  endereco             String?
-  numeroEndereco       Int?
-  complemento          String?
-  bairro               String?
-  cidade               String?
-  estado               String?
-  pontoReferencia      String?
-  
-  // Profissão e Empresa
-  profissao            String?
-  empresa              String?
-  cepEmpresa           String?
-  enderecoEmpresa      String?
-  cidadeEmpresa        String?
-  estadoEmpresa        String?
-  
-  // Contatos de Emergência
-  contatoEmergencia1   String?
-  contatoEmergencia2   String?
-  contatoEmergencia3   String?
-
-  createdAt            DateTime     @default(now())
-  loans                Emprestimo[]
-  documentos           ClienteDocumento[]
+  id                 String             @id @default(cuid())
+  nome               String
+  indicacao          String?
+  cpf                String?
+  rg                 String?
+  orgao              String?
+  diaNasc            Int?
+  mesNasc            Int?
+  anoNasc            Int?
+  email              String?
+  whatsapp           String?
+  instagram          String?
+  cep                String?
+  endereco           String?
+  complemento        String?
+  bairro             String?
+  cidade             String?
+  estado             String?
+  pontoReferencia    String?
+  profissao          String?
+  empresa            String?
+  cepEmpresa         String?
+  enderecoEmpresa    String?
+  cidadeEmpresa      String?
+  estadoEmpresa      String?
+  contatoEmergencia1 String?
+  contatoEmergencia2 String?
+  contatoEmergencia3 String?
+  createdAt          DateTime           @default(now())
+  numeroEndereco     Int?
+  documentos         ClienteDocumento[]
+  loans              Emprestimo[]
 }
 
 model Emprestimo {
-  id          String    @id @default(cuid())
-  clienteId   String
-  cliente     Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  usuarioId   String?
-  usuario     Usuario?  @relation(fields: [usuarioId], references: [id])
-  
-  valor       Float
-  valorPago        Float        @default(0)
-  jurosMes         Float        @default(0)
-  jurosPagos       Float        @default(0)
-  vencimento       DateTime?
-  quitadoEm   DateTime?
-  status      String    @default("ABERTO") @db.VarChar(20)
-  observacao  String?   @db.Text
-  historico   EmprestimoHistorico[]
-  
-  // Arquivos (Anexos) baseados na imagem
-  arquivo1    String?
-  arquivo2    String?
-  arquivo3    String?
-  arquivo4    String?
-  arquivo5    String?
-  
-  createdAt   DateTime  @default(now())
-  cobrancaAtiva Boolean   @default(false)
+  id                  String                @id @default(cuid())
+  clienteId           String
+  usuarioId           String?
+  valor               Float
+  jurosMes            Float                 @default(0)
+  vencimento          DateTime?
+  quitadoEm           DateTime?
+  status              String                @default("ABERTO") @db.VarChar(20)
+  observacao          String?               @db.Text
+  arquivo1            String?
+  arquivo2            String?
+  arquivo3            String?
+  arquivo4            String?
+  arquivo5            String?
+  createdAt           DateTime              @default(now())
+  valorPago           Float                 @default(0)
+  jurosPagos          Float                 @default(0)
+  cobrancaAtiva       Boolean               @default(false)
+  lastInterestAccrual DateTime?
+  cliente             Cliente               @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  usuario             Usuario?              @relation(fields: [usuarioId], references: [id])
+  historico           EmprestimoHistorico[]
 }
 
 model EmprestimoHistorico {
   id           String     @id @default(cuid())
   emprestimoId String
-  emprestimo   Emprestimo @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
-
   descricao    String     @db.Text
   createdAt    DateTime   @default(now())
-
   createdById  String?
-  createdBy    Usuario?   @relation("EmprestimoHistoricoCreatedBy", fields: [createdById], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  tipo         String?    @db.VarChar(20)
+  createdBy    Usuario?   @relation("EmprestimoHistoricoCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  emprestimo   Emprestimo @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
 }
 
 model ClienteDocumento {
   id           String   @id @default(cuid())
   clienteId    String
-  cliente      Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   originalName String
   fileName     String   @unique
   mimeType     String   @db.VarChar(100)
   size         Int
   createdAt    DateTime @default(now())
+  cliente      Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 }
 
-model PermissaoAuditoria {
-  id           String   @id @default(cuid())
-  alvoId       String
-  alvo         Usuario  @relation("PermissaoAuditoriaAlvo", fields: [alvoId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  autorId      String
-  autor        Usuario  @relation("PermissaoAuditoriaAutor", fields: [autorId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-
-  tipo         String   @db.VarChar(50)
-  antes        String?  @db.Text
-  depois       String?  @db.Text
-
-  createdAt    DateTime @default(now())
+model AuditoriaGeral {
+  id         String   @id @default(cuid())
+  autorId    String?
+  entidade   String   @db.VarChar(50)
+  entidadeId String   @db.VarChar(50)
+  acao       String   @db.VarChar(50)
+  detalhes   String?  @db.Text
+  antes      String?  @db.Text
+  depois     String?  @db.Text
+  createdAt  DateTime @default(now())
+  autor      Usuario? @relation("AuditoriaAutor", fields: [autorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }

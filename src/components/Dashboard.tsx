@@ -75,7 +75,7 @@ export function Dashboard({ data }: DashboardProps) {
                 setCurrentData(next)
               })
             }}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'hoje' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-50'} ${isPending ? 'opacity-60' : ''}`}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'hoje' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-950'} ${isPending ? 'opacity-60' : ''}`}
           >
             Hoje
           </button>
@@ -89,7 +89,7 @@ export function Dashboard({ data }: DashboardProps) {
                 setCurrentData(next)
               })
             }}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'semana' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-50'} ${isPending ? 'opacity-60' : ''}`}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'semana' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-950'} ${isPending ? 'opacity-60' : ''}`}
           >
             Semana
           </button>
@@ -103,7 +103,7 @@ export function Dashboard({ data }: DashboardProps) {
                 setCurrentData(next)
               })
             }}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'mes' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-50'} ${isPending ? 'opacity-60' : ''}`}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'mes' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-950'} ${isPending ? 'opacity-60' : ''}`}
           >
             Mês
           </button>
@@ -162,7 +162,7 @@ export function Dashboard({ data }: DashboardProps) {
               <h3 className="text-lg font-bold text-slate-900">Evolução de Cobranças</h3>
               <p className="text-sm text-slate-500">Volume recuperado nos últimos 6 meses</p>
             </div>
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-100">
               <Calendar className="w-4 h-4" />
               Últimos 6 meses
             </div>
@@ -257,7 +257,7 @@ export function Dashboard({ data }: DashboardProps) {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {agentData.map((agent, i) => (
-              <div key={i} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-4">
+              <div key={i} className="p-4 rounded-2xl bg-slate-950 border border-slate-100 flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center font-bold text-slate-700 shadow-sm">
                   {agent.name.charAt(0)}
                 </div>

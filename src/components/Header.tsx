@@ -6,6 +6,7 @@ import { Bell, Search, Command, HelpCircle, X, ExternalLink, Sun, Moon, Monitor 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { markAsRead } from '@/app/(dashboard)/chat/actions'
+import { CommandPalette } from './CommandPalette'
 
 type HeaderNotification = {
   id: string
@@ -20,6 +21,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
   const pathname = usePathname()
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [readIds, setReadIds] = useState<string[]>([])
   const [theme, setTheme] = useState<'system' | 'light' | 'dark'>(() => {
     if (typeof window === 'undefined') return 'system'
@@ -66,6 +68,17 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
     return () => document.removeEventListener('mousedown', onClick)
   }, [isNotificationsOpen, isHelpOpen])
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setIsCommandPaletteOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const displayedNotifications = useMemo(() => notifications.filter((n) => !readIds.includes(n.id)), [notifications, readIds])
   const readDirectCount = useMemo(
     () => readIds.filter((id) => notifications.some((n) => n.id === id && !n.isMassiva)).length,
@@ -105,18 +118,19 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
       {/* Action Icons */}
       <div className="flex items-center gap-2 md:gap-3">
         {/* Search Bar - Desktop Only */}
-        <div className="hidden lg:flex items-center gap-2 bg-slate-100/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 py-2 rounded-2xl w-64 group focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 transition-all">
+        <button 
+          onClick={() => setIsCommandPaletteOpen(true)}
+          className="hidden lg:flex items-center gap-2 bg-slate-100/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 py-2 rounded-2xl w-64 group hover:border-blue-500/50 transition-all text-left"
+        >
           <Search className="w-4 h-4 text-slate-500 dark:text-slate-300" />
-          <input 
-            type="text" 
-            placeholder="Comando rápido..." 
-            className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 dark:text-slate-100 w-full placeholder:text-slate-500 dark:placeholder:text-slate-500"
-          />
+          <span className="flex-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+            Comando rápido...
+          </span>
           <div className="flex items-center gap-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 px-1.5 py-0.5 rounded-lg shadow-sm">
             <Command className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500" />
             <span className="text-[9px] font-black text-slate-400 dark:text-slate-500">K</span>
           </div>
-        </div>
+        </button>
 
         {/* Notifications */}
         <div className="relative" ref={notificationsRef}>
@@ -146,7 +160,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                   type="button"
                   onClick={() => setIsNotificationsOpen(false)}
                   aria-label="Fechar notificações"
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-950 dark:hover:bg-white/5 transition-all"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -160,7 +174,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                   </div>
                 ) : (
                   displayedNotifications.map((n) => (
-                    <div key={n.id} className="px-5 py-4 border-b border-slate-50 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <div key={n.id} className="px-5 py-4 border-b border-slate-50 dark:border-white/5 hover:bg-slate-950 dark:hover:bg-white/5 transition-colors">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
@@ -182,7 +196,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                 )}
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-white/5 border-t border-slate-100 dark:border-white/10 flex gap-2">
+              <div className="p-4 bg-slate-950 dark:bg-white/5 border-t border-slate-100 dark:border-white/10 flex gap-2">
                 <button
                   type="button"
                   disabled={notificationIdsToMarkRead.length === 0}
@@ -239,7 +253,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
               setIsNotificationsOpen(false)
             }}
             aria-label="Ajuda"
-            className="p-2.5 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-all"
+            className="p-2.5 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-950 dark:hover:bg-white/5 rounded-xl transition-all"
           >
             <HelpCircle className="w-5 h-5" />
           </button>
@@ -255,13 +269,13 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                   type="button"
                   onClick={() => setIsHelpOpen(false)}
                   aria-label="Fechar ajuda"
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-950 dark:hover:bg-white/5 transition-all"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
               <div className="p-5 space-y-3">
-                <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10">
+                <div className="p-4 bg-slate-950 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10">
                   <p className="text-xs font-black text-slate-900 dark:text-slate-100">Fluxo recomendado</p>
                   <ul className="mt-2 text-xs text-slate-600 space-y-1">
                     <li>1) Cadastre o cliente</li>
@@ -271,7 +285,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                 </div>
                 <Link
                   href="/perfil"
-                  className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-950 dark:hover:bg-white/5 transition-all"
                 >
                   Perfil (foto e senha) <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </Link>
@@ -279,7 +293,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                   href="https://wa.me/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-950 dark:hover:bg-white/5 transition-all"
                 >
                   Ajuda via WhatsApp <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </a>
@@ -303,6 +317,8 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
           </div>
         </Link>
       </div>
+
+      <CommandPalette isOpen={isCommandPaletteOpen} setIsOpen={setIsCommandPaletteOpen} />
     </header>
   )
 }

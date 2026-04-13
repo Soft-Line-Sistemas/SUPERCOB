@@ -57,7 +57,12 @@ export default async function ReportsPage({
 }) {
   const session = await auth()
   if (!session?.user) redirect('/login')
-  if ((session.user as any).role !== 'ADMIN') redirect('/dashboard')
+  
+  const role = ((session.user as any).role as string)?.toUpperCase()
+  const userId = (session.user as any).id
+
+  // Regra 2: Escritório não vê Relatórios (Parte financeira)
+  if (role === 'ESCRITORIO') redirect('/dashboard')
 
   const params = await searchParams
   const startDateParam = Array.isArray(params.startDate) ? params.startDate[0] : params.startDate
@@ -89,6 +94,13 @@ export default async function ReportsPage({
     ],
   }
 
+  // Regra 1: Gerente vê apenas os relatórios DELE
+  if (role === 'GERENTE') {
+    where.usuarioId = userId
+  } else if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
+    where.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
+  }
+
   if (statusParam && typeof statusParam === 'string' && statusParam.trim() !== '') {
     where.status = statusParam
   }
@@ -101,10 +113,6 @@ export default async function ReportsPage({
     if (estadoParam && typeof estadoParam === 'string' && estadoParam.trim() !== '') {
       where.cliente.estado = { contains: estadoParam }
     }
-  }
-
-  if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
-    where.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
   }
 
   const [loans, colaboradores] = await Promise.all([
@@ -126,7 +134,11 @@ export default async function ReportsPage({
         },
       },
     }),
-    prisma.usuario.findMany({ where: { role: 'OPERADOR' }, select: { id: true, nome: true }, orderBy: { nome: 'asc' } }),
+    prisma.usuario.findMany({ 
+      where: role === 'ADM' ? { role: { in: ['GERENTE', 'ESCRITORIO'] } } : { id: userId }, 
+      select: { id: true, nome: true }, 
+      orderBy: { nome: 'asc' } 
+    }),
   ])
   const expectedInterest = (valor: number, jurosMes: number | null) => valor * (((jurosMes ?? 0) as number) / 100)
 

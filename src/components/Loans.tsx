@@ -49,7 +49,7 @@ const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any
   ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-100', icon: Info },
   NEGOCIACAO: { label: 'Em Negociação', color: 'text-amber-600', bg: 'bg-amber-50', icon: Info },
   QUITADO: { label: 'Quitado', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: Info },
-  CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-50', icon: Info },
+  CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-950', icon: Info },
 };
 
 export function Loans({ initialLoans, clientes, colaboradores, userRole, analytics }: LoansProps) {
@@ -385,7 +385,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
               <button
                 type="button"
                 onClick={() => setIsFiltersOpen((v) => !v)}
-                className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-black text-slate-700 hover:bg-slate-950 transition-all shadow-sm"
               >
                 <Filter className="h-4 w-4 text-slate-500" />
                 Filtros
@@ -410,7 +410,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                   <select
                     value={filters.status}
                     onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                    className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
                   >
                     <option value="">Todos</option>
                     <option value="ABERTO">Abertos</option>
@@ -426,7 +426,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                     <select
                       value={filters.usuarioId}
                       onChange={(e) => setFilters({ ...filters, usuarioId: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
                     >
                       <option value="">Todos</option>
                       <option value="__UNASSIGNED__">Sem atribuição</option>
@@ -445,7 +445,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                     type="date"
                     value={filters.startDate}
                     onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                    className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
                   />
                 </div>
 
@@ -455,7 +455,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                     type="date"
                     value={filters.endDate}
                     onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                    className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
                   />
                 </div>
 
@@ -463,7 +463,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                   type="button"
                   onClick={() => setFilters(prev => ({ ...prev, cobrancaOnly: !prev.cobrancaOnly }))}
                   className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all ${
-                    filters.cobrancaOnly ? 'bg-red-600 text-white' : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
+                    filters.cobrancaOnly ? 'bg-red-600 text-white' : 'bg-slate-950 border border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   <Download className="h-4 w-4" />
@@ -474,7 +474,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                   type="button"
                   onClick={() => setContactOnly((v) => !v)}
                   className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all ${
-                    contactOnly ? 'bg-emerald-600 text-white' : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
+                    contactOnly ? 'bg-emerald-600 text-white' : 'bg-slate-950 border border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   <Send className="h-4 w-4" />
@@ -542,7 +542,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                         type="button"
                         onClick={() => setFilters(prev => ({ ...prev, cobrancaOnly: !prev.cobrancaOnly }))}
                         className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all ${
-                          filters.cobrancaOnly ? 'bg-red-600 text-white' : 'bg-slate-50 border border-slate-200 text-slate-700'
+                          filters.cobrancaOnly ? 'bg-red-600 text-white' : 'bg-slate-950 border border-slate-200 text-slate-700'
                         }`}
                       >
                         <Download className="h-4 w-4" />
@@ -576,7 +576,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {analytics.map((a) => (
-              <div key={a.id} className="p-5 rounded-2xl bg-slate-50 border border-slate-100">
+              <div key={a.id} className="p-5 rounded-2xl bg-slate-950 border border-slate-100">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-black text-slate-900">{a.nome}</p>
                   <span className="text-[10px] font-black text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded-full">

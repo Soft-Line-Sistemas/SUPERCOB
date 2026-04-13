@@ -5,8 +5,10 @@ import { redirect } from 'next/navigation'
 
 export default async function UsuariosPage() {
   const session = await auth()
+  const role = session?.user?.role?.toUpperCase()
+  const isAuthorized = role === 'ADM' || role === 'ADMIN' || role === 'ESCRITORIO'
   
-  if (session?.user?.role !== 'ADMIN') {
+  if (!isAuthorized) {
     redirect('/dashboard')
   }
 
@@ -14,7 +16,7 @@ export default async function UsuariosPage() {
   
   return (
     <div className="space-y-6">
-      <Users initialUsers={users as any} />
+      <Users initialUsers={users as any} myRole={role} />
     </div>
   )
 }

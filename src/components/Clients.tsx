@@ -61,6 +61,13 @@ export function Clients({ initialClients }: ClientsProps) {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Sincronizar termo de busca da URL (para busca global)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const s = params.get('search')
+    if (s) setSearchTerm(s)
+  }, [])
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [filters, setFilters] = useState({
     email: '',
@@ -618,12 +625,12 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
           <button
             type="button"
             onClick={() => setIsFiltersOpen(true)}
-            className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+            className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-950 transition-colors shadow-sm"
           >
             <Filter className="h-5 w-5" />
           </button>
           
-          <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
+          <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-950 transition-colors shadow-sm">
             <Download className="h-5 w-5" />
           </button>
 
@@ -700,7 +707,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
 
         {filteredClients.length === 0 && (
           <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-300">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-slate-950 rounded-full flex items-center justify-center mx-auto mb-4">
               <User className="h-8 w-8 text-slate-300" />
             </div>
             <p className="text-slate-500 font-medium">Nenhum cliente encontrado com os filtros atuais.</p>
@@ -743,7 +750,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
 
                 <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6">
                   <aside className="space-y-4">
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-200">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-black text-slate-500">Progresso</p>
                         <p className="text-xs font-black text-slate-700">{flowProgress}%</p>
@@ -778,7 +785,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
                             className={`w-full flex items-center gap-3 px-3 py-2 rounded-2xl border transition-colors ${
                               isActive
                                 ? 'bg-white border-slate-200 text-slate-900 shadow-sm'
-                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                : 'bg-slate-950 border-slate-200 text-slate-600 hover:bg-slate-100'
                             }`}
                           >
                             <span

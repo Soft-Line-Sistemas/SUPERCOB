@@ -2,19 +2,25 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { logSystemAction } from '@/lib/audit'
 import bcrypt from 'bcryptjs'
 import { auth } from '@/auth'
 
-async function checkAdmin() {
+async function checkPermission() {
   const session = await auth()
-  if (session?.user?.role !== 'ADMIN') {
-    throw new Error('Acesso negado. Apenas administradores podem gerenciar usuários.')
+  const role = session?.user?.role?.toUpperCase()
+  if (role !== 'ADM' && role !== 'ADMIN' && role !== 'ESCRITORIO') {
+    throw new Error('Acesso negado. Apenas ADM ou Escritório podem gerenciar usuários.')
   }
+  return session
 }
 
 export async function getUsuarios() {
-  await checkAdmin()
+  const session = await checkPermission()
+  const role = session?.user?.role
+
   return await prisma.usuario.findMany({
+    where: role === 'ESCRITORIO' ? { role: { in: ['ESCRITORIO', 'GERENTE'] } } : {},
     select: {
       id: true,
       nome: true,
@@ -26,8 +32,15 @@ export async function getUsuarios() {
   })
 }
 
-export async function createUsuario(data: { nome: string; email: string; senha: string; role: 'ADMIN' | 'OPERADOR' }) {
-  await checkAdmin()
+export async function createUsuario(data: { nome: string; email: string; senha: string; role: string }) {
+  const session = await checkPermission()
+  const myRole = session?.user?.role
+
+  // Regra 4: Escritório só pode criar Gerente ou Escritório
+  if (myRole === 'ESCRITORIO' && data.role === 'ADM') {
+    throw new Error('Escritório não pode criar usuários ADM.')
+  }
+
   const hashedSenha = await bcrypt.hash(data.senha, 10)
   const usuario = await prisma.usuario.create({
     data: {
@@ -39,15 +52,23 @@ export async function createUsuario(data: { nome: string; email: string; senha: 
   return { id: usuario.id, nome: usuario.nome, email: usuario.email, role: usuario.role }
 }
 
-export async function updateUsuario(id: string, data: { nome: string; email: string; senha?: string; role: 'ADMIN' | 'OPERADOR' }) {
-  await checkAdmin()
-  const session = await auth()
-  const autorId = (session?.user as any)?.id as string | undefined
+export async function updateUsuario(id: string, data: { nome: string; email: string; senha?: string; role: string }) {
+  const session = await checkPermission()
+  const myRole = session?.user?.role
 
   const before = await prisma.usuario.findUnique({
     where: { id },
     select: { id: true, nome: true, email: true, role: true },
   })
+
+  if (!before) throw new Error('Usuário não encontrado.')
+
+  // Restrições de Escritório
+  if (myRole === 'ESCRITORIO') {
+    if (before.role === 'ADM' || data.role === 'ADM') {
+      throw new Error('Escritório não tem permissão para gerenciar usuários ADM.')
+    }
+  }
 
   const updateData: any = {
     nome: data.nome,
@@ -64,15 +85,14 @@ export async function updateUsuario(id: string, data: { nome: string; email: str
     data: updateData,
   })
 
-  if (before && autorId && before.role !== usuario.role) {
-    await prisma.permissaoAuditoria.create({
-      data: {
-        alvoId: usuario.id,
-        autorId,
-        tipo: 'ROLE',
-        antes: before.role,
-        depois: usuario.role,
-      },
+  if (before && before.role !== usuario.role) {
+    await logSystemAction({
+      entidade: 'USUARIO',
+      entidadeId: usuario.id,
+      acao: 'UPDATE',
+      detalhes: `Cargo alterado de ${before.role} para ${usuario.role}.`,
+      antes: before,
+      depois: usuario
     })
   }
 
@@ -81,10 +101,16 @@ export async function updateUsuario(id: string, data: { nome: string; email: str
 }
 
 export async function deleteUsuario(id: string) {
-  await checkAdmin()
-  const session = await auth()
+  const session = await checkPermission()
+  const myRole = session?.user?.role
+
   if (session?.user?.id === id) {
     throw new Error('Você não pode excluir seu próprio usuário.')
+  }
+
+  const target = await prisma.usuario.findUnique({ where: { id }, select: { role: true } })
+  if (myRole === 'ESCRITORIO' && target?.role === 'ADM') {
+    throw new Error('Escritório não pode excluir usuários ADM.')
   }
   
   await prisma.usuario.delete({

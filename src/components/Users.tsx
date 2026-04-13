@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Search, X, User, Mail, Edit2, Trash2, Shield, Lock, MoreHorizontal, UserCheck, ShieldAlert, Key } from 'lucide-react';
+import { Plus, Search, X, User, Mail, Edit2, Trash2, Shield, Lock, MoreHorizontal, UserCheck, ShieldAlert, Key, Monitor } from 'lucide-react';
 import { createUsuario, updateUsuario, deleteUsuario } from '@/app/(dashboard)/usuarios/actions';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,15 +10,16 @@ interface Usuario {
   id: string;
   nome: string;
   email: string;
-  role: 'ADMIN' | 'OPERADOR';
+  role: 'ADM' | 'ESCRITORIO' | 'GERENTE';
   createdAt: Date;
 }
 
 interface UsersProps {
   initialUsers: Usuario[];
+  myRole?: string;
 }
 
-export function Users({ initialUsers }: UsersProps) {
+export function Users({ initialUsers, myRole }: UsersProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
@@ -29,7 +30,7 @@ export function Users({ initialUsers }: UsersProps) {
     nome: '',
     email: '',
     senha: '',
-    role: 'OPERADOR' as 'ADMIN' | 'OPERADOR',
+    role: 'GERENTE' as 'ADM' | 'ESCRITORIO' | 'GERENTE',
   });
 
   const filteredUsers = initialUsers.filter(user =>
@@ -53,7 +54,7 @@ export function Users({ initialUsers }: UsersProps) {
         nome: '',
         email: '',
         senha: '',
-        role: 'OPERADOR',
+        role: 'GERENTE',
       });
     }
     setIsModalOpen(true);
@@ -146,14 +147,16 @@ export function Users({ initialUsers }: UsersProps) {
             >
               {/* Role Badge Overlay */}
               <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[10px] font-black uppercase tracking-widest ${
-                user.role === 'ADMIN' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'
+                user.role === 'ADM' ? 'bg-indigo-600 text-white' : 
+                user.role === 'ESCRITORIO' ? 'bg-emerald-600 text-white' :
+                'bg-slate-100 text-slate-500'
               }`}>
-                {user.role === 'OPERADOR' ? 'GERÊNCIA' : user.role}
+                {user.role === 'GERENTE' ? 'GERÊNCIA' : user.role === 'ESCRITORIO' ? 'ESCRITÓRIO' : user.role}
               </div>
 
               <div className="flex items-center gap-4 mb-6">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner ${
-                  user.role === 'ADMIN' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400'
+                  user.role === 'ADM' || user.role === 'ADMIN' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-950 text-slate-400'
                 }`}>
                   {user.nome.charAt(0).toUpperCase()}
                 </div>
@@ -168,8 +171,8 @@ export function Users({ initialUsers }: UsersProps) {
 
               <div className="flex items-center justify-between pt-6 border-t border-slate-50">
                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  {user.role === 'ADMIN' ? <Shield className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
-                  {user.role === 'ADMIN' ? 'Acesso Total' : 'Acesso Limitado'}
+                  {user.role === 'ADM' ? <Shield className="w-3.5 h-3.5" /> : user.role === 'ESCRITORIO' ? <Monitor className="w-3.5 h-3.5 text-emerald-500" /> : <UserCheck className="w-3.5 h-3.5" />}
+                  {user.role === 'ADM' ? 'Acesso Total' : user.role === 'ESCRITORIO' ? 'Gestão e Visão' : 'Acesso Limitado'}
                 </div>
                 
                 <div className="flex gap-2">
@@ -246,7 +249,7 @@ export function Users({ initialUsers }: UsersProps) {
                           required
                           value={formData.nome}
                           onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-slate-100 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                           placeholder="Ex: Roberto Oliveira"
                         />
                       </div>
@@ -261,7 +264,7 @@ export function Users({ initialUsers }: UsersProps) {
                           required
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-slate-100 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                           placeholder="email@supercob.com.br"
                         />
                       </div>
@@ -278,7 +281,7 @@ export function Users({ initialUsers }: UsersProps) {
                           required={!editingUser}
                           value={formData.senha}
                           onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-slate-100 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                           placeholder={editingUser ? "Deixe vazio para manter" : "Mínimo 6 caracteres"}
                         />
                       </div>
@@ -286,27 +289,41 @@ export function Users({ initialUsers }: UsersProps) {
 
                     <div className="space-y-1.5">
                       <label className="text-sm font-bold text-slate-700 ml-1">Nível de Permissão</label>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className={`grid ${(myRole === 'ADM' || myRole === 'ADMIN') ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
                         <button
                           type="button"
-                          onClick={() => setFormData({...formData, role: 'OPERADOR'})}
+                          onClick={() => setFormData({...formData, role: 'GERENTE'})}
                           className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
-                            formData.role === 'OPERADOR' ? 'border-blue-500 bg-blue-50/50' : 'border-slate-100 bg-slate-50 hover:bg-slate-100'
+                            formData.role === 'GERENTE' ? 'border-blue-500 bg-blue-50/50' : 'border-slate-100 bg-white hover:bg-slate-100'
                           }`}
                         >
-                          <User className={`w-6 h-6 ${formData.role === 'OPERADOR' ? 'text-blue-600' : 'text-slate-400'}`} />
-                          <span className={`text-xs font-bold ${formData.role === 'OPERADOR' ? 'text-blue-700' : 'text-slate-500'}`}>GERÊNCIA</span>
+                          <User className={`w-6 h-6 ${formData.role === 'GERENTE' ? 'text-blue-600' : 'text-slate-400'}`} />
+                          <span className={`text-[10px] font-bold ${formData.role === 'GERENTE' ? 'text-blue-700' : 'text-slate-500'}`}>GERÊNCIA</span>
                         </button>
+
                         <button
                           type="button"
-                          onClick={() => setFormData({...formData, role: 'ADMIN'})}
+                          onClick={() => setFormData({...formData, role: 'ESCRITORIO'})}
                           className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
-                            formData.role === 'ADMIN' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-100 bg-slate-50 hover:bg-slate-100'
+                            formData.role === 'ESCRITORIO' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-100 bg-slate-950 hover:bg-slate-100'
                           }`}
                         >
-                          <Shield className={`w-6 h-6 ${formData.role === 'ADMIN' ? 'text-indigo-600' : 'text-slate-400'}`} />
-                          <span className={`text-xs font-bold ${formData.role === 'ADMIN' ? 'text-indigo-700' : 'text-slate-500'}`}>ADMIN</span>
+                          <Monitor className={`w-6 h-6 ${formData.role === 'ESCRITORIO' ? 'text-emerald-600' : 'text-slate-400'}`} />
+                          <span className={`text-[10px] font-bold ${formData.role === 'ESCRITORIO' ? 'text-emerald-700' : 'text-slate-500'}`}>ESCRITÓRIO</span>
                         </button>
+
+                        {(myRole === 'ADM' || myRole === 'ADMIN') && (
+                          <button
+                            type="button"
+                            onClick={() => setFormData({...formData, role: 'ADM'})}
+                            className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                              formData.role === 'ADM' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-100 bg-white hover:bg-slate-950'
+                            }`}
+                          >
+                            <Shield className={`w-6 h-6 ${formData.role === 'ADM' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                            <span className={`text-[10px] font-extrabold ${formData.role === 'ADM' ? 'text-indigo-700' : 'text-slate-500'}`}>ADM</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -121,8 +121,9 @@ export default async function ClienteHistoricoPage({
     where: {
       clienteId: id,
       OR: [
+        { createdAt: { gte: rangeStartUtc, lt: rangeEndExclusiveUtc } },
         { vencimento: { gte: rangeStartUtc, lt: rangeEndExclusiveUtc } },
-        { vencimento: null, createdAt: { gte: rangeStartUtc, lt: rangeEndExclusiveUtc } },
+        { status: { in: ['ABERTO', 'NEGOCIACAO'] } }, // Garante que contratos ativos sempre apareçam
       ],
     },
     orderBy: { createdAt: 'desc' },

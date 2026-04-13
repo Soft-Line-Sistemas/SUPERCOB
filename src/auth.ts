@@ -27,7 +27,7 @@ export const { auth, signIn, signOut, handlers: { GET, POST } } = NextAuth({
               nome: user.nome,
               name: user.nome,
               avatarUrl: user.avatarUrl ?? null,
-              role: user.role,
+              role: user.role === 'ADMIN' ? 'ADM' : user.role,
             } as any
           }
 
@@ -37,7 +37,7 @@ export const { auth, signIn, signOut, handlers: { GET, POST } } = NextAuth({
               where: { email },
               update: {
                 nome: 'Admin',
-                role: 'ADMIN',
+                role: 'ADM',
                 isActive: true,
                 canManageUsers: true,
                 canManageClients: true,
@@ -47,7 +47,7 @@ export const { auth, signIn, signOut, handlers: { GET, POST } } = NextAuth({
                 nome: 'Admin',
                 email,
                 senha: await bcrypt.hash(senha, 10),
-                role: 'ADMIN',
+                role: 'ADM',
                 isActive: true,
                 canManageUsers: true,
                 canManageClients: true,
@@ -70,7 +70,7 @@ export const { auth, signIn, signOut, handlers: { GET, POST } } = NextAuth({
               where: { email },
               update: {
                 nome: 'Gerência',
-                role: 'OPERADOR',
+                role: 'GERENTE',
                 isActive: true,
                 canManageUsers: false,
                 canManageClients: true,
@@ -80,7 +80,7 @@ export const { auth, signIn, signOut, handlers: { GET, POST } } = NextAuth({
                 nome: 'Gerência',
                 email,
                 senha: await bcrypt.hash(senha, 10),
-                role: 'OPERADOR',
+                role: 'GERENTE',
                 isActive: true,
                 canManageUsers: false,
                 canManageClients: true,

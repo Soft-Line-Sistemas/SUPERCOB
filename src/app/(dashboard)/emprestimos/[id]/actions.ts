@@ -3,6 +3,7 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { logSystemAction } from '@/lib/audit'
 
 export async function addEmprestimoHistorico(input: { emprestimoId: string; descricao: string }) {
   const session = await auth()
@@ -12,12 +13,22 @@ export async function addEmprestimoHistorico(input: { emprestimoId: string; desc
   if (!descricao) throw new Error('Descrição é obrigatória')
 
   const createdById = (session.user as any).id as string | undefined
+  
+  // Transição automática de status: ABERTO -> NEGOCIACAO ao registrar histórico (contato feito)
+  const currentLoan = await prisma.emprestimo.findUnique({ where: { id: input.emprestimoId } })
+  if (currentLoan?.status === 'ABERTO') {
+    await prisma.emprestimo.update({
+      where: { id: input.emprestimoId },
+      data: { status: 'NEGOCIACAO' }
+    })
+  }
 
   const evento = await prisma.emprestimoHistorico.create({
     data: {
       emprestimoId: input.emprestimoId,
       descricao,
       createdById,
+      tipo: 'NOTA'
     },
     include: {
       createdBy: { select: { nome: true } },
@@ -64,6 +75,7 @@ export async function setEmprestimoStatus(input: {
       emprestimoId: input.emprestimoId,
       descricao: input.status === 'QUITADO' ? 'Status alterado para concluído.' : 'Status alterado para cancelado.',
       createdById,
+      tipo: 'SISTEMA'
     },
     include: {
       createdBy: { select: { nome: true } },
@@ -120,13 +132,21 @@ export async function addPagamentoParcial(input: { emprestimoId: string; valor: 
   const novoJurosPagos = (emprestimoAtual.jurosPagos || 0) + pagamentoParaJuros
   const novoValorPago = (emprestimoAtual.valorPago || 0) + pagamentoParaPrincipal
   const quitado = novoValorPago >= emprestimoAtual.valor
+  
+  // Transição automática para NEGOCIACAO se estava ABERTO e foi recebido pagamento
+  let nextStatus = emprestimoAtual.status
+  if (quitado) {
+    nextStatus = 'QUITADO'
+  } else if (emprestimoAtual.status === 'ABERTO') {
+    nextStatus = 'NEGOCIACAO'
+  }
 
   const updated = await prisma.emprestimo.update({
     where: { id: input.emprestimoId },
     data: {
       valorPago: novoValorPago,
       jurosPagos: novoJurosPagos,
-      status: quitado ? 'QUITADO' : emprestimoAtual.status,
+      status: nextStatus,
       quitadoEm: quitado ? new Date() : emprestimoAtual.quitadoEm,
     },
   })
@@ -147,6 +167,7 @@ export async function addPagamentoParcial(input: { emprestimoId: string; valor: 
       emprestimoId: input.emprestimoId,
       descricao: desc,
       createdById,
+      tipo: 'PAGAMENTO'
     },
     include: { createdBy: { select: { nome: true } } },
   })
@@ -168,4 +189,31 @@ export async function addPagamentoParcial(input: { emprestimoId: string; valor: 
   revalidatePath('/dashboard')
 
   return { emprestimo: updated, eventos: [eventoPagamento, ...(eventoQuitacao ? [eventoQuitacao] : [])] }
+}
+
+export async function updateLoanUser(loanId: string, newUserId: string) {
+  const session = await auth()
+  if (!session?.user || (session.user as any).role !== 'ADM') throw new Error('Apenas administradores podem alterar o responsável.')
+
+  const before = await prisma.emprestimo.findUnique({
+    where: { id: loanId },
+    select: { usuario: { select: { nome: true } } }
+  })
+
+  const updated = await prisma.emprestimo.update({
+    where: { id: loanId },
+    data: { usuarioId: newUserId },
+    include: { usuario: { select: { nome: true } } }
+  })
+
+  await logSystemAction({
+    entidade: 'EMPRESTIMO',
+    entidadeId: loanId,
+    acao: 'UPDATE',
+    detalhes: `Responsável pelo contrato alterado de ${before?.usuario?.nome || 'Sistema'} para ${updated.usuario?.nome}.`,
+    depois: updated
+  })
+
+  revalidatePath(`/emprestimos/${loanId}`)
+  return updated
 }

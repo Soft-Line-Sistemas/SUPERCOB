@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
+import { logSystemAction } from '@/lib/audit'
 
 export async function getEmprestimos(filters?: {
   status?: string;
@@ -18,9 +19,10 @@ export async function getEmprestimos(filters?: {
   const role = (session.user as any).role
   const userId = (session.user as any).id
 
-  const where: any = role === 'OPERADOR' ? { usuarioId: userId } : {}
+  // Regra: GERENTE vê apenas os próprios contratos. ADM e ESCRITORIO veem tudo.
+  const where: any = role === 'GERENTE' ? { usuarioId: userId } : {}
 
-  if (role !== 'OPERADOR' && filters?.usuarioId && filters.usuarioId.trim() !== '') {
+  if (role !== 'GERENTE' && filters?.usuarioId && filters.usuarioId.trim() !== '') {
     if (filters.usuarioId === '__UNASSIGNED__') where.usuarioId = null
     else where.usuarioId = filters.usuarioId
   }
@@ -103,9 +105,9 @@ export async function createEmprestimo(data: {
     status = 'NEGOCIACAO'
   }
 
-  // Se for OPERADOR, o empréstimo é automaticamente atribuído a ele
-  // Se for ADMIN, ele pode atribuir a qualquer um (passado no data.usuarioId)
-  const usuarioId = role === 'OPERADOR' ? userId : data.usuarioId
+  // Se for GERENTE, o empréstimo é automaticamente atribuído a ele
+  // Se for ADMIN/ADM, ele pode atribuir a qualquer um (passado no data.usuarioId)
+  const usuarioId = role === 'GERENTE' ? userId : data.usuarioId
 
   const emprestimo = await prisma.emprestimo.create({
     data: {
@@ -114,6 +116,15 @@ export async function createEmprestimo(data: {
       status,
     },
   })
+
+  await logSystemAction({
+    entidade: 'EMPRESTIMO',
+    entidadeId: emprestimo.id,
+    acao: 'CREATE',
+    detalhes: `Contrato de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.valor)} criado.`,
+    depois: emprestimo
+  })
+
   revalidatePath('/emprestimos')
   revalidatePath('/dashboard')
   return emprestimo
@@ -138,6 +149,8 @@ export async function updateEmprestimo(id: string, data: {
     status = 'NEGOCIACAO'
   }
 
+  const before = await prisma.emprestimo.findUnique({ where: { id } })
+
   const emprestimo = await prisma.emprestimo.update({
     where: { id },
     data: {
@@ -145,6 +158,16 @@ export async function updateEmprestimo(id: string, data: {
       status,
     },
   })
+
+  await logSystemAction({
+    entidade: 'EMPRESTIMO',
+    entidadeId: emprestimo.id,
+    acao: 'UPDATE',
+    detalhes: `Contrato atualizado via formulário.`,
+    antes: before,
+    depois: emprestimo
+  })
+
   revalidatePath('/emprestimos')
   revalidatePath('/dashboard')
   return emprestimo

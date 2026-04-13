@@ -75,7 +75,7 @@ export async function getClientes(options?: { includeIds?: string[] }) {
   const role = (session.user as any).role
   const userId = (session.user as any).id
 
-  if (role === 'OPERADOR') {
+  if (role === 'GERENTE') {
     const includeIds = (options?.includeIds ?? []).filter((id) => typeof id === 'string' && id.trim() !== '')
     const orConditions: Prisma.ClienteWhereInput[] = [
       { loans: { some: { usuarioId: userId } } },
@@ -93,6 +93,7 @@ export async function getClientes(options?: { includeIds?: string[] }) {
     })
   }
 
+  // ADM e ESCRITORIO veem tudo
   return await prisma.cliente.findMany({
     orderBy: { createdAt: 'desc' },
   })

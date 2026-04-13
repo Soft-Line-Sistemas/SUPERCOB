@@ -5,7 +5,7 @@ import { LayoutDashboard, Users, CreditCard, LogOut, ShieldCheck, UserCog, BarCh
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import PremiumLine from './PremiumLine'
 
 export function Sidebar() {
@@ -48,7 +48,9 @@ export function Sidebar() {
     { id: 'loans', label: 'Contratos', icon: CreditCard, href: '/emprestimos' },
   ]
 
-  if (session?.user?.role === 'ADMIN') {
+  const role = session?.user?.role?.toUpperCase()
+
+  if (role === 'ADM' || role === 'ADMIN') {
     navItems.push({ id: 'reports', label: 'Relatórios', icon: BarChart3, href: '/reports' })
     navItems.push({ id: 'users', label: 'Equipe', icon: UserCog, href: '/usuarios' })
   }
@@ -96,10 +98,7 @@ export function Sidebar() {
               Supercob
             </span>
           </div>
-          {/* <div className="h-1 w-16 bg-blue-600/30 rounded-full" /> */}
-          {/* <div className="w-full h-1 bg-blue-600/10 rounded-full overflow-hidden"> */}
-           <PremiumLine />
-          {/* </div> */}
+          <PremiumLine />
         </div>
 
         {/* Navigation */}
@@ -150,7 +149,7 @@ export function Sidebar() {
             Configurações
           </Link>
 
-          <div className="h-[1px] bg-white/5 my-4 mx-4" />
+          <div className="h-[px] bg-white/5 my-4 mx-4" />
 
           <Link
             href="/perfil"
