@@ -34,7 +34,7 @@ export function Profile({ me }: { me: { id: string; nome: string; email: string;
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
           <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-4">Conta</p>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xl font-black text-slate-700 overflow-hidden">
+            <div className="w-14 h-14 rounded-2xl bg-slate-950 border border-slate-200 flex items-center justify-center text-xl font-black text-slate-700 overflow-hidden">
               {previewUrl ? (
                 <img src={previewUrl} alt={me.nome} className="w-full h-full object-cover" />
               ) : currentAvatarUrl ? (
@@ -114,7 +114,7 @@ export function Profile({ me }: { me: { id: string; nome: string; email: string;
                     setLoadingAvatar(false)
                   }
                 }}
-                className="flex-1 py-3 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                className="flex-1 py-3 px-4 bg-slate-950 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
               >
                 Remover
               </button>

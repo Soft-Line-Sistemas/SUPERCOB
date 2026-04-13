@@ -167,7 +167,7 @@ export function ChargeModal({
                   type="button"
                   onClick={onClose}
                   aria-label="Fechar modal"
-                  className="p-2 rounded-2xl hover:bg-slate-100 transition-colors text-slate-600"
+                  className="p-2 rounded-2xl hover:bg-slate-950 transition-colors text-slate-600"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -200,7 +200,7 @@ export function ChargeModal({
                       <button
                         type="button"
                         onClick={() => setFormData((p) => ({ ...p, clienteId: '' }))}
-                        className="p-2 rounded-xl hover:bg-slate-100 text-slate-600"
+                        className="p-2 rounded-xl hover:bg-slate-950 text-slate-600"
                         aria-label="Remover cliente selecionado"
                       >
                         <X className="w-4 h-4" />
@@ -349,7 +349,7 @@ export function ChargeModal({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="py-3 px-4 bg-slate-100 text-slate-700 font-black rounded-2xl hover:bg-slate-200 transition-colors"
+                    className="py-3 px-4 bg-slate-950 text-slate-700 font-black rounded-2xl hover:bg-slate-200 transition-colors"
                   >
                     Cancelar
                   </button>

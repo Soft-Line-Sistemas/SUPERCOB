@@ -143,7 +143,7 @@ export function Chat({ currentUser }: { currentUser: any }) {
                 {currentUser.role === 'ADMIN' && (
                   <button
                     onClick={() => { setSelectedUser(null); setIsMassMode(true); }}
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${isMassMode ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-100'}`}
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${isMassMode ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-950'}`}
                     title="Mensagem em Massa"
                   >
                     <Megaphone className="w-5 h-5" />
@@ -154,7 +154,7 @@ export function Chat({ currentUser }: { currentUser: any }) {
                   <button
                     key={u.id}
                     onClick={() => { setSelectedUser(u); setIsMassMode(false); }}
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold transition-all relative ${selectedUser?.id === u.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-100'}`}
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold transition-all relative ${selectedUser?.id === u.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-950'}`}
                     title={u.nome}
                   >
                     {u.nome.charAt(0)}
@@ -189,7 +189,7 @@ export function Chat({ currentUser }: { currentUser: any }) {
                             <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm ${
                               isMe 
                                 ? 'bg-blue-600 text-white rounded-tr-none shadow-lg shadow-blue-600/10' 
-                                : 'bg-slate-100 text-slate-800 rounded-tl-none'
+                                : 'bg-slate-950 text-slate-800 rounded-tl-none'
                             }`}>
                               {msg.isMassiva && !isMe && (
                                 <p className="text-[9px] font-black uppercase tracking-tighter opacity-50 mb-1 flex items-center gap-1">

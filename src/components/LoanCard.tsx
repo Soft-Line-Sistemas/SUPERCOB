@@ -32,7 +32,7 @@ interface Loan {
 }
 
 const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any; bg: string; border: string }> = {
-  ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', icon: Clock },
+  ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-950', border: 'border-slate-200', icon: Clock },
   NEGOCIACAO: { label: 'Em Negociação', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-400', icon: AlertIcon },
   QUITADO: { label: 'Quitado', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-500', icon: CheckCircle2 },
   CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-950', border: 'border-slate-300', icon: X },
@@ -197,7 +197,7 @@ export function LoanCard({
               e.stopPropagation();
               onDetail(loan);
             }}
-            className="px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl hover:bg-slate-100 transition-colors shadow-sm"
+            className="px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl hover:bg-slate-950 transition-colors shadow-sm"
           >
             Detalhes
           </button>

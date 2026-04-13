@@ -149,7 +149,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
               <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[10px] font-black uppercase tracking-widest ${
                 user.role === 'ADM' ? 'bg-indigo-600 text-white' : 
                 user.role === 'ESCRITORIO' ? 'bg-emerald-600 text-white' :
-                'bg-slate-100 text-slate-500'
+                'bg-slate-950 text-slate-500'
               }`}>
                 {user.role === 'GERENTE' ? 'GERÊNCIA' : user.role === 'ESCRITORIO' ? 'ESCRITÓRIO' : user.role}
               </div>
@@ -222,7 +222,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                     </h3>
                     <p className="text-slate-500 text-sm">Defina as permissões e credenciais.</p>
                   </div>
-                  <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors">
+                  <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-950 rounded-full text-slate-400 transition-colors">
                     <X className="h-6 w-6" />
                   </button>
                 </div>
@@ -249,7 +249,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           required
                           value={formData.nome}
                           onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-100 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                           placeholder="Ex: Roberto Oliveira"
                         />
                       </div>
@@ -264,7 +264,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           required
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-100 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                           placeholder="email@supercob.com.br"
                         />
                       </div>
@@ -281,7 +281,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           required={!editingUser}
                           value={formData.senha}
                           onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-100 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                           placeholder={editingUser ? "Deixe vazio para manter" : "Mínimo 6 caracteres"}
                         />
                       </div>
@@ -294,7 +294,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           type="button"
                           onClick={() => setFormData({...formData, role: 'GERENTE'})}
                           className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
-                            formData.role === 'GERENTE' ? 'border-blue-500 bg-blue-50/50' : 'border-slate-100 bg-white hover:bg-slate-100'
+                            formData.role === 'GERENTE' ? 'border-blue-500 bg-blue-50/50' : 'border-slate-100 bg-white hover:bg-slate-950'
                           }`}
                         >
                           <User className={`w-6 h-6 ${formData.role === 'GERENTE' ? 'text-blue-600' : 'text-slate-400'}`} />
@@ -305,7 +305,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           type="button"
                           onClick={() => setFormData({...formData, role: 'ESCRITORIO'})}
                           className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
-                            formData.role === 'ESCRITORIO' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-100 bg-slate-950 hover:bg-slate-100'
+                            formData.role === 'ESCRITORIO' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-100 bg-slate-950 hover:bg-slate-950'
                           }`}
                         >
                           <Monitor className={`w-6 h-6 ${formData.role === 'ESCRITORIO' ? 'text-emerald-600' : 'text-slate-400'}`} />
@@ -332,7 +332,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                      className="flex-1 py-4 bg-slate-950 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
                     >
                       Cancelar
                     </button>

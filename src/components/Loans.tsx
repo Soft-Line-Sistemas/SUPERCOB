@@ -46,7 +46,7 @@ interface LoansProps {
 }
 
 const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any; bg: string }> = {
-  ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-100', icon: Info },
+  ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-950', icon: Info },
   NEGOCIACAO: { label: 'Em Negociação', color: 'text-amber-600', bg: 'bg-amber-50', icon: Info },
   QUITADO: { label: 'Quitado', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: Info },
   CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-950', icon: Info },
@@ -463,7 +463,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                   type="button"
                   onClick={() => setFilters(prev => ({ ...prev, cobrancaOnly: !prev.cobrancaOnly }))}
                   className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all ${
-                    filters.cobrancaOnly ? 'bg-red-600 text-white' : 'bg-slate-950 border border-slate-200 text-slate-700 hover:bg-slate-100'
+                    filters.cobrancaOnly ? 'bg-red-600 text-white' : 'bg-slate-950 border border-slate-200 text-slate-700 hover:bg-slate-950'
                   }`}
                 >
                   <Download className="h-4 w-4" />
@@ -474,7 +474,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                   type="button"
                   onClick={() => setContactOnly((v) => !v)}
                   className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all ${
-                    contactOnly ? 'bg-emerald-600 text-white' : 'bg-slate-950 border border-slate-200 text-slate-700 hover:bg-slate-100'
+                    contactOnly ? 'bg-emerald-600 text-white' : 'bg-slate-950 border border-slate-200 text-slate-700 hover:bg-slate-950'
                   }`}
                 >
                   <Send className="h-4 w-4" />
@@ -489,7 +489,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                     resetFilters()
                     setIsFiltersOpen(false)
                   }}
-                  className="flex-1 py-3 px-4 bg-slate-100 text-slate-700 font-black rounded-2xl hover:bg-slate-200 transition-colors"
+                  className="flex-1 py-3 px-4 bg-slate-950 text-slate-700 font-black rounded-2xl hover:bg-slate-200 transition-colors"
                 >
                   Limpar
                 </button>
@@ -530,7 +530,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                       <button
                         type="button"
                         onClick={() => setIsFiltersOpen(false)}
-                        className="p-2 rounded-2xl hover:bg-slate-100 transition-colors text-slate-600"
+                        className="p-2 rounded-2xl hover:bg-slate-950 transition-colors text-slate-600"
                       >
                         <X className="h-5 w-5" />
                       </button>

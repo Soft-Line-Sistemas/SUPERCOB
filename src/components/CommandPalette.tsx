@@ -179,7 +179,7 @@ export function CommandPalette({ isOpen, setIsOpen }: { isOpen: boolean; setIsOp
                 onChange={(e) => setSearch(e.target.value)}
                 className="flex-1 bg-transparent border-none outline-none text-sm font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600"
               />
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-950 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
                 <span className="text-[10px] font-black text-slate-400 dark:text-slate-500">ESC</span>
               </div>
             </div>
@@ -222,7 +222,7 @@ export function CommandPalette({ isOpen, setIsOpen }: { isOpen: boolean; setIsOp
                             <div className={`p-2.5 rounded-xl ${
                               isSelected 
                                 ? 'bg-white shadow-sm' 
-                                : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400'
+                                : 'bg-slate-950 dark:bg-white/5 text-slate-600 dark:text-slate-400'
                             }`}>
                               <item.icon className={`w-4 h-4 ${isSelected ? 'text-blue-600' : ''}`} />
                             </div>

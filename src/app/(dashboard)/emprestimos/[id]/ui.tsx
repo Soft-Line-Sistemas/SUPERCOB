@@ -237,7 +237,7 @@ export function ContractDetails({
             disabled={!canCancel || isPending}
             onClick={() => handleSetStatus('CANCELADO')}
             className={`flex-1 md:flex-none px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-              !canCancel || isPending ? 'bg-slate-100 text-slate-400' : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-600/15 active:scale-95'
+              !canCancel || isPending ? 'bg-slate-950 text-slate-400' : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-600/15 active:scale-95'
             }`}
           >
             Cancelar
@@ -247,7 +247,7 @@ export function ContractDetails({
             disabled={!canFinish || isPending}
             onClick={() => handleSetStatus('QUITADO')}
             className={`flex-1 md:flex-none px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-              !canFinish || isPending ? 'bg-slate-100 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/15 active:scale-95'
+              !canFinish || isPending ? 'bg-slate-950 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/15 active:scale-95'
             }`}
           >
             Concluir
@@ -321,7 +321,7 @@ export function ContractDetails({
             <p className="text-2xl font-black text-red-600 mt-1">{formatBRL(jurosPendente)}</p>
             <p className="text-xs text-slate-500 mt-1">Acumulado ({monthsLate}m): {formatBRL(jurosAcumuladoTotal)}</p>
           </div>
-          <div className="p-6 rounded-[2rem] bg-slate-100 border border-slate-200">
+          <div className="p-6 rounded-[2rem] bg-slate-950 border border-slate-200">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Vencimento Original</p>
             <div className="mt-2 flex items-center gap-2 text-slate-900">
               <Calendar className="h-4 w-4 text-slate-400" />
@@ -405,7 +405,7 @@ export function ContractDetails({
                   disabled={isPending}
                   onClick={handleAddEvento}
                   className={`w-full py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all ${
-                    isPending ? 'bg-white/5 text-white/10' : 'bg-white text-slate-900 hover:bg-slate-100 shadow-xl'
+                    isPending ? 'bg-white/5 text-white/10' : 'bg-white text-slate-900 hover:bg-slate-950 shadow-xl'
                   }`}
                 >
                   Salvar no Histórico
@@ -463,7 +463,7 @@ function Timeline({ eventos }: { eventos: HistoricoEvento[] }) {
               key={t}
               onClick={() => { setFilterType(t as any); setCurrentPage(1); }}
               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
-                filterType === t ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                filterType === t ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-950'
               }`}
             >
               {t === 'ALL' ? 'Tudo' : t === 'NOTA' ? 'Notas' : t === 'JUROS' ? 'Juros' : 'Pagos'}
@@ -483,11 +483,11 @@ function Timeline({ eventos }: { eventos: HistoricoEvento[] }) {
             <div key={month} className="space-y-4">
               <div className="flex items-center gap-4 px-2">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">{month}</p>
-                <div className="h-px w-full bg-slate-100" />
+                <div className="h-px w-full bg-slate-950" />
               </div>
               
               <div className="space-y-3 relative">
-                <div className="absolute left-6 top-4 bottom-4 w-px bg-slate-100 hidden md:block" />
+                <div className="absolute left-6 top-4 bottom-4 w-px bg-slate-950 hidden md:block" />
                 {items.map((ev: any) => {
                   const isJuros = ev.tipo === 'JUROS'
                   const isPagamento = ev.tipo === 'PAGAMENTO'
@@ -510,7 +510,7 @@ function Timeline({ eventos }: { eventos: HistoricoEvento[] }) {
                             <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter ${
                               isJuros ? 'bg-orange-100 text-orange-700' : 
                               isPagamento ? 'bg-emerald-100 text-emerald-700' : 
-                              'bg-slate-100 text-slate-500'
+                              'bg-slate-950 text-slate-500'
                             }`}>
                               {isJuros ? 'Correção Mensal' : isPagamento ? 'Recibo' : 'Anotaão'}
                             </span>

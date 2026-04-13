@@ -410,7 +410,7 @@ export function Reports({
                       <span className={`inline-flex items-center justify-center w-8 h-8 rounded-xl text-xs font-black ${
                         item.class === 'A' ? 'bg-emerald-100 text-emerald-700' :
                         item.class === 'B' ? 'bg-blue-100 text-blue-700' :
-                        'bg-slate-100 text-slate-600'
+                        'bg-slate-950 text-slate-600'
                       }`}>
                         {item.class}
                       </span>
@@ -496,7 +496,7 @@ export function Reports({
                   <button
                     type="button"
                     onClick={() => setIsFiltersOpen(false)}
-                    className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+                    className="p-2 hover:bg-slate-950 rounded-full text-slate-400 transition-colors"
                   >
                     <X className="h-6 w-6" />
                   </button>
@@ -584,7 +584,7 @@ export function Reports({
                   <button
                     type="button"
                     onClick={() => setDraftFilters({ startDate: '', endDate: '', status: '', cidade: '', estado: '', usuarioId: '' })}
-                    className="flex-1 py-3.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                    className="flex-1 py-3.5 px-4 bg-slate-950 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
                   >
                     Limpar
                   </button>

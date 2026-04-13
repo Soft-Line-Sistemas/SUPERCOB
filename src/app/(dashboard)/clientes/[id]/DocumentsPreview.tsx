@@ -90,7 +90,7 @@ export function DocumentsPreview({ docs }: { docs: Doc[] }) {
                   <p className="text-sm font-black text-slate-900 truncate">{open.originalName}</p>
                   <p className="text-[10px] font-bold text-slate-500">{formatSize(open.size)}</p>
                 </div>
-                <button type="button" onClick={() => setOpen(null)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-700" aria-label="Fechar">
+                <button type="button" onClick={() => setOpen(null)} className="p-2 rounded-xl hover:bg-slate-950 text-slate-700" aria-label="Fechar">
                   <X className="w-5 h-5" />
                 </button>
               </div>

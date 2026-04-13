@@ -742,7 +742,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
                   </div>
                   <button 
                     onClick={() => setIsModalOpen(false)} 
-                    className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+                    className="p-2 hover:bg-slate-950 rounded-full text-slate-400 transition-colors"
                   >
                     <X className="h-6 w-6" />
                   </button>
@@ -785,7 +785,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
                             className={`w-full flex items-center gap-3 px-3 py-2 rounded-2xl border transition-colors ${
                               isActive
                                 ? 'bg-white border-slate-200 text-slate-900 shadow-sm'
-                                : 'bg-slate-950 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                : 'bg-slate-950 border-slate-200 text-slate-600 hover:bg-slate-950'
                             }`}
                           >
                             <span
@@ -894,7 +894,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="flex-1 py-3.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                      className="flex-1 py-3.5 px-4 bg-slate-950 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
                     >
                       Cancelar
                     </button>
@@ -960,7 +960,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
                   <button
                     type="button"
                     onClick={() => setIsFiltersOpen(false)}
-                    className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+                    className="p-2 hover:bg-slate-950 rounded-full text-slate-400 transition-colors"
                   >
                     <X className="h-6 w-6" />
                   </button>
@@ -1025,7 +1025,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
                   <button
                     type="button"
                     onClick={() => setFilters({ email: '', whatsapp: '', cidade: '', estado: '', cpf: '' })}
-                    className="flex-1 py-3.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                    className="flex-1 py-3.5 px-4 bg-slate-950 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
                   >
                     Limpar
                   </button>

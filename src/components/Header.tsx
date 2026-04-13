@@ -120,7 +120,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
         {/* Search Bar - Desktop Only */}
         <button 
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="hidden lg:flex items-center gap-2 bg-slate-100/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 py-2 rounded-2xl w-64 group hover:border-blue-500/50 transition-all text-left"
+          className="hidden lg:flex items-center gap-2 bg-slate-950/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 py-2 rounded-2xl w-64 group hover:border-blue-500/50 transition-all text-left"
         >
           <Search className="w-4 h-4 text-slate-500 dark:text-slate-300" />
           <span className="flex-1 text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -141,7 +141,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
               setIsHelpOpen(false)
             }}
             aria-label="Notificações"
-            className="relative p-2.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all group"
+            className="relative p-2.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-950 dark:hover:bg-white/5 rounded-xl transition-all group"
           >
             <Bell className="w-5 h-5 transition-transform group-hover:rotate-12" />
             {hasUnread && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white dark:border-slate-950 rounded-full" />}
@@ -207,7 +207,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                     } catch {
                     }
                   }}
-                  className="flex-1 py-2.5 px-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black rounded-2xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all disabled:opacity-50"
+                  className="flex-1 py-2.5 px-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black rounded-2xl hover:bg-slate-950 dark:hover:bg-white/5 transition-all disabled:opacity-50"
                 >
                   Marcar como lidas
                 </button>
@@ -239,7 +239,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
               return next
             })
           }
-          className="p-2.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"
+          className="p-2.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-950 dark:hover:bg-white/5 rounded-xl transition-all"
         >
           {theme === 'dark' ? <Moon className="w-5 h-5" /> : theme === 'light' ? <Sun className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
         </button>
