@@ -156,7 +156,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
 
               <div className="flex items-center gap-4 mb-6">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner ${
-                  user.role === 'ADM' || user.role === 'ADMIN' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-950 text-slate-400'
+                  user.role === 'ADM' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-950 text-slate-400'
                 }`}>
                   {user.nome.charAt(0).toUpperCase()}
                 </div>

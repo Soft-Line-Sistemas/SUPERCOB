@@ -70,7 +70,7 @@ export async function GET() {
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
-  const page = pdfDoc.addPage([595.28, 841.89])
+  let page = pdfDoc.addPage([595.28, 841.89])
   const { width, height } = page.getSize()
   let y = height - 50
 
@@ -156,7 +156,7 @@ export async function GET() {
   } else {
     drawTableHeader(['CONTRATO', 'CLIENTE', 'DESCRIÇÃO DO LANÇAMENTO', 'VALOR'], [70, 110, 230, 80])
     eventsToday.forEach(e => {
-      if (y < 60) { page.addPage(); y = height - 50; }
+      if (y < 60) { page = pdfDoc.addPage([595.28, 841.89]); y = height - 50; }
       const cobId = `COB-${e.emprestimoId.slice(0, 6).toUpperCase()}`
       const client = e.emprestimo.cliente.nome.slice(0, 18)
       const desc = e.descricao.replace('Pagamento registrado: ', '').slice(0, 50)
@@ -183,7 +183,7 @@ export async function GET() {
   } else {
     drawTableHeader(['ID', 'CLIENTE', 'JUROS (%)', 'VENCIMENTO', 'VALOR'], [70, 180, 60, 90, 80])
     newLoans.forEach(l => {
-      if (y < 60) { page.addPage(); y = height - 50; }
+      if (y < 60) { page = pdfDoc.addPage([595.28, 841.89]); y = height - 50; }
       drawLine(`COB-${l.id.slice(0, 6).toUpperCase()}`, { size: 8, x: 55 })
       drawLine(l.cliente.nome.slice(0, 30), { size: 8, x: 125 })
       drawLine(`${l.jurosMes}%`, { size: 8, x: 305 })
@@ -202,7 +202,7 @@ export async function GET() {
   } else {
     drawTableHeader(['ID', 'CLIENTE', 'TOTAL JUROS DEVIDO', 'STATUS ATUAL'], [70, 240, 100, 80])
     anniversariesToday.forEach(l => {
-      if (y < 60) { page.addPage(); y = height - 50; }
+      if (y < 60) { page = pdfDoc.addPage([595.28, 841.89]); y = height - 50; }
       drawLine(`COB-${l.id.slice(0, 6).toUpperCase()}`, { size: 8, x: 55 })
       drawLine(l.cliente.nome.slice(0, 40), { size: 8, x: 125 })
       drawLine(formatCurrency(l.jurosMensal), { size: 8, x: 365, bold: true })
