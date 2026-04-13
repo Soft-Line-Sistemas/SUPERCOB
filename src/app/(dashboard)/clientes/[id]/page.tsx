@@ -216,7 +216,7 @@ export default async function ClienteHistoricoPage({
                 {emprestimos.map((e) => {
                   const saldoLocal = e.status === 'CANCELADO' ? 0 : Math.max(e.valor - (e.valorPago ?? 0), 0)
                   return (
-                    <a key={e.id} href={`/emprestimos/${e.id}`} className="block p-4 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors">
+                    <a key={e.id} href={`/emprestimos/${e.id}`} className="block p-4 rounded-2xl border border-slate-200 transition-colors">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <p className="text-sm font-black text-slate-900">COB-{e.id.slice(0, 6).toUpperCase()}</p>
                         <p className="text-xs font-black text-slate-500">{e.usuario?.nome ? `Responsável: ${e.usuario.nome}` : 'Sem atribuição'}</p>
