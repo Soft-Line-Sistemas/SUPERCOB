@@ -64,7 +64,18 @@ export async function getDashboardData(period: DashboardPeriod = 'hoje') {
   const role = (session.user as any).role
   const userId = (session.user as any).id
 
-  const where: any = role === 'OPERADOR' ? { usuarioId: userId } : {}
+  const where: any = ['OPERADOR', 'GERENTE'].includes(role)
+    ? {
+        AND: [
+          {
+            OR: [
+              { usuarioId: userId },
+              { historico: { some: { createdById: userId } } }
+            ]
+          }
+        ]
+      }
+    : {}
   const { start, end } = getRange(period)
   const dateWhere = { createdAt: { gte: start, lt: end } }
 
