@@ -44,6 +44,7 @@ type EmprestimoDetalhes = {
   createdAt: Date | string
   cliente: {
     nome: string
+    indicacao?: string | null
     email?: string | null
     whatsapp?: string | null
     cpf?: string | null
