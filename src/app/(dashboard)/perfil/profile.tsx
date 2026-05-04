@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { removeMyAvatar, updateMyPassword, uploadMyAvatar } from './actions'
+import { updateMyPassword } from './actions'
 
 export function Profile({ me }: { me: { id: string; nome: string; email: string; role: string; avatarUrl: string | null } }) {
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState(me.avatarUrl ?? '')
@@ -65,7 +65,10 @@ export function Profile({ me }: { me: { id: string; nome: string; email: string;
                 }
                 const fd = new FormData()
                 fd.set('file', selectedFile)
-                const updated = await uploadMyAvatar(fd)
+                const res = await fetch('/api/me/avatar', { method: 'POST', body: fd })
+                const payload = await res.json()
+                if (!res.ok) throw new Error(payload?.error || 'Erro ao atualizar foto')
+                const updated = payload as { avatarUrl: string | null }
                 setCurrentAvatarUrl(updated.avatarUrl ?? '')
                 try {
                   window.localStorage.setItem('avatarUrl', updated.avatarUrl ?? '')
@@ -99,7 +102,9 @@ export function Profile({ me }: { me: { id: string; nome: string; email: string;
                   if (loadingAvatar) return
                   setLoadingAvatar(true)
                   try {
-                    await removeMyAvatar()
+                    const res = await fetch('/api/me/avatar', { method: 'DELETE' })
+                    const payload = await res.json()
+                    if (!res.ok) throw new Error(payload?.error || 'Erro ao remover foto')
                     setCurrentAvatarUrl('')
                     setSelectedFile(null)
                     try {
