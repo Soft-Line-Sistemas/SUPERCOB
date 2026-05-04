@@ -8,10 +8,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
-    "prisma": {
-      "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
-    }
+    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\""
+  },
+  "prisma": {
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "dependencies": {
     "@google/genai": "^1.17.0",

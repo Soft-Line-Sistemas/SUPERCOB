@@ -89,7 +89,7 @@ export function LoanCard({
       className={`bg-white rounded-3xl border-2 ${borderColor} shadow-sm hover:shadow-md transition-all group overflow-hidden flex flex-col`}
     >
       {/* Card Header */}
-      <div className={`p-6 border-b border-slate-50 flex items-center justify-between ${headerBg} transition-colors`}>
+      <div className={`p-4 md:p-6 border-b border-slate-50 flex items-center justify-between ${headerBg} transition-colors`}>
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${config.bg} ${config.color} text-[10px] font-bold uppercase tracking-wider shadow-sm border border-slate-200/50`}>
           <StatusIcon className="w-3.5 h-3.5" />
           {isDraft ? 'Cobrança inicial' : config.label}
@@ -132,7 +132,7 @@ export function LoanCard({
 
       {/* Card Content */}
       <div
-        className="p-6 cursor-pointer flex-1"
+        className="p-4 md:p-6 cursor-pointer flex-1"
         onClick={() => onDetail(loan)}
       >
         <div className="flex items-center gap-4 mb-6">
@@ -161,7 +161,7 @@ export function LoanCard({
       </div>
 
       {/* Card Footer */}
-      <div className="px-6 py-4 bg-slate-950 flex items-center justify-between gap-2 border-t border-slate-100">
+      <div className="px-4 md:px-6 py-3 md:py-4 bg-slate-950 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
         <div className="flex items-center gap-3">
           {/* Atribuição/Consultor Info */}
           <div className="flex items-center gap-2">

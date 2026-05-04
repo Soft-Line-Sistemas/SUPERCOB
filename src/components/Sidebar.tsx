@@ -62,8 +62,8 @@ export function Sidebar() {
 
   return (
     <>
-      <div className="md:hidden fixed inset-x-0 bottom-0 z-[60] bg-slate-950/95 backdrop-blur border-t border-white/10">
-        <nav className={`mx-auto max-w-[1600px] px-3 py-2 grid gap-1 ${mobileItems.length >= 6 ? 'grid-cols-6' : 'grid-cols-5'}`}>
+      <div className="md:hidden fixed inset-x-0 bottom-0 z-[60] bg-slate-950/95 backdrop-blur border-t border-white/10 pb-[env(safe-area-inset-bottom,0px)]">
+        <nav className={`mx-auto max-w-[1600px] px-2 py-1.5 grid gap-1`} style={{ gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))` }}>
           {mobileItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
