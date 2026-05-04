@@ -9,6 +9,7 @@ type ChargeFormData = {
   usuarioId: string
   valor: number
   jurosMes: number
+  jurosAtrasoDia: number
   vencimento: string
   observacao: string
 }
@@ -278,7 +279,7 @@ export function ChargeModal({
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Valor (R$)</label>
                     <input
@@ -313,6 +314,29 @@ export function ChargeModal({
                         }
                         const next = Number(raw)
                         setFormData((p) => ({ ...p, jurosMes: Number.isFinite(next) ? next : 0 }))
+                      }}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Atraso ao dia (%)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={
+                        Number.isFinite(formData.jurosAtrasoDia) && formData.jurosAtrasoDia !== 0
+                          ? String(formData.jurosAtrasoDia)
+                          : ''
+                      }
+                      onChange={(e) => {
+                        const raw = e.target.value
+                        if (raw === '') {
+                          setFormData((p) => ({ ...p, jurosAtrasoDia: 0 }))
+                          return
+                        }
+                        const next = Number(raw)
+                        setFormData((p) => ({ ...p, jurosAtrasoDia: Number.isFinite(next) ? next : 0 }))
                       }}
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
                       placeholder="0"
@@ -369,4 +393,3 @@ export function ChargeModal({
     </AnimatePresence>
   )
 }
-

@@ -72,6 +72,7 @@ export async function POST(req: Request) {
   drawLine(`Valor Pago (Principal): ${formatCurrency(loan.valorPago || 0)}`)
   drawLine(`Juros Já Pagos: ${formatCurrency(loan.jurosPagos || 0)}`)
   drawLine(`Taxa de Juros Mensal: ${loan.jurosMes}%`)
+  drawLine(`Taxa de Atraso ao Dia: ${loan.jurosAtrasoDia || 0}%`)
   drawLine(`Data de Criação: ${formatDate(loan.createdAt)}`)
   drawLine(`Data de Vencimento: ${formatDate(loan.vencimento)}`)
   if (loan.observacao) drawLine(`Observações: ${loan.observacao}`)

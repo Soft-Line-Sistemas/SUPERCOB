@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { calculateLoanInterest } from '@/lib/loan-interest'
 
 export async function GET() {
   const session = await auth()
@@ -42,6 +43,7 @@ export async function GET() {
       valor: true,
       valorPago: true,
       jurosMes: true,
+      jurosAtrasoDia: true,
       vencimento: true,
       createdAt: true,
       jurosPagos: true,
@@ -54,14 +56,9 @@ export async function GET() {
     const base = loan.vencimento ?? loan.createdAt
     return base.getDate() === dayToday
   }).map(loan => {
-    const principalRestante = Math.max(loan.valor - (loan.valorPago ?? 0), 0)
-    const jurosMensal = principalRestante * ((loan.jurosMes ?? 0) / 100)
-    
-    // Check if paid (same logic as Reports page)
-    const base = loan.vencimento ?? loan.createdAt
-    const monthsAccrued = Math.max(1, (now.getUTCFullYear() * 12 + now.getUTCMonth()) - (base.getUTCFullYear() * 12 + base.getUTCMonth()) + 1)
-    const totalOwedUntilNow = jurosMensal * monthsAccrued
-    const isPaid = (loan.jurosPagos || 0) >= (totalOwedUntilNow - 0.01)
+    const interest = calculateLoanInterest(loan)
+    const jurosMensal = interest.jurosBase
+    const isPaid = interest.jurosPendente <= 0.01
 
     return { ...loan, jurosMensal, isPaid }
   })

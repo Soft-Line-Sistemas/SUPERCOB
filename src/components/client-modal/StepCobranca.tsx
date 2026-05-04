@@ -54,6 +54,17 @@ export function ClientStepCobranca({
               />
             </div>
             <div className="space-y-1.5">
+              <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Atraso ao dia (%)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={chargeData.jurosAtrasoDia}
+                onChange={(e) => setChargeData((p) => ({ ...p, jurosAtrasoDia: e.target.value }))}
+                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-1.5">
               <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Vencimento</label>
               <input
                 type="date"
@@ -78,4 +89,3 @@ export function ClientStepCobranca({
     </div>
   )
 }
-

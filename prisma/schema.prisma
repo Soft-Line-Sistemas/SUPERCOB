@@ -90,6 +90,7 @@ model Emprestimo {
   usuarioId           String?
   valor               Float
   jurosMes            Float                 @default(0)
+  jurosAtrasoDia      Float                 @default(0)
   vencimento          DateTime?
   quitadoEm           DateTime?
   status              String                @default("ABERTO") @db.VarChar(20)

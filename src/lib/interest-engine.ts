@@ -11,6 +11,7 @@ export async function processInterestAccrual(loanId: string) {
 
   const jurosPercent = Number(loan.jurosMes ?? 0)
   if (jurosPercent <= 0) return
+  if (Number((loan as any).jurosAtrasoDia ?? 0) > 0) return
 
   const now = new Date()
   const baseDate = new Date((loan.vencimento ?? loan.createdAt) as any)

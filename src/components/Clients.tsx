@@ -99,6 +99,7 @@ export function Clients({ initialClients }: ClientsProps) {
     enabled: false,
     valor: '',
     jurosMes: '',
+    jurosAtrasoDia: '',
     vencimento: '',
     observacao: '',
   })
@@ -212,7 +213,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
         contatoEmergencia2: client.contatoEmergencia2 ?? '',
         contatoEmergencia3: client.contatoEmergencia3 ?? '',
       });
-      setChargeData({ enabled: false, valor: '', jurosMes: '', vencimento: '', observacao: '' })
+      setChargeData({ enabled: false, valor: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
     } else {
       setEditingClient(null);
       form.reset({
@@ -245,7 +246,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
         contatoEmergencia2: '',
         contatoEmergencia3: '',
       });
-      setChargeData({ enabled: false, valor: '', jurosMes: '', vencimento: '', observacao: '' })
+      setChargeData({ enabled: false, valor: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
     }
     setActiveTab('basico');
     setIsModalOpen(true);
@@ -294,6 +295,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
             clienteId: editingClient.id,
             valor: Number(chargeData.valor),
             jurosMes: Number(chargeData.jurosMes) || 0,
+            jurosAtrasoDia: Number(chargeData.jurosAtrasoDia) || 0,
             vencimento: parseDateInputToUTCNoon(chargeData.vencimento),
             observacao: chargeData.observacao.trim(),
           })
@@ -312,6 +314,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
             clienteId: created.id,
             valor: Number(chargeData.valor),
             jurosMes: Number(chargeData.jurosMes) || 0,
+            jurosAtrasoDia: Number(chargeData.jurosAtrasoDia) || 0,
             vencimento: parseDateInputToUTCNoon(chargeData.vencimento),
             observacao: chargeData.observacao.trim(),
           })
