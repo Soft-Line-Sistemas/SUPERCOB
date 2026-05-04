@@ -46,6 +46,30 @@ type EmprestimoDetalhes = {
     nome: string
     email?: string | null
     whatsapp?: string | null
+    cpf?: string | null
+    rg?: string | null
+    orgao?: string | null
+    diaNasc?: number | null
+    mesNasc?: number | null
+    anoNasc?: number | null
+    instagram?: string | null
+    cep?: string | null
+    endereco?: string | null
+    complemento?: string | null
+    bairro?: string | null
+    cidade?: string | null
+    estado?: string | null
+    pontoReferencia?: string | null
+    profissao?: string | null
+    empresa?: string | null
+    cepEmpresa?: string | null
+    enderecoEmpresa?: string | null
+    cidadeEmpresa?: string | null
+    estadoEmpresa?: string | null
+    contatoEmergencia1?: string | null
+    contatoEmergencia2?: string | null
+    contatoEmergencia3?: string | null
+    numeroEndereco?: number | null
   }
   usuario?: { id?: string; nome: string } | null
   historico: HistoricoEvento[]
@@ -199,168 +223,331 @@ export function ContractDetails({
   }
 
   return (
-    <div className="space-y-6 w-full max-w-[1600px] mx-auto">
+    <div className="space-y-6 w-full max-w-[1600px] mx-auto pb-12">
+      {/* Header Bar */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between px-2">
-        <div className="flex items-start gap-4">
+        <div className="flex items-center gap-4">
           <button
             type="button"
             onClick={() => router.back()}
-            className="p-3 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors shadow-sm"
+            className="p-3 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition-all shadow-sm hover:shadow-md active:scale-95"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0">
-            <h1 className="text-2xl md:text-3xl font-black text-slate-900 truncate">Contrato #{emprestimo.id.slice(0, 8).toUpperCase()}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-black ${getStatusPillClass(status)}`}>
-                {status === 'QUITADO' ? <CheckCircle2 className="h-4 w-4" /> : status === 'CANCELADO' ? <XCircle className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Dossiê de Cobrança</h1>
+              <span className="text-slate-400 font-medium text-sm hidden md:inline">#{emprestimo.id.slice(0, 8).toUpperCase()}</span>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${getStatusPillClass(status)}`}>
+                {status === 'QUITADO' ? <CheckCircle2 className="h-3 w-3" /> : status === 'CANCELADO' ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
                 {statusLabel}
               </span>
-              {priorityLevel !== 'BLOQUEADO' && (
-                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${
-                  priorityLevel === 'URGENTE' ? 'bg-red-600 text-white border-red-700 shadow-md shadow-red-600/20' : 
-                  priorityLevel === 'ALTA' ? 'bg-orange-100 text-orange-700 border-orange-200' : 
-                  'bg-slate-50 text-slate-500 border-slate-200'
-                }`}>
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  Prioridade: {priorityLevel}
-                </span>
-              )}
-              <span className="text-xs font-bold text-slate-400">Criado em {formatDate(emprestimo.createdAt)}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-2.5 py-1 rounded-full">
+                Início: {formatDate(emprestimo.createdAt)}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             disabled={!canCancel || isPending}
             onClick={() => handleSetStatus('CANCELADO')}
-            className={`flex-1 md:flex-none px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-              !canCancel || isPending ? 'bg-slate-950 text-slate-400' : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-600/15 active:scale-95'
+            className={`flex-1 md:flex-none px-5 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
+              !canCancel || isPending ? 'bg-slate-100 text-slate-400' : 'bg-white border border-red-200 text-red-600 hover:bg-red-50 active:scale-95'
             }`}
           >
-            Cancelar
+            Cancelar Contrato
           </button>
           <button
             type="button"
             disabled={!canFinish || isPending}
             onClick={() => handleSetStatus('QUITADO')}
-            className={`flex-1 md:flex-none px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-              !canFinish || isPending ? 'bg-slate-950 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/15 active:scale-95'
+            className={`flex-1 md:flex-none px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
+              !canFinish || isPending ? 'bg-slate-100 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 active:scale-95'
             }`}
           >
-            Concluir
+            Concluir Cobrança
           </button>
         </div>
       </div>
 
-      <div className={`bg-white rounded-[2.5rem] border-2 ${borderClass} shadow-sm overflow-hidden mx-2`}>
-        <div className="p-8 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-black text-slate-900 uppercase tracking-widest">Resumo Estratégico</p>
-            <p className="text-xs text-slate-500 mt-1">Métricas de débito atualizadas em tempo real.</p>
-          </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-             <div className="flex-1 sm:flex-none px-6 py-3 bg-slate-900 rounded-2xl text-center">
-                <p className="text-[9px] font-black text-white/50 uppercase tracking-tighter">Saldo Total à Receber</p>
-                <p className="text-lg font-black text-white">{formatBRL(totalDevido)}</p>
-             </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 px-2">
+        {/* Main Dossier Content */}
+        <div className="xl:col-span-8 space-y-6">
+          
+          {/* Financial Summary Card */}
+          <div className={`bg-white rounded-[2.5rem] border-2 ${borderClass} shadow-xl shadow-slate-200/50 overflow-hidden relative group`}>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full -mr-32 -mt-32 transition-transform group-hover:scale-110" />
+            
+            <div className="relative z-10 p-8 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Resumo de Ativos</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <h2 className="text-4xl font-black text-slate-900">{formatBRL(totalDevido)}</h2>
+                  <span className="text-xs font-bold text-slate-400 uppercase">Saldo Total</span>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-3">
+                {priorityLevel !== 'BLOQUEADO' && (
+                  <div className={`px-4 py-2.5 rounded-2xl border flex items-center gap-2 ${
+                    priorityLevel === 'URGENTE' ? 'bg-red-600 text-white border-red-700 shadow-lg shadow-red-600/20' : 
+                    priorityLevel === 'ALTA' ? 'bg-amber-50 text-amber-700 border-amber-200' : 
+                    'bg-slate-50 text-slate-500 border-slate-200'
+                  }`}>
+                    <AlertTriangle className={`w-4 h-4 ${priorityLevel === 'URGENTE' ? 'animate-pulse' : ''}`} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Prioridade {priorityLevel}</span>
+                  </div>
+                )}
+              </div>
+            </div>
 
-        <div className="p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cliente titular</p>
-            <p className="text-base font-black text-slate-900 mt-1 truncate">{emprestimo.cliente.nome}</p>
-            <p className="text-xs text-slate-500 truncate">{emprestimo.cliente.email || '-'}</p>
-          </div>
-          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Responsável Atual</p>
-            {myRole === 'ADM' ? (
-              <select 
-                value={emprestimo.usuario?.id || 'unassigned'}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  startTransition(async () => {
-                    try {
-                      await updateLoanUser(emprestimo.id, val);
-                      toast.success('Responsável alterado com sucesso.');
-                      router.refresh();
-                    } catch (err) {
-                      toast.error('Erro ao alterar responsável.');
-                    }
-                  });
-                }}
-                disabled={isPending}
-                className="w-full mt-1 bg-transparent border-none p-0 text-base font-black text-blue-600 outline-none focus:ring-0 cursor-pointer hover:underline"
-              >
-                <option value="unassigned" disabled>Não atribuído</option>
-                {availableUsers.map(u => (
-                  <option key={u.id} value={u.id}>{u.nome}</option>
-                ))}
-              </select>
-            ) : (
-              <p className="text-base font-black text-slate-900 mt-1 truncate">{emprestimo.usuario?.nome || 'Supercob Central'}</p>
-            )}
-          </div>
-          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor do Empréstimo</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{formatCurrency(emprestimo.valor)}</p>
-          </div>
-          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Principal Amortizado</p>
-            <p className="text-2xl font-black text-emerald-600 mt-1">{formatBRL(valorPago)}</p>
-          </div>
-          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Principal</p>
-            <p className="text-2xl font-black text-indigo-600 mt-1">{formatBRL(restante)}</p>
-          </div>
-          <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Juros Pendente</p>
-            <p className="text-2xl font-black text-red-600 mt-1">{formatBRL(jurosPendente)}</p>
-            <p className="text-xs text-slate-500 mt-1">
-              {usesDailyLateInterest
-                ? `Base ${formatBRL(jurosBase)} corrigida por ${daysLate}d: ${formatBRL(jurosAcumuladoTotal)}`
-                : `Acumulado (${monthsAccrued}m): ${formatBRL(jurosAcumuladoTotal)}`}
-            </p>
-          </div>
-          <div className="p-6 rounded-[2rem] bg-slate-950 border border-slate-200">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Vencimento Original</p>
-            <div className="mt-2 flex items-center gap-2 text-slate-900">
-              <Calendar className="h-4 w-4 text-slate-400" />
-              <p className="text-base font-black">{formatDate(emprestimo.vencimento)}</p>
+            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-px bg-slate-100">
+              <div className="bg-white p-8 group/item">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-blue-500 transition-colors">Principal Aberto</p>
+                <p className="text-2xl font-black text-slate-900">{formatBRL(restante)}</p>
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-500 transition-all duration-1000" 
+                      style={{ width: `${Math.min(100, (restante / (emprestimo.valor || 1)) * 100)}%` }} 
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-8 group/item">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-red-500 transition-colors">Juros Pendente</p>
+                <p className="text-2xl font-black text-red-600">{formatBRL(jurosPendente)}</p>
+                <p className="text-[10px] font-bold text-slate-400 mt-2">
+                  {usesDailyLateInterest ? `${daysLate} dias em atraso` : `${monthsAccrued} meses acumulados`}
+                </p>
+              </div>
+              <div className="bg-white p-8 group/item">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-emerald-500 transition-colors">Total Amortizado</p>
+                <p className="text-2xl font-black text-emerald-600">{formatBRL(valorPago)}</p>
+                <p className="text-[10px] font-bold text-slate-400 mt-2 italic">Ref. ao valor principal</p>
+              </div>
             </div>
           </div>
-          <div className="p-6 rounded-[2rem] bg-slate-900 border border-slate-800 text-white">
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Configuração Taxa</p>
-            <p className="text-xl font-black mt-1">{(emprestimo.jurosMes ?? 0).toString().replace('.', ',')}% <span className="text-[10px] text-white/30">/ mês</span></p>
-            <p className="text-xs text-white/60 mt-1">{(emprestimo.jurosAtrasoDia ?? 0).toString().replace('.', ',')}% atraso/dia</p>
-          </div>
-        </div>
 
-        {emprestimo.observacao && (
-          <div className="px-8 pb-8">
-            <div className="p-6 rounded-[2rem] bg-amber-50 border border-amber-100">
-              <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Notas de Observação</p>
-              <p className="text-sm text-amber-900 mt-2 whitespace-pre-wrap leading-relaxed font-medium">{emprestimo.observacao}</p>
+          {/* Client Information Dossier */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Perfil do Cliente */}
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-2xl">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Perfil do Titular</h3>
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nome Completo</p>
+                  <p className="text-base font-black text-slate-900">{emprestimo.cliente.nome}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">CPF</p>
+                    <p className="text-sm font-bold text-slate-700">{emprestimo.cliente.cpf || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">RG / Orgão</p>
+                    <p className="text-sm font-bold text-slate-700">{emprestimo.cliente.rg || '-'} {emprestimo.cliente.orgao ? `(${emprestimo.cliente.orgao})` : ''}</p>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 pt-6">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Indicação / Origem</p>
+                  <p className="text-sm font-bold text-slate-700">{emprestimo.cliente.indicacao || 'Direto / Sem indicação'}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-6">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Data Nascimento</p>
+                    <p className="text-sm font-bold text-slate-700">
+                      {emprestimo.cliente.diaNasc ? `${emprestimo.cliente.diaNasc}/${emprestimo.cliente.mesNasc}/${emprestimo.cliente.anoNasc}` : '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">WhatsApp</p>
+                    <p className="text-sm font-black text-emerald-600">{emprestimo.cliente.whatsapp || '-'}</p>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 pt-6">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">E-mail</p>
+                  <p className="text-sm font-bold text-slate-700 truncate">{emprestimo.cliente.email || '-'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Localização e Endereço */}
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Localização Residencial</h3>
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Endereço</p>
+                  <p className="text-sm font-bold text-slate-900">{emprestimo.cliente.endereco || '-'}, {emprestimo.cliente.numeroEndereco || '-'}</p>
+                  <p className="text-xs text-slate-500">{emprestimo.cliente.complemento}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Bairro</p>
+                    <p className="text-sm font-bold text-slate-700">{emprestimo.cliente.bairro || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">CEP</p>
+                    <p className="text-sm font-bold text-slate-700">{emprestimo.cliente.cep || '-'}</p>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 pt-6">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cidade / UF</p>
+                  <p className="text-sm font-bold text-slate-700">{emprestimo.cliente.cidade || '-'} / {emprestimo.cliente.estado || '-'}</p>
+                </div>
+
+                {emprestimo.cliente.pontoReferencia && (
+                  <div className="border-t border-slate-100 pt-6">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ponto de Referência</p>
+                    <p className="text-xs text-slate-500 leading-relaxed italic">"{emprestimo.cliente.pontoReferencia}"</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Dados Profissionais */}
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-2.5 bg-slate-900 text-white rounded-2xl shadow-lg">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Informações Profissionais</h3>
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Profissão</p>
+                  <p className="text-sm font-bold text-slate-700">{emprestimo.cliente.profissao || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Empresa</p>
+                  <p className="text-base font-black text-slate-900">{emprestimo.cliente.empresa || '-'}</p>
+                </div>
+                <div className="border-t border-slate-100 pt-6">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Endereço Profissional</p>
+                  <p className="text-sm font-bold text-slate-700">{emprestimo.cliente.enderecoEmpresa || '-'}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    {emprestimo.cliente.cepEmpresa ? `CEP: ${emprestimo.cliente.cepEmpresa} • ` : ''}
+                    {emprestimo.cliente.cidadeEmpresa} {emprestimo.cliente.estadoEmpresa ? `/ ${emprestimo.cliente.estadoEmpresa}` : ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contatos e Configurações */}
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-2.5 bg-amber-50 text-amber-600 rounded-2xl">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Contatos e Alçadas</h3>
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Contatos de Emergência</p>
+                  <div className="space-y-2">
+                    {[emprestimo.cliente.contatoEmergencia1, emprestimo.cliente.contatoEmergencia2, emprestimo.cliente.contatoEmergencia3].filter(Boolean).map((c, i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                        <p className="text-[11px] font-bold text-slate-700">{c}</p>
+                      </div>
+                    ))}
+                    {![emprestimo.cliente.contatoEmergencia1, emprestimo.cliente.contatoEmergencia2, emprestimo.cliente.contatoEmergencia3].some(Boolean) && (
+                      <p className="text-[10px] text-slate-400 italic">Nenhum contato registrado</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 pt-6">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Responsável Atual</p>
+                  {myRole === 'ADM' ? (
+                    <div className="flex items-center gap-2 group cursor-pointer">
+                      <select 
+                        value={emprestimo.usuario?.id || 'unassigned'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          startTransition(async () => {
+                            try {
+                              await updateLoanUser(emprestimo.id, val);
+                              toast.success('Responsável alterado com sucesso.');
+                              router.refresh();
+                            } catch (err) {
+                              toast.error('Erro ao alterar responsável.');
+                            }
+                          });
+                        }}
+                        disabled={isPending}
+                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-xs font-black text-blue-600 outline-none focus:ring-2 focus:ring-blue-500/20"
+                      >
+                        <option value="unassigned" disabled>Não atribuído</option>
+                        {availableUsers.map(u => (
+                          <option key={u.id} value={u.id}>{u.nome}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                      <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-black text-white">
+                        {emprestimo.usuario?.nome?.[0] || 'S'}
+                      </div>
+                      <p className="text-sm font-black text-blue-900">{emprestimo.usuario?.nome || 'Supercob Central'}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        )}
-      </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 px-2">
-        <div className="xl:col-span-3 space-y-6">
+          {/* Observations and Timeline */}
+          {emprestimo.observacao && (
+            <div className="bg-amber-50/50 rounded-[2.5rem] border border-amber-100 p-8">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+                <h3 className="text-sm font-black text-amber-900 uppercase tracking-widest">Observações Estratégicas</h3>
+              </div>
+              <p className="text-sm text-amber-800 leading-relaxed font-medium whitespace-pre-wrap">{emprestimo.observacao}</p>
+            </div>
+          )}
+
           <Timeline eventos={eventos} />
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-slate-900 rounded-[3rem] p-8 text-white relative shadow-2xl sticky top-6">
+        {/* Sidebar Actions - Cobrança Central */}
+        <div className="xl:col-span-4 space-y-6">
+          <div className="bg-slate-950 rounded-[3rem] p-8 text-white relative shadow-2xl overflow-hidden sticky top-6 border border-white/5">
+            {/* Background Effects */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600 blur-[100px] rounded-full opacity-10 -mr-32 -mt-32" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-600 blur-[100px] rounded-full opacity-10 -ml-32 -mb-32" />
+
             <div className="relative z-10 space-y-8">
               <div>
-                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <HelpCircle className="w-4 h-4" />
-                  Central de Cobrança
+                <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                  Terminal de Cobrança Ativo
                 </p>
                 <WhatsAppTemplates 
                   clienteNome={emprestimo.cliente.nome}
@@ -371,53 +558,71 @@ export function ContractDetails({
                 />
               </div>
 
+              {/* Financial Config Display */}
+              <div className="p-6 rounded-[2rem] bg-white/5 border border-white/10 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">Taxa Mensal</p>
+                  <p className="text-lg font-black text-white">{(emprestimo.jurosMes ?? 0).toString().replace('.', ',')}%</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">Atraso/Dia</p>
+                  <p className="text-lg font-black text-white">{(emprestimo.jurosAtrasoDia ?? 0).toString().replace('.', ',')}%</p>
+                </div>
+              </div>
+
+              {/* Payment Action */}
               <div className="space-y-4 pt-6 border-t border-white/10">
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Receber Pagamento</p>
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Registrar Recebimento</p>
                 <div className="space-y-3">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={pagamento}
-                    onChange={(e) => setPagamento(formatBRL(parseBRL(e.target.value)))}
-                    className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-[2rem] text-xl font-black text-white outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-white/10"
-                    placeholder="R$ 0,00"
-                    disabled={isPending || status === 'CANCELADO' || status === 'QUITADO'}
-                  />
+                  <div className="relative group">
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 font-black text-lg group-focus-within:text-white/50 transition-colors">R$</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={pagamento}
+                      onChange={(e) => setPagamento(formatBRL(parseBRL(e.target.value)))}
+                      className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/10 rounded-[2rem] text-xl font-black text-white outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-white/5"
+                      placeholder="0,00"
+                      disabled={isPending || status === 'CANCELADO' || status === 'QUITADO'}
+                    />
+                  </div>
                   <button
                     type="button"
                     disabled={isPending || status === 'CANCELADO' || status === 'QUITADO'}
                     onClick={handlePagamentoParcial}
-                    className={`w-full py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all ${
-                      isPending || status === 'CANCELADO' || status === 'QUITADO' ? 'bg-white/5 text-white/10' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-600/20'
+                    className={`w-full py-5 rounded-[2.5rem] font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-95 ${
+                      isPending || status === 'CANCELADO' || status === 'QUITADO' 
+                      ? 'bg-white/5 text-white/10' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-600/20'
                     }`}
                   >
-                    Confirmar Recebimento
+                    Confirmar Transação
                   </button>
                 </div>
               </div>
 
+              {/* History Note Action */}
               <div className="space-y-4 pt-6 border-t border-white/10">
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Nova Anotação</p>
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Anotação de Ocorrência</p>
                 <textarea
                   value={descricao}
                   onChange={(e) => setDescricao(e.target.value)}
-                  className="w-full min-h-[120px] bg-white/5 border border-white/10 rounded-[2rem] p-6 text-xs text-white resize-none outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all placeholder:text-white/10"
-                  placeholder="Ex: Cliente prometeu pagar na segunda-feira..."
+                  className="w-full min-h-[140px] bg-white/5 border border-white/10 rounded-[2.5rem] p-6 text-xs text-white resize-none outline-none focus:ring-4 focus:ring-blue-500/20 transition-all placeholder:text-white/10"
+                  placeholder="Descreva o andamento da negociação, promessas de pagamento ou dificuldades encontradas..."
                   disabled={isPending}
                 />
                 <button
                   type="button"
                   disabled={isPending}
                   onClick={handleAddEvento}
-                  className={`w-full py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all ${
-                    isPending ? 'bg-white/5 text-white/10' : 'bg-white text-slate-900 hover:bg-slate-950 shadow-xl'
+                  className={`w-full py-5 rounded-[2.5rem] font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-95 ${
+                    isPending ? 'bg-white/5 text-white/10' : 'bg-white text-slate-950 hover:bg-slate-100 shadow-xl'
                   }`}
                 >
-                  Salvar no Histórico
+                  Registrar no Dossiê
                 </button>
               </div>
             </div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 blur-[120px] rounded-full opacity-10 -mr-32 -mt-32" />
           </div>
         </div>
       </div>

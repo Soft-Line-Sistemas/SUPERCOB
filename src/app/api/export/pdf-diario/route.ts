@@ -35,7 +35,6 @@ export async function GET() {
     })
   ])
 
-  // Get interest anniversaries today
   const allActiveLoans = await prisma.emprestimo.findMany({
     where: { status: { notIn: ['QUITADO', 'CANCELADO'] } },
     select: {
@@ -59,7 +58,6 @@ export async function GET() {
     const interest = calculateLoanInterest(loan)
     const jurosMensal = interest.jurosBase
     const isPaid = interest.jurosPendente <= 0.01
-
     return { ...loan, jurosMensal, isPaid }
   })
 
@@ -71,8 +69,8 @@ export async function GET() {
   const { width, height } = page.getSize()
   let y = height - 50
 
-  const drawLine = (text: string, options: { bold?: boolean, size?: number, color?: any, x?: number, align?: 'left' | 'right' | 'center' } = {}) => {
-    const { bold = false, size = 10, color = rgb(0,0,0), x = 50, align = 'left' } = options
+  const drawText = (text: string, options: { bold?: boolean; size?: number; color?: any; x?: number; y?: number; align?: 'left' | 'right' | 'center' } = {}) => {
+    const { bold = false, size = 10, color = rgb(0.1, 0.1, 0.2), x = 50, y: passedY, align = 'left' } = options
     const f = bold ? fontBold : font
     const textWidth = f.widthOfTextAtSize(text, size)
     
@@ -80,40 +78,33 @@ export async function GET() {
     if (align === 'right') targetX = width - x - textWidth
     if (align === 'center') targetX = (width - textWidth) / 2
 
-    page.drawText(text, {
-      x: targetX,
-      y,
-      size,
-      font: f,
-      color,
-    })
+    page.drawText(text, { x: targetX, y: passedY !== undefined ? passedY : y, size: size, font: f, color })
   }
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
-  // Header Box
+  // Header Background
   page.drawRectangle({
     x: 0,
     y: height - 100,
     width: width,
     height: 100,
-    color: rgb(0.05, 0.1, 0.2), // Dark Navy
+    color: rgb(0.05, 0.1, 0.2),
   })
 
-  y = height - 45
-  drawLine('SUPERCOB - GESTÃO DE COBRANÇAS', { bold: true, size: 18, color: rgb(1,1,1), align: 'center' })
-  y -= 25
-  drawLine(`RELATÓRIO DE CONFERÊNCIA DIÁRIA`, { bold: true, size: 14, color: rgb(0.9, 0.9, 1), align: 'center' })
-  y -= 18
-  drawLine(now.toLocaleDateString('pt-BR', { dateStyle: 'long' }), { size: 10, color: rgb(0.7, 0.7, 0.8), align: 'center' })
-  
-  y = height - 140
+  y = height - 40
+  drawText('SUPERCOB - GESTÃO DE COBRANÇAS', { bold: true, size: 16, color: rgb(1, 1, 1), align: 'center' })
+  y -= 22
+  drawText('RELATÓRIO DE CONFERÊNCIA DIÁRIA', { bold: true, size: 12, color: rgb(0.2, 0.5, 1), align: 'center' })
+  y -= 16
+  drawText(now.toLocaleDateString('pt-BR', { dateStyle: 'long' }), { size: 9, color: rgb(0.7, 0.7, 0.8), align: 'center' })
 
-  // RESUMO DE CAIXA
-  drawLine('1. RESUMO GERAL DO DIA', { bold: true, size: 12 })
+  y = height - 135
+
+  // 1. RESUMO DE CAIXA
+  drawText('1. RESUMO GERAL DO DIA', { bold: true, size: 11 })
   y -= 15
-  page.drawRectangle({ x: 50, y: y - 50, width: width - 100, height: 60, color: rgb(0.97, 0.98, 1), borderColor: rgb(0.8, 0.8, 0.9), borderWidth: 1 })
-  
+
   let totalPaymentsToday = 0
   eventsToday.forEach(e => {
     const match = e.descricao.match(/R\$\s?([\d.,]+)/)
@@ -124,94 +115,122 @@ export async function GET() {
   })
   const totalNewAmount = newLoans.reduce((acc, l) => acc + l.valor, 0)
 
-  y -= 20
-  drawLine(`ENTRADAS HOJE (PAGAMENTOS):`, { size: 10, x: 65 })
-  drawLine(formatCurrency(totalPaymentsToday), { bold: true, size: 11, x: 65, align: 'right' })
-  y -= 20
-  drawLine(`NOVOS CONTRATOS (VALOR TOTAL):`, { size: 10, x: 65 })
-  drawLine(formatCurrency(totalNewAmount), { bold: true, size: 11, x: 65, align: 'right' })
-  
-  y -= 45
+  const kpiWidth = (width - 110) / 3
+  const kpis = [
+    { label: 'ENTRADAS (PAGAMENTOS)', value: formatCurrency(totalPaymentsToday), color: rgb(0.05, 0.5, 0.1) },
+    { label: 'NOVOS CONTRATOS', value: formatCurrency(totalNewAmount), color: rgb(0.1, 0.4, 0.9) },
+    { label: 'OPERAÇÕES REALIZADAS', value: String(newLoans.length + eventsToday.length), color: rgb(0.4, 0.4, 0.5) }
+  ]
 
-  // TABLE HELPER
-  const drawTableHeader = (titles: string[], widths: number[]) => {
-    page.drawRectangle({ x: 50, y: y - 5, width: width - 100, height: 20, color: rgb(0.9, 0.9, 0.9) })
-    let currentX = 55
-    titles.forEach((t, i) => {
-      page.drawText(t, { x: currentX, y: y, size: 8, font: fontBold })
-      currentX += widths[i]
+  let currentX = 50
+  kpis.forEach(kpi => {
+    page.drawRectangle({
+      x: currentX,
+      y: y - 45,
+      width: kpiWidth,
+      height: 50,
+      color: rgb(0.98, 0.98, 1),
+      borderColor: rgb(0.8, 0.8, 0.9),
+      borderWidth: 0.5
     })
-    y -= 25
+    page.drawText(kpi.label, { x: currentX + 8, y: y - 15, size: 7, font: fontBold, color: rgb(0.4, 0.4, 0.5) })
+    page.drawText(kpi.value, { x: currentX + 8, y: y - 35, size: 10, font: fontBold, color: kpi.color })
+    currentX += kpiWidth + 5
+  })
+  y -= 75
+
+  const drawTableHeader = (titles: string[], widths: number[]) => {
+    page.drawRectangle({ x: 50, y: y - 5, width: width - 100, height: 18, color: rgb(0.95, 0.95, 0.98) })
+    let curX = 55
+    titles.forEach((t, i) => {
+      page.drawText(t, { x: curX, y: y, size: 8, font: fontBold, color: rgb(0.2, 0.2, 0.3) })
+      curX += widths[i]
+    })
+    y -= 22
   }
 
-  // TABLE: PAGAMENTOS RECEBIDOS (MAIS IMPORTANTE)
-  drawLine('2. DETALHAMENTO DE PAGAMENTOS RECEBIDOS', { bold: true, size: 12, color: rgb(0.05, 0.4, 0.1) })
+  const checkNewPage = (needed: number) => {
+    if (y < needed) {
+      page = pdfDoc.addPage([595.28, 841.89])
+      y = height - 50
+      drawText('SUPERCOB - CONTINUAÇÃO CONFERÊNCIA DIÁRIA', { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'right' })
+      y -= 20
+      return true
+    }
+    return false
+  }
+
+  // 2. PAGAMENTOS
+  drawText('2. DETALHAMENTO DE PAGAMENTOS RECEBIDOS', { bold: true, size: 11, color: rgb(0.05, 0.4, 0.1) })
   y -= 15
   if (eventsToday.length === 0) {
-    drawLine('Nenhum pagamento registrado hoje até o momento.', { size: 9, color: rgb(0.5, 0.5, 0.5) })
-    y -= 20
+    drawText('Nenhum pagamento registrado hoje.', { size: 9, color: rgb(0.5, 0.5, 0.5) })
+    y -= 25
   } else {
-    drawTableHeader(['CONTRATO', 'CLIENTE', 'DESCRIÇÃO DO LANÇAMENTO', 'VALOR'], [70, 110, 230, 80])
-    eventsToday.forEach(e => {
-      if (y < 60) { page = pdfDoc.addPage([595.28, 841.89]); y = height - 50; }
+    drawTableHeader(['CONTRATO', 'CLIENTE', 'DESCRIÇÃO', 'VALOR'], [80, 130, 200, 85])
+    eventsToday.forEach((e, idx) => {
+      checkNewPage(40)
       const cobId = `COB-${e.emprestimoId.slice(0, 6).toUpperCase()}`
-      const client = e.emprestimo.cliente.nome.slice(0, 18)
-      const desc = e.descricao.replace('Pagamento registrado: ', '').slice(0, 50)
-      
+      const client = (e.emprestimo.cliente.nome).slice(0, 22)
+      const desc = e.descricao.replace('Pagamento registrado: ', '').slice(0, 40)
       const match = e.descricao.match(/R\$\s?([\d.,]+)/)
       const amount = match ? formatCurrency(parseFloat(match[1].replace(/\./g, '').replace(',', '.'))) : '-'
 
-      drawLine(cobId, { size: 8, x: 55 })
-      drawLine(client, { size: 8, x: 125 })
-      drawLine(desc, { size: 7, x: 235 })
-      drawLine(amount, { bold: true, size: 8, x: 50, align: 'right' })
-      y -= 15
-      page.drawLine({ start: { x: 50, y: y + 5 }, end: { x: width - 50, y: y + 5 }, color: rgb(0.95, 0.95, 0.95) })
+      if (idx % 2 === 0) page.drawRectangle({ x: 50, y: y - 5, width: width - 100, height: 16, color: rgb(0.98, 1, 0.98) })
+      
+      drawText(cobId, { size: 8, x: 55 })
+      drawText(client, { size: 8, x: 135 })
+      drawText(desc, { size: 7, x: 265 })
+      drawText(amount, { bold: true, size: 8, x: 50, align: 'right' })
+      y -= 16
     })
-    y -= 15
+    y -= 20
   }
 
-  // TABLE: NOVOS CONTRATOS
-  drawLine('3. NOVAS COBRANÇAS GERADAS HOJE', { bold: true, size: 12, color: rgb(0.1, 0.2, 0.5) })
+  // 3. NOVOS CONTRATOS
+  checkNewPage(100)
+  drawText('3. NOVAS COBRANÇAS GERADAS HOJE', { bold: true, size: 11, color: rgb(0.1, 0.3, 0.7) })
   y -= 15
   if (newLoans.length === 0) {
-    drawLine('Nenhum contrato novo gerado hoje.', { size: 9, color: rgb(0.5, 0.5, 0.5) })
-    y -= 20
+    drawText('Nenhum contrato novo gerado hoje.', { size: 9, color: rgb(0.5, 0.5, 0.5) })
+    y -= 25
   } else {
-    drawTableHeader(['ID', 'CLIENTE', 'JUROS (%)', 'VENCIMENTO', 'VALOR'], [70, 180, 60, 90, 80])
-    newLoans.forEach(l => {
-      if (y < 60) { page = pdfDoc.addPage([595.28, 841.89]); y = height - 50; }
-      drawLine(`COB-${l.id.slice(0, 6).toUpperCase()}`, { size: 8, x: 55 })
-      drawLine(l.cliente.nome.slice(0, 30), { size: 8, x: 125 })
-      drawLine(`${l.jurosMes}%`, { size: 8, x: 305 })
-      drawLine(l.vencimento ? l.vencimento.toLocaleDateString('pt-BR') : '-', { size: 8, x: 365 })
-      drawLine(formatCurrency(l.valor), { bold: true, size: 8, x: 50, align: 'right' })
-      y -= 15
+    drawTableHeader(['ID', 'CLIENTE', 'TAXA (%)', 'VENCIMENTO', 'VALOR'], [80, 180, 80, 90, 65])
+    newLoans.forEach((l, idx) => {
+      checkNewPage(40)
+      if (idx % 2 === 0) page.drawRectangle({ x: 50, y: y - 5, width: width - 100, height: 16, color: rgb(0.98, 0.98, 1) })
+      drawText(`COB-${l.id.slice(0, 6).toUpperCase()}`, { size: 8, x: 55 })
+      drawText(l.cliente.nome.slice(0, 30), { size: 8, x: 135 })
+      drawText(`${l.jurosMes}%`, { size: 8, x: 315 })
+      drawText(l.vencimento ? l.vencimento.toLocaleDateString('pt-BR') : '-', { size: 8, x: 395 })
+      drawText(formatCurrency(l.valor), { bold: true, size: 8, x: 50, align: 'right' })
+      y -= 16
     })
-    y -= 15
+    y -= 20
   }
 
-  // TABLE: AGENDA DE JUROS (ANIVERSÁRIOS)
-  drawLine('4. AGENDA DE JUROS DO DIA (CONFERÊNCIA)', { bold: true, size: 12, color: rgb(0.5, 0.3, 0) })
+  // 4. AGENDA DE JUROS
+  checkNewPage(100)
+  drawText('4. AGENDA DE JUROS DO DIA (CONFERÊNCIA)', { bold: true, size: 11, color: rgb(0.5, 0.3, 0) })
   y -= 15
   if (anniversariesToday.length === 0) {
-    drawLine('Nenhum juros mensal vence hoje para os contratos ativos.', { size: 9, color: rgb(0.5, 0.5, 0.5) })
+    drawText('Nenhum juros mensal vence hoje.', { size: 9, color: rgb(0.5, 0.5, 0.5) })
   } else {
-    drawTableHeader(['ID', 'CLIENTE', 'TOTAL JUROS DEVIDO', 'STATUS ATUAL'], [70, 240, 100, 80])
-    anniversariesToday.forEach(l => {
-      if (y < 60) { page = pdfDoc.addPage([595.28, 841.89]); y = height - 50; }
-      drawLine(`COB-${l.id.slice(0, 6).toUpperCase()}`, { size: 8, x: 55 })
-      drawLine(l.cliente.nome.slice(0, 40), { size: 8, x: 125 })
-      drawLine(formatCurrency(l.jurosMensal), { size: 8, x: 365, bold: true })
-      drawLine(l.isPaid ? 'PAGO' : 'PENDENTE', { size: 8, bold: true, x: 50, align: 'right', color: l.isPaid ? rgb(0, 0.5, 0) : rgb(0.7, 0, 0) })
-      y -= 15
+    drawTableHeader(['ID', 'CLIENTE', 'VALOR JUROS', 'STATUS'], [80, 220, 110, 85])
+    anniversariesToday.forEach((l, idx) => {
+      checkNewPage(40)
+      if (idx % 2 === 0) page.drawRectangle({ x: 50, y: y - 5, width: width - 100, height: 16, color: rgb(1, 0.99, 0.95) })
+      drawText(`COB-${l.id.slice(0, 6).toUpperCase()}`, { size: 8, x: 55 })
+      drawText(l.cliente.nome.slice(0, 40), { size: 8, x: 135 })
+      drawText(formatCurrency(l.jurosMensal), { size: 8, x: 355, bold: true })
+      drawText(l.isPaid ? 'PAGO' : 'PENDENTE', { size: 8, bold: true, x: 50, align: 'right', color: l.isPaid ? rgb(0, 0.5, 0) : rgb(0.7, 0.3, 0) })
+      y -= 16
     })
   }
 
   // Footer
-  y = 30
-  page.drawLine({ start: { x: 50, y: y + 15 }, end: { x: width - 50, y: y + 15 }, color: rgb(0.8, 0.8, 0.8) })
-  drawLine(`Documento para conferência interna • SUPERCOB v1.0 • Emitido em: ${now.toLocaleString('pt-BR')}`, { size: 7, color: rgb(0.5, 0.5, 0.5), align: 'center' })
+  page.drawLine({ start: { x: 50, y: 30 }, end: { x: width - 50, y: 30 }, color: rgb(0.9, 0.9, 0.9), thickness: 0.5 })
+  drawText(`Documento para conferência interna • SUPERCOB v1.2 • Emitido: ${now.toLocaleString('pt-BR')}`, { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'center', x: 50 })
 
   const pdfBytes = await pdfDoc.save()
   return new NextResponse(Buffer.from(pdfBytes), {

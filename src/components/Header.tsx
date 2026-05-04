@@ -101,7 +101,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
   }
 
   return (
-    <header className="h-20 bg-white dark:bg-slate-950 border-b border-slate-200/70 dark:border-white/10 flex items-center justify-between px-6 md:px-8 sticky top-0 z-30 shadow-sm shadow-slate-900/5 dark:shadow-none">
+    <header className="h-16 md:h-20 bg-white dark:bg-slate-950 border-b border-slate-200/70 dark:border-white/10 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 shadow-sm shadow-slate-900/5 dark:shadow-none">
       {/* Page Title with Animation */}
       <motion.div 
         key={pathname}
@@ -148,7 +148,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
           </button>
 
           {isNotificationsOpen && (
-            <div className="absolute right-0 mt-2 w-[360px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden">
+            <div className="absolute right-0 mt-2 w-[calc(100vw-32px)] sm:w-[360px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-black text-slate-900 dark:text-slate-100">Notificações</p>

@@ -104,7 +104,7 @@ export function Chat({ currentUser }: { currentUser: any }) {
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-24 md:bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl shadow-blue-600/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40 group"
+        className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-6 right-4 md:right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl shadow-blue-600/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40 group"
       >
         <MessageSquare className="w-6 h-6 group-hover:rotate-12 transition-transform" />
         <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-pulse" />
@@ -116,7 +116,7 @@ export function Chat({ currentUser }: { currentUser: any }) {
             initial={{ opacity: 0, y: 100, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 100, scale: 0.9 }}
-            className="fixed bottom-32 md:bottom-24 right-6 w-[400px] h-[600px] bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 flex flex-col overflow-hidden z-50"
+            className="fixed bottom-24 md:bottom-24 right-4 md:right-6 w-[calc(100vw-32px)] md:w-[400px] h-[calc(100vh-140px)] md:h-[600px] bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-2xl border border-slate-100 flex flex-col overflow-hidden z-50"
           >
             {/* Header */}
             <div className="bg-slate-900 p-6 text-white flex items-center justify-between">

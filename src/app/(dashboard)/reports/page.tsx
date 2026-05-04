@@ -95,9 +95,16 @@ export default async function ReportsPage({
     ],
   }
 
-  // Regra 1: Gerente vê apenas os relatórios DELE
+  // Regra 1: Gerente vê apenas os relatórios DELE ou que ele esteja envolvido (histórico)
   if (role === 'GERENTE') {
-    where.usuarioId = userId
+    where.AND = [
+      {
+        OR: [
+          { usuarioId: userId },
+          { historico: { some: { createdById: userId } } }
+        ]
+      }
+    ]
   } else if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
     where.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
   }
