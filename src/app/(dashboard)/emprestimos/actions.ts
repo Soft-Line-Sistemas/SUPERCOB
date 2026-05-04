@@ -63,6 +63,7 @@ export async function getEmprestimos(filters?: {
       valor: true,
       valorPago: true,
       jurosMes: true,
+      jurosAtrasoDia: true,
       vencimento: true,
       quitadoEm: true,
       status: true,
@@ -86,6 +87,7 @@ export async function createEmprestimo(data: {
   clienteId: string;
   valor: number;
   jurosMes?: number;
+  jurosAtrasoDia?: number;
   vencimento?: Date | null;
   observacao?: string;
   quitadoEm?: Date | null;
@@ -133,6 +135,7 @@ export async function createEmprestimo(data: {
 export async function updateEmprestimo(id: string, data: {
   valor: number;
   jurosMes?: number;
+  jurosAtrasoDia?: number;
   vencimento?: Date | null;
   observacao?: string;
   quitadoEm?: Date | null;

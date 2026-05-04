@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
+import { calculateLoanInterest } from '@/lib/loan-interest'
 
 type DashboardPeriod = 'hoje' | 'semana' | 'mes'
 
@@ -94,17 +95,11 @@ export async function getDashboardData(period: DashboardPeriod = 'hoje') {
   // Calculate expected interest (Juros Esperados)
   const loansWithInterest = await prisma.emprestimo.findMany({
     where: { ...where, ...dateWhere, status: { notIn: ['QUITADO', 'CANCELADO'] } },
-    select: { valor: true, valorPago: true, jurosMes: true, vencimento: true, createdAt: true, jurosPagos: true }
+    select: { valor: true, valorPago: true, jurosMes: true, jurosAtrasoDia: true, vencimento: true, createdAt: true, jurosPagos: true }
   })
   
   const jurosEsperados = loansWithInterest.reduce((acc, loan) => {
-    const restante = Math.max(loan.valor - (loan.valorPago ?? 0), 0)
-    if (restante <= 0) return acc
-    const base = loan.vencimento ?? loan.createdAt
-    const now = new Date()
-    const months = Math.max(1, (now.getUTCFullYear() * 12 + now.getUTCMonth()) - (base.getUTCFullYear() * 12 + base.getUTCMonth()) + 1)
-    const jurosTotal = (restante * ((loan.jurosMes || 0) / 100)) * months
-    return acc + Math.max(jurosTotal - (loan.jurosPagos || 0), 0)
+    return acc + calculateLoanInterest(loan).jurosPendente
   }, 0)
 
   // Get status distribution for pie chart

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { addEmprestimoHistorico, addPagamentoParcial, setEmprestimoStatus, updateLoanUser } from './actions'
 import { WhatsAppTemplates } from '@/components/WhatsAppTemplates'
+import { calculateLoanInterest } from '@/lib/loan-interest'
 
 type EmprestimoStatus = string
 
@@ -35,6 +36,7 @@ type EmprestimoDetalhes = {
   valor: number
   valorPago?: number | null
   jurosMes?: number | null
+  jurosAtrasoDia?: number | null
   vencimento?: Date | string | null
   quitadoEm?: Date | string | null
   status: EmprestimoStatus
@@ -118,26 +120,24 @@ export function ContractDetails({
     const cents = digits ? Number(digits) : 0
     return cents / 100
   }
-  const restante = Math.max(emprestimo.valor - valorPago, 0)
-  const jurosPercent = Number(emprestimo.jurosMes ?? 0) || 0
-  const jurosMensalValor = Math.max(restante, 0) * (jurosPercent / 100)
-  const monthId = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth()
-  const now = new Date()
-  const baseDate = new Date((emprestimo.vencimento ?? emprestimo.createdAt) as any)
-  const monthsLate = baseDate.getTime() <= now.getTime() ? Math.max(1, monthId(now) - monthId(baseDate) + 1) : 0
-  
-  const jurosAcumuladoTotal = jurosMensalValor * monthsLate
-  const jurosPendente = Math.max(jurosAcumuladoTotal - (emprestimo.jurosPagos || 0), 0)
-  
-  const totalDevido = restante + jurosPendente
+  const {
+    principalRestante: restante,
+    jurosBase,
+    jurosAcumuladoTotal,
+    jurosPendente,
+    totalDevido,
+    monthsAccrued,
+    daysLate,
+    usesDailyLateInterest,
+  } = calculateLoanInterest({ ...emprestimo, valorPago })
   const canFinish = status !== 'QUITADO' && status !== 'CANCELADO' && restante <= 0 && jurosPendente <= 0
 
   const priorityLevel = useMemo(() => {
     if (status === 'QUITADO' || status === 'CANCELADO') return 'BLOQUEADO'
-    if (totalDevido > 5000 && monthsLate > 2) return 'URGENTE'
-    if (totalDevido > 1000 || monthsLate > 1) return 'ALTA'
+    if (totalDevido > 5000 && (monthsAccrued > 2 || daysLate > 15)) return 'URGENTE'
+    if (totalDevido > 1000 || monthsAccrued > 1 || daysLate > 0) return 'ALTA'
     return 'NORMAL'
-  }, [totalDevido, monthsLate, status])
+  }, [totalDevido, monthsAccrued, daysLate, status])
 
   const handleAddEvento = () => {
     const value = descricao.trim()
@@ -319,7 +319,11 @@ export function ContractDetails({
           <div className="p-6 rounded-[2rem] bg-white border border-slate-100 shadow-sm transition-all hover:bg-slate-50/20 group">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Juros Pendente</p>
             <p className="text-2xl font-black text-red-600 mt-1">{formatBRL(jurosPendente)}</p>
-            <p className="text-xs text-slate-500 mt-1">Acumulado ({monthsLate}m): {formatBRL(jurosAcumuladoTotal)}</p>
+            <p className="text-xs text-slate-500 mt-1">
+              {usesDailyLateInterest
+                ? `Base ${formatBRL(jurosBase)} corrigida por ${daysLate}d: ${formatBRL(jurosAcumuladoTotal)}`
+                : `Acumulado (${monthsAccrued}m): ${formatBRL(jurosAcumuladoTotal)}`}
+            </p>
           </div>
           <div className="p-6 rounded-[2rem] bg-slate-950 border border-slate-200">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Vencimento Original</p>
@@ -331,6 +335,7 @@ export function ContractDetails({
           <div className="p-6 rounded-[2rem] bg-slate-900 border border-slate-800 text-white">
             <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Configuração Taxa</p>
             <p className="text-xl font-black mt-1">{(emprestimo.jurosMes ?? 0).toString().replace('.', ',')}% <span className="text-[10px] text-white/30">/ mês</span></p>
+            <p className="text-xs text-white/60 mt-1">{(emprestimo.jurosAtrasoDia ?? 0).toString().replace('.', ',')}% atraso/dia</p>
           </div>
         </div>
 

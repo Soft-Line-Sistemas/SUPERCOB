@@ -8,6 +8,7 @@ export type ChargeData = {
   enabled: boolean
   valor: string
   jurosMes: string
+  jurosAtrasoDia: string
   vencimento: string
   observacao: string
 }
@@ -48,4 +49,3 @@ export type ClientFormData = {
 export type SetState<T> = React.Dispatch<React.SetStateAction<T>>
 
 export type EmergencyParts = { nome: string; telefone: string }
-

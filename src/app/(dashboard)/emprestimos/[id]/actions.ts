@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { logSystemAction } from '@/lib/audit'
+import { calculateLoanInterest } from '@/lib/loan-interest'
 
 export async function addEmprestimoHistorico(input: { emprestimoId: string; descricao: string }) {
   const session = await auth()
@@ -102,19 +103,7 @@ export async function addPagamentoParcial(input: { emprestimoId: string; valor: 
   if (!emprestimoAtual) throw new Error('Contrato não encontrado')
   if (emprestimoAtual.status === 'CANCELADO') throw new Error('Contrato cancelado')
 
-  // --- REGRAS DE CÁLCULO DE JUROS (Sincronizado com UI) ---
-  const principalRestante = Math.max(emprestimoAtual.valor - (emprestimoAtual.valorPago || 0), 0)
-  const jurosPercent = Number(emprestimoAtual.jurosMes ?? 0) || 0
-  const jurosMensalValor = principalRestante * (jurosPercent / 100)
-  
-  const monthId = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth()
-  const now = new Date()
-  const baseDate = new Date((emprestimoAtual.vencimento ?? emprestimoAtual.createdAt) as any)
-  const monthsLate = baseDate.getTime() <= now.getTime() ? Math.max(1, monthId(now) - monthId(baseDate) + 1) : 0
-  
-  const jurosAcumuladoTotal = jurosMensalValor * monthsLate
-  const jurosPendente = Math.max(jurosAcumuladoTotal - (emprestimoAtual.jurosPagos || 0), 0)
-  // --------------------------------------------------------
+  const { jurosPendente } = calculateLoanInterest(emprestimoAtual)
 
   let pagamentoParaJuros = 0
   let pagamentoParaPrincipal = 0

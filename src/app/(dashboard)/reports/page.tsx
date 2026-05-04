@@ -2,6 +2,7 @@ import { Reports } from '@/components/Reports'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
+import { calculateLoanInterest } from '@/lib/loan-interest'
 
 const SAO_PAULO_OFFSET_HOURS = 3
 
@@ -123,6 +124,7 @@ export default async function ReportsPage({
         valor: true,
         valorPago: true,
         jurosMes: true,
+        jurosAtrasoDia: true,
         status: true,
         vencimento: true,
         createdAt: true,
@@ -140,8 +142,6 @@ export default async function ReportsPage({
       orderBy: { nome: 'asc' } 
     }),
   ])
-  const expectedInterest = (valor: number, jurosMes: number | null) => valor * (((jurosMes ?? 0) as number) / 100)
-
   const monthId = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth()
   const startOfMonthUtc = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0, 0))
 
@@ -153,10 +153,7 @@ export default async function ReportsPage({
     if (loan.status !== 'QUITADO' && loan.status !== 'CANCELADO') {
       const restante = Math.max(loan.valor - (loan.valorPago ?? 0), 0)
       principalAtivo += restante
-      const base = loan.vencimento ?? loan.createdAt
-      const months = Math.max(1, monthId(startOfMonthUtc(new Date())) - monthId(startOfMonthUtc(base)) + 1)
-      const jurosTotal = expectedInterest(restante, loan.jurosMes) * months
-      projectedInterest += Math.max(jurosTotal - (loan.jurosPagos || 0), 0)
+      projectedInterest += calculateLoanInterest(loan).jurosPendente
     }
   }
 
@@ -185,10 +182,10 @@ export default async function ReportsPage({
     if (restante <= 0) continue
     const base = loan.vencimento ?? loan.createdAt
     const baseMonth = startOfMonthUtc(base)
-    const perMonth = expectedInterest(restante, loan.jurosMes)
     for (let i = 0; i < monthBuckets.length; i++) {
       const bucket = monthBuckets[i]
       if (monthId(bucket) < monthId(baseMonth)) continue
+      const perMonth = calculateLoanInterest({ ...loan, now: bucket }).jurosBase
       interestByMonth[i].juros += perMonth
     }
   }

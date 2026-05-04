@@ -28,6 +28,7 @@ interface Loan {
   valor: number;
   valorPago?: number | null;
   jurosMes?: number;
+  jurosAtrasoDia?: number;
   vencimento?: Date | null;
   status: LoanStatus;
   observacao?: string | null;
@@ -91,6 +92,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     usuarioId: '',
     valor: shouldAutoOpenNew && initialValor ? Number(initialValor) || 0 : 0,
     jurosMes: shouldAutoOpenNew && initialJurosMes ? Number(initialJurosMes) || 0 : 0,
+    jurosAtrasoDia: 0,
     vencimento: shouldAutoOpenNew ? initialVencimento : '',
     observacao: shouldAutoOpenNew ? initialObservacao : '',
   }));
@@ -166,6 +168,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         usuarioId: loan.usuarioId || '',
         valor: loan.valor,
         jurosMes: (loan.jurosMes as any) ?? 0,
+        jurosAtrasoDia: (loan.jurosAtrasoDia as any) ?? 0,
         vencimento: loan.vencimento ? format(new Date(loan.vencimento), 'yyyy-MM-dd') : '',
         observacao: loan.observacao || '',
       });
@@ -176,6 +179,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         usuarioId: '',
         valor: !prefillConsumed && initialValor ? Number(initialValor) || 0 : 0,
         jurosMes: !prefillConsumed && initialJurosMes ? Number(initialJurosMes) || 0 : 0,
+        jurosAtrasoDia: 0,
         vencimento: !prefillConsumed ? initialVencimento : '',
         observacao: !prefillConsumed ? initialObservacao : '',
       });
@@ -252,6 +256,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         valor: !prefillConsumed && initialValor ? Number(initialValor) || 0 : 0,
         valorPago: 0,
         jurosMes: !prefillConsumed && initialJurosMes ? Number(initialJurosMes) || 0 : 0,
+        jurosAtrasoDia: 0,
         vencimento: !prefillConsumed && initialVencimento ? (new Date(initialVencimento) as any) : null,
         status: 'ABERTO',
         observacao: !prefillConsumed ? initialObservacao : '',
@@ -320,6 +325,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         ...formData,
         usuarioId: formData.usuarioId || null,
         jurosMes: Number(formData.jurosMes) || 0,
+        jurosAtrasoDia: Number(formData.jurosAtrasoDia) || 0,
         vencimento: parseDateInputToUTCNoon(formData.vencimento),
       };
 
