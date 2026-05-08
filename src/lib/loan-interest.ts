@@ -17,13 +17,14 @@ const monthId = (date: Date) => date.getUTCFullYear() * 12 + date.getUTCMonth()
 
 export function calculateLoanInterest(input: LoanInterestInput) {
   const principalRestante = Math.max(Number(input.valor || 0) - Number(input.valorPago || 0), 0)
+  const principalBaseJuros = principalRestante > 0 ? principalRestante : Math.max(Number(input.valor || 0), 0)
   const jurosPercent = Number(input.jurosMes ?? 0) || 0
   const jurosAtrasoPercent = Number(input.jurosAtrasoDia ?? 0) || 0
   const jurosPagos = Number(input.jurosPagos ?? 0) || 0
   const now = input.now ?? new Date()
   const baseDate = new Date((input.vencimento ?? input.createdAt ?? now) as any)
 
-  if (principalRestante <= 0 || jurosPercent <= 0 || baseDate.getTime() > now.getTime()) {
+  if (jurosPercent <= 0 || baseDate.getTime() > now.getTime()) {
     return {
       principalRestante,
       jurosBase: 0,
@@ -36,7 +37,7 @@ export function calculateLoanInterest(input: LoanInterestInput) {
     }
   }
 
-  const jurosBase = principalRestante * (jurosPercent / 100)
+  const jurosBase = principalBaseJuros * (jurosPercent / 100)
   const daysLate = Math.max(0, Math.floor((toUtcDay(now) - toUtcDay(baseDate)) / DAY_MS))
 
   if (jurosAtrasoPercent > 0) {

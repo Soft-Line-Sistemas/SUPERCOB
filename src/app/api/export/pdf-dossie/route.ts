@@ -37,7 +37,8 @@ export async function POST(req: Request) {
   let y = height - 50
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
-  const formatDate = (date: Date | null | undefined) => date ? new Date(date).toLocaleDateString('pt-BR') : '-'
+  const formatDate = (date: Date | null | undefined) =>
+    date ? new Date(date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '-'
 
   const drawText = (text: string, options: { bold?: boolean; size?: number; color?: any; x?: number; y?: number; align?: 'left' | 'right' | 'center' } = {}) => {
     const { bold = false, size = 10, color = rgb(0.1, 0.1, 0.2), x = 50, y: passedY, align = 'left' } = options
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
   y -= 22
   drawText(`CLIENTE: ${cliente.nome.toUpperCase()}`, { bold: true, size: 10, color: rgb(0.2, 0.5, 1), align: 'center' })
   y -= 16
-  drawText(`Documento Gerado em: ${new Date().toLocaleString('pt-BR')} • Confidencial`, { size: 8, color: rgb(0.7, 0.7, 0.8), align: 'center' })
+  drawText(`Documento Gerado em: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} • Confidencial`, { size: 8, color: rgb(0.7, 0.7, 0.8), align: 'center' })
 
   y = height - 130
 

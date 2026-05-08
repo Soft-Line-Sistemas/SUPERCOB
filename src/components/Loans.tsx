@@ -321,6 +321,10 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     e.preventDefault();
     setLoading(true);
     try {
+      if (formData.vencimento.trim() === '') {
+        throw new Error('Informe o vencimento da cobrança.')
+      }
+
       const data = {
         ...formData,
         usuarioId: formData.usuarioId || null,
@@ -339,7 +343,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
       setIsModalOpen(false);
       router.refresh()
     } catch (error) {
-      toast.error('Erro ao salvar cobrança.');
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar cobrança.');
     } finally {
       setLoading(false);
     }

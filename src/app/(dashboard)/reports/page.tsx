@@ -60,10 +60,9 @@ export default async function ReportsPage({
   if (!session?.user) redirect('/login')
   
   const role = ((session.user as any).role as string)?.toUpperCase()
-  const userId = (session.user as any).id
 
-  // Regra 2: Escritório não vê Relatórios (Parte financeira)
-  if (role === 'ESCRITORIO') redirect('/dashboard')
+  // Regra: apenas administradores acessam a área financeira de relatórios
+  if (role !== 'ADM' && role !== 'ADMIN') redirect('/dashboard')
 
   const params = await searchParams
   const startDateParam = Array.isArray(params.startDate) ? params.startDate[0] : params.startDate
@@ -95,17 +94,7 @@ export default async function ReportsPage({
     ],
   }
 
-  // Regra 1: Gerente vê apenas os relatórios DELE ou que ele esteja envolvido (histórico)
-  if (role === 'GERENTE') {
-    where.AND = [
-      {
-        OR: [
-          { usuarioId: userId },
-          { historico: { some: { createdById: userId } } }
-        ]
-      }
-    ]
-  } else if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
+  if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
     where.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
   }
 
@@ -144,7 +133,7 @@ export default async function ReportsPage({
       },
     }),
     prisma.usuario.findMany({ 
-      where: role === 'ADM' ? { role: { in: ['GERENTE', 'ESCRITORIO'] } } : { id: userId }, 
+      where: { role: { in: ['GERENTE', 'ESCRITORIO'] } }, 
       select: { id: true, nome: true }, 
       orderBy: { nome: 'asc' } 
     }),
@@ -248,15 +237,16 @@ export default async function ReportsPage({
     .filter((l) => l.status !== 'QUITADO' && l.status !== 'CANCELADO' && l.vencimento && l.vencimento.getTime() < now2.getTime())
     .map((l) => {
       const daysLate = Math.floor((now2.getTime() - (l.vencimento as Date).getTime()) / (1000 * 60 * 60 * 24))
-      const restante = Math.max(l.valor - (l.valorPago ?? 0), 0)
+      const totalDevido = calculateLoanInterest(l).totalDevido
       return {
         id: `COB-${l.id.slice(0, 6).toUpperCase()}`,
         client: l.cliente.nome,
         city: [l.cliente.cidade, l.cliente.estado].filter(Boolean).join('/'),
         daysLate,
-        amount: Math.round(restante),
+        amount: Math.round(totalDevido),
       }
     })
+    .filter((x) => x.amount > 0)
     .filter((x) => x.daysLate > 5)
     .sort((a, b) => b.daysLate - a.daysLate)
     .slice(0, 12)
@@ -277,8 +267,6 @@ export default async function ReportsPage({
     
     // Gerar ocorrências de juros
     let currentOccurrence = new Date(base)
-    currentOccurrence.setUTCMonth(currentOccurrence.getUTCMonth() + 1)
-    
     let occurrenceIndex = 1
     let safety = 0
     // Precisamos de um limite para o loop, mas queremos encontrar a ocorrência do dia de hoje

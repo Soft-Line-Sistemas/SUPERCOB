@@ -9,6 +9,10 @@ export async function GET() {
   if (!session?.user) {
     return new NextResponse('Não autorizado', { status: 401 })
   }
+  const role = ((session.user as any).role as string | undefined)?.toUpperCase()
+  if (role !== 'ADM' && role !== 'ADMIN') {
+    return new NextResponse('Acesso negado', { status: 403 })
+  }
 
   const now = new Date()
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
@@ -97,7 +101,7 @@ export async function GET() {
   y -= 22
   drawText('RELATÓRIO DE CONFERÊNCIA DIÁRIA', { bold: true, size: 12, color: rgb(0.2, 0.5, 1), align: 'center' })
   y -= 16
-  drawText(now.toLocaleDateString('pt-BR', { dateStyle: 'long' }), { size: 9, color: rgb(0.7, 0.7, 0.8), align: 'center' })
+  drawText(now.toLocaleDateString('pt-BR', { dateStyle: 'long', timeZone: 'America/Sao_Paulo' }), { size: 9, color: rgb(0.7, 0.7, 0.8), align: 'center' })
 
   y = height - 135
 
@@ -202,7 +206,7 @@ export async function GET() {
       drawText(`COB-${l.id.slice(0, 6).toUpperCase()}`, { size: 8, x: 55 })
       drawText(l.cliente.nome.slice(0, 30), { size: 8, x: 135 })
       drawText(`${l.jurosMes}%`, { size: 8, x: 315 })
-      drawText(l.vencimento ? l.vencimento.toLocaleDateString('pt-BR') : '-', { size: 8, x: 395 })
+      drawText(l.vencimento ? l.vencimento.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '-', { size: 8, x: 395 })
       drawText(formatCurrency(l.valor), { bold: true, size: 8, x: 50, align: 'right' })
       y -= 16
     })
@@ -230,7 +234,7 @@ export async function GET() {
 
   // Footer
   page.drawLine({ start: { x: 50, y: 30 }, end: { x: width - 50, y: 30 }, color: rgb(0.9, 0.9, 0.9), thickness: 0.5 })
-  drawText(`Documento para conferência interna • SUPERCOB v1.2 • Emitido: ${now.toLocaleString('pt-BR')}`, { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'center', x: 50 })
+  drawText(`Documento para conferência interna • SUPERCOB v1.2 • Emitido: ${now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'center', x: 50 })
 
   const pdfBytes = await pdfDoc.save()
   return new NextResponse(Buffer.from(pdfBytes), {

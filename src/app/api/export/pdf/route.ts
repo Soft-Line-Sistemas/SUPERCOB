@@ -7,6 +7,10 @@ export async function POST(req: Request) {
   if (!session?.user) {
     return new NextResponse('Não autorizado', { status: 401 })
   }
+  const role = ((session.user as any).role as string | undefined)?.toUpperCase()
+  if (role !== 'ADM' && role !== 'ADMIN') {
+    return new NextResponse('Acesso negado', { status: 403 })
+  }
 
   const body = await req.json().catch(() => null)
   if (!body || typeof body !== 'object') {
@@ -59,7 +63,7 @@ export async function POST(req: Request) {
   y -= 22
   drawText(title.toUpperCase(), { bold: true, size: 12, color: rgb(0.2, 0.5, 1), align: 'center' })
   y -= 16
-  drawText(`Emitido em: ${new Date().toLocaleString('pt-BR')} • Por: ${session.user.name || 'Usuário'}`, { size: 8, color: rgb(0.7, 0.7, 0.8), align: 'center' })
+  drawText(`Emitido em: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} • Por: ${session.user.name || 'Usuário'}`, { size: 8, color: rgb(0.7, 0.7, 0.8), align: 'center' })
 
   y = height - 130
 

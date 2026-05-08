@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, UserPlus, Receipt, LayoutDashboard, Users, FileText, ChevronRight, X, Command, User } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { globalSearch } from '@/app/(dashboard)/global-search-actions'
 
 type CommandItem = {
@@ -21,60 +22,69 @@ export function CommandPalette({ isOpen, setIsOpen }: { isOpen: boolean; setIsOp
   const [loading, setLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const router = useRouter()
+  const { data: session } = useSession()
+  const role = ((session?.user as any)?.role as string | undefined)?.toUpperCase()
+  const canAccessReports = role === 'ADM' || role === 'ADMIN'
 
-  const items: CommandItem[] = useMemo(() => [
-    {
-      id: 'nav-dashboard',
-      title: 'Dashboard',
-      subtitle: 'Visão geral e KPIs do sistema',
-      icon: LayoutDashboard,
-      category: 'Navegação',
-      action: () => router.push('/dashboard')
-    },
-    {
-      id: 'nav-clientes',
-      title: 'Clientes',
-      subtitle: 'Gerenciar base de clientes e contatos',
-      icon: Users,
-      category: 'Navegação',
-      action: () => router.push('/clientes')
-    },
-    {
-      id: 'nav-contratos',
-      title: 'Contratos',
-      subtitle: 'Listagem de emprestimos e cobranças',
-      icon: Receipt,
-      category: 'Navegação',
-      action: () => router.push('/emprestimos')
-    },
-    {
-      id: 'nav-relatorios',
-      title: 'Relatórios',
-      subtitle: 'Análises avançadas e exportação',
-      icon: FileText,
-      category: 'Navegação',
-      action: () => router.push('/reports')
-    },
-    {
-      id: 'action-novo-cliente',
-      title: 'Novo Cliente',
-      subtitle: 'Cadastrar um novo cliente no sistema',
-      icon: UserPlus,
-      category: 'Ações',
-      action: () => {
-        router.push('/clientes')
-        // We could dispatch an event here to open the modal
+  const items: CommandItem[] = useMemo(() => {
+    const next: CommandItem[] = [
+      {
+        id: 'nav-dashboard',
+        title: 'Dashboard',
+        subtitle: 'Visão geral e KPIs do sistema',
+        icon: LayoutDashboard,
+        category: 'Navegação',
+        action: () => router.push('/dashboard')
+      },
+      {
+        id: 'nav-clientes',
+        title: 'Clientes',
+        subtitle: 'Gerenciar base de clientes e contatos',
+        icon: Users,
+        category: 'Navegação',
+        action: () => router.push('/clientes')
+      },
+      {
+        id: 'nav-contratos',
+        title: 'Contratos',
+        subtitle: 'Listagem de emprestimos e cobranças',
+        icon: Receipt,
+        category: 'Navegação',
+        action: () => router.push('/emprestimos')
+      },
+      {
+        id: 'action-novo-cliente',
+        title: 'Novo Cliente',
+        subtitle: 'Cadastrar um novo cliente no sistema',
+        icon: UserPlus,
+        category: 'Ações',
+        action: () => {
+          router.push('/clientes')
+        }
+      },
+      {
+        id: 'action-novo-contrato',
+        title: 'Nova Cobrança',
+        subtitle: 'Criar um novo emprestimo',
+        icon: Receipt,
+        category: 'Ações',
+        action: () => router.push('/emprestimos')
       }
-    },
-    {
-      id: 'action-novo-contrato',
-      title: 'Nova Cobrança',
-      subtitle: 'Criar um novo emprestimo',
-      icon: Receipt,
-      category: 'Ações',
-      action: () => router.push('/emprestimos')
+    ]
+
+    if (canAccessReports) {
+      next.splice(3, 0, {
+        id: 'nav-relatorios',
+        title: 'Relatórios',
+        subtitle: 'Análises avançadas e exportação',
+        icon: FileText,
+        category: 'Navegação',
+        action: () => router.push('/reports')
+      })
     }
-  ], [router])
+
+    return next
+  }, [canAccessReports, router])
 
   const filteredItems = useMemo(() => {
     let base = items

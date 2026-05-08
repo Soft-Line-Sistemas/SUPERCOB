@@ -127,7 +127,12 @@ export function ChargeModal({
     return a.nome.localeCompare(b.nome)
   })
 
-  const disableSubmit = loading || formData.clienteId.trim() === '' || !Number.isFinite(formData.valor) || formData.valor <= 0
+  const disableSubmit =
+    loading ||
+    formData.clienteId.trim() === '' ||
+    !Number.isFinite(formData.valor) ||
+    formData.valor <= 0 ||
+    formData.vencimento.trim() === ''
   const formatBRL = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(value) ? value : 0)
   const parseBRL = (value: string) => {
     const digits = value.replace(/\D/g, '')
@@ -351,6 +356,7 @@ export function ChargeModal({
                       <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <input
                         type="date"
+                        required
                         value={formData.vencimento}
                         onChange={(e) => setFormData((p) => ({ ...p, vencimento: e.target.value }))}
                         className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"

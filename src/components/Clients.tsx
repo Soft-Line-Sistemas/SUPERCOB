@@ -591,7 +591,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
         </head>
         <body>
           <h1>Revisão do cadastro</h1>
-          <div class="sub">Supercob • ${new Date().toLocaleString('pt-BR')}</div>
+          <div class="sub">Supercob • ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</div>
           <table>
             ${lines.map(([k, v]) => `<tr><td class="k">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}
           </table>
@@ -695,7 +695,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
               </div>
 
               <div className="mt-6 pt-6 border-t border-slate-50 flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Desde {new Date(client.createdAt).toLocaleDateString('pt-BR')}</span>
+                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Desde {new Date(client.createdAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
                 <button
                   type="button"
                   onClick={() => router.push(`/clientes/${client.id}`)}

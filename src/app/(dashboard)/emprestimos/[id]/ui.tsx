@@ -213,7 +213,7 @@ export function ContractDetails({
         setValorPago(Number((updated as any).valorPago ?? 0) || 0)
         setStatus((updated as any).status)
         setQuitadoEm((updated as any).quitadoEm)
-        setEventos((prev) => [...prev, ...(novosEventos as any)].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)))
+        setEventos((prev) => [...prev, ...(novosEventos as any)].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)))
         setPagamento('')
         toast.success('Pagamento registrado.')
         router.refresh()
@@ -423,7 +423,7 @@ export function ContractDetails({
                 {emprestimo.cliente.pontoReferencia && (
                   <div className="border-t border-slate-100 pt-6">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ponto de Referência</p>
-                    <p className="text-xs text-slate-500 leading-relaxed italic">"{emprestimo.cliente.pontoReferencia}"</p>
+                    <p className="text-xs text-slate-500 leading-relaxed italic">&quot;{emprestimo.cliente.pontoReferencia}&quot;</p>
                   </div>
                 )}
               </div>

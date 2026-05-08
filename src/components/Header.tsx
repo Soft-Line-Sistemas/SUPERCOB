@@ -182,7 +182,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                           </p>
                           <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{n.conteudo}</p>
                           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-2">
-                            {new Date(n.createdAt).toLocaleString('pt-BR')}
+                            {new Date(n.createdAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                           </p>
                         </div>
                         {n.isMassiva && (

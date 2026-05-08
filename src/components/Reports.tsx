@@ -227,7 +227,7 @@ export function Reports({
               <CalendarDays className="w-5 h-5 text-indigo-500" />
               Agenda de Juros do Dia
             </h3>
-            <p className="text-sm text-slate-500">Clientes com vencimento de juros hoje ({new Date().toLocaleDateString('pt-BR')})</p>
+            <p className="text-sm text-slate-500">Clientes com vencimento de juros hoje ({new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})</p>
           </div>
           <span className="bg-indigo-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg uppercase">
             {report.dailyInterestData.length} Lançamentos

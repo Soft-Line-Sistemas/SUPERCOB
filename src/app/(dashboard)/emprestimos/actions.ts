@@ -96,6 +96,13 @@ export async function createEmprestimo(data: {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
+  if (!Number.isFinite(Number(data.valor)) || Number(data.valor) <= 0) {
+    throw new Error('Valor inválido para a cobrança')
+  }
+  if (!data.vencimento) {
+    throw new Error('Vencimento é obrigatório para criar a cobrança')
+  }
+
   const role = (session.user as any).role
   const userId = (session.user as any).id
 
@@ -143,6 +150,13 @@ export async function updateEmprestimo(id: string, data: {
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
+
+  if (!Number.isFinite(Number(data.valor)) || Number(data.valor) <= 0) {
+    throw new Error('Valor inválido para a cobrança')
+  }
+  if (!data.vencimento) {
+    throw new Error('Vencimento é obrigatório para atualizar a cobrança')
+  }
 
   let status: 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' = 'ABERTO'
   
