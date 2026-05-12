@@ -62,7 +62,7 @@ export function Dashboard({ data }: DashboardProps) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard Executivo</h1>
-          <p className="text-slate-500">Bem-vindo ao centro de comando do SUPERCOB.</p>
+          <p className="text-slate-500">Bem-vindo ao centro de comando do Mr Cobranças.</p>
         </div>
         <div className="flex items-center gap-3 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
           <button

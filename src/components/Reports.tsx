@@ -76,7 +76,7 @@ export function Reports({
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `relatorio-supercob-${filters.startDate}_a_${filters.endDate}.pdf`
+      a.download = `relatorio-mrcobrancas-${filters.startDate}_a_${filters.endDate}.pdf`
       document.body.appendChild(a)
       a.click()
       a.remove()

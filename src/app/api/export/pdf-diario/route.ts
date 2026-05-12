@@ -97,7 +97,7 @@ export async function GET() {
   })
 
   y = height - 40
-  drawText('SUPERCOB - GESTÃO DE COBRANÇAS', { bold: true, size: 16, color: rgb(1, 1, 1), align: 'center' })
+  drawText('Mr Cobranças - GESTÃO DE COBRANÇAS', { bold: true, size: 16, color: rgb(1, 1, 1), align: 'center' })
   y -= 22
   drawText('RELATÓRIO DE CONFERÊNCIA DIÁRIA', { bold: true, size: 12, color: rgb(0.2, 0.5, 1), align: 'center' })
   y -= 16
@@ -157,7 +157,7 @@ export async function GET() {
     if (y < needed) {
       page = pdfDoc.addPage([595.28, 841.89])
       y = height - 50
-      drawText('SUPERCOB - CONTINUAÇÃO CONFERÊNCIA DIÁRIA', { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'right' })
+      drawText('Mr Cobranças - CONTINUAÇÃO CONFERÊNCIA DIÁRIA', { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'right' })
       y -= 20
       return true
     }
@@ -234,7 +234,7 @@ export async function GET() {
 
   // Footer
   page.drawLine({ start: { x: 50, y: 30 }, end: { x: width - 50, y: 30 }, color: rgb(0.9, 0.9, 0.9), thickness: 0.5 })
-  drawText(`Documento para conferência interna • SUPERCOB v1.2 • Emitido: ${now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'center', x: 50 })
+  drawText(`Documento para conferência interna • Mr Cobranças v1.2 • Emitido: ${now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'center', x: 50 })
 
   const pdfBytes = await pdfDoc.save()
   return new NextResponse(Buffer.from(pdfBytes), {

@@ -5,13 +5,13 @@ import { Toaster } from 'sonner';
 import { SplashScreen } from '../components/SplashScreen';
 
 export const metadata: Metadata = {
-  title: 'SUPERCOB - Gestão de Cobranças',
+  title: 'Mr Cobranças - Gestão de Cobranças',
   description: 'Sistema profissional para gestão e automação de cobranças',
-  applicationName: 'SUPERCOB',
+  applicationName: 'Mr Cobranças',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
-    title: 'SUPERCOB',
+    title: 'Mr Cobranças',
     statusBarStyle: 'default',
   },
   icons: {

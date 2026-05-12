@@ -43,7 +43,7 @@ export default function RecuperarSenhaPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 bg-slate-900/60 border border-white/10 text-white rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
-              placeholder="exemplo@supercob.com.br"
+              placeholder="exemplo@mrcobrancas.com.br"
             />
           </div>
           <button

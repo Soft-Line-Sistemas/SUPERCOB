@@ -1,4 +1,4 @@
-# SUPERCOB - Sistema de Gestão e Automação de Cobranças
+# Mr Cobranças - Sistema de Gestão e Automação de Cobranças
 
 <div align="center">
   <img src="https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js" alt="Next.js" />
@@ -10,7 +10,7 @@
 
 ## 🚀 Sobre o Projeto
 
-O **SUPERCOB** é uma plataforma SaaS robusta desenvolvida para otimizar e automatizar o processo de recuperação de crédito. Focado em eficiência, o sistema oferece dashboards detalhados, gestão inteligente de carteiras e ferramentas de comunicação interna e externa (WhatsApp).
+O **Mr Cobranças** é uma plataforma SaaS robusta desenvolvida para otimizar e automatizar o processo de recuperação de crédito. Focado em eficiência, o sistema oferece dashboards detalhados, gestão inteligente de carteiras e ferramentas de comunicação interna e externa (WhatsApp).
 
 ## ✨ Principais Funcionalidades
 
@@ -48,14 +48,14 @@ O **SUPERCOB** é uma plataforma SaaS robusta desenvolvida para otimizar e autom
 2. **Configurar variáveis de ambiente**:
    Crie um arquivo `.env` na raiz do projeto seguindo o modelo:
    ```env
-   DATABASE_URL="sqlserver://SEU_SERVIDOR;database=SUPERCOB;user=SEU_USUARIO;password=SUA_SENHA;encrypt=true"
+   DATABASE_URL="sqlserver://SEU_SERVIDOR;database=mrcobrancas;user=SEU_USUARIO;password=SUA_SENHA;encrypt=true"
    AUTH_SECRET="seu-segredo-aqui"
    APP_URL="http://localhost:3000"
    SMTP_HOST="smtp.seu-provedor.com"
    SMTP_PORT="587"
    SMTP_USER="seu-usuario"
    SMTP_PASS="sua-senha"
-   EMAIL_FROM="SUPERCOB <no-reply@supercob.com.br>"
+   EMAIL_FROM="Mr Cobranças <no-reply@mrcobrancas.com.br>"
    ```
 
 3. **Migrar o banco de dados**:
@@ -78,8 +78,8 @@ ALLOW_DEV_LOGIN="true"
 
 Credenciais:
 
-- **Admin**: `admin@supercob.com.br` / `admin123`
-- **Operador**: `op@supercob.com.br` / `op123456`
+- **Admin**: `admin@mrcobrancas.com.br` / `admin123`
+- **Operador**: `op@mrcobrancas.com.br` / `op123456`
 
 ## 🧾 Alterações Recentes
 

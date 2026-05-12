@@ -29,7 +29,7 @@ export function Login() {
       if (result?.error) {
         toast.error('Acesso negado. Verifique suas credenciais.');
       } else {
-        toast.success('Bem-vindo ao SUPERCOB!');
+        toast.success('Bem-vindo ao Mr Cobranças!');
         router.push('/dashboard');
         router.refresh();
       }
@@ -115,7 +115,7 @@ export function Login() {
               <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20 rotate-3">
                 <ShieldCheck className="text-white w-7 h-7" />
               </div>
-              <h2 className="text-3xl font-bold text-white tracking-tighter">SUPERCOB</h2>
+              <h2 className="text-3xl font-bold text-white tracking-tighter">Mr Cobranças</h2>
             </div>
             <h3 className="text-2xl font-semibold text-white mb-2">Bem-vindo de volta</h3>
             <p className="text-slate-400">Entre com suas credenciais para acessar o painel.</p>
@@ -134,7 +134,7 @@ export function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-11 pr-4 py-3.5 bg-slate-900/50 border border-slate-800 text-white rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none placeholder:text-slate-600"
-                  placeholder="exemplo@supercob.com.br"
+                  placeholder="exemplo@mrcobrancas.com.br"
                 />
               </div>
             </div>
@@ -198,7 +198,7 @@ export function Login() {
 
           <div className="mt-12 pt-8 border-t border-slate-900 text-center">
             <p className="text-sm text-slate-500">
-              © 2026 SUPERCOB. Todos os direitos reservados.
+              © 2026 Mr Cobranças. Todos os direitos reservados.
             </p>
           </div>
         </motion.div>

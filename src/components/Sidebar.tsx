@@ -34,10 +34,10 @@ export function Sidebar() {
       }
     }
 
-    window.addEventListener('supercob:avatar-updated', onUpdated as any)
+    window.addEventListener('mrcobrancas:avatar-updated', onUpdated as any)
     window.addEventListener('storage', onUpdated)
     return () => {
-      window.removeEventListener('supercob:avatar-updated', onUpdated as any)
+      window.removeEventListener('mrcobrancas:avatar-updated', onUpdated as any)
       window.removeEventListener('storage', onUpdated)
     }
   }, [])
@@ -95,7 +95,7 @@ export function Sidebar() {
               <ShieldCheck className="text-white w-6 h-6" />
             </div>
             <span className="text-3xl font-black tracking-tighter uppercase italic bg-gradient-to-r from-blue-500 via-cyan-400 to-green-600 bg-clip-text text-transparent">
-              Supercob
+              Mr Cobranças
             </span>
           </div>
           <PremiumLine />

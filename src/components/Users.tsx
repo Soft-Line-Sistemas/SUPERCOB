@@ -265,7 +265,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-                          placeholder="email@supercob.com.br"
+                          placeholder="email@mrcobrancas.com.br"
                         />
                       </div>
                     </div>

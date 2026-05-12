@@ -591,7 +591,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
         </head>
         <body>
           <h1>Revisão do cadastro</h1>
-          <div class="sub">Supercob • ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</div>
+          <div class="sub">Mr Cobranças • ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</div>
           <table>
             ${lines.map(([k, v]) => `<tr><td class="k">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}
           </table>

@@ -107,7 +107,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
   };
 
   const generateWhatsAppLink = (loan: Loan) => {
-    const text = `Olá ${loan.cliente.nome}, sou da SUPERCOB. Gostaria de falar sobre a sua cobrança no valor de ${formatCurrency(loan.valor)}.`;
+    const text = `Olá ${loan.cliente.nome}, sou da Mr Cobranças. Gostaria de falar sobre a sua cobrança no valor de ${formatCurrency(loan.valor)}.`;
     const phone = loan.cliente.whatsapp.replace(/\D/g, '');
     return `https://wa.me/55${phone}?text=${encodeURIComponent(text)}`;
   };

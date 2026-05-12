@@ -97,7 +97,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
     if (pathname.startsWith('/emprestimos')) return 'Contratos'
     if (pathname.startsWith('/usuarios')) return 'Equipe'
     if (pathname.startsWith('/reports')) return 'Relatórios'
-    return 'Supercob'
+    return 'Mr Cobranças'
   }
 
   return (
@@ -214,7 +214,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                 <button
                   type="button"
                   onClick={() => {
-                    window.dispatchEvent(new Event('supercob:open-chat'))
+                    window.dispatchEvent(new Event('mrcobrancas:open-chat'))
                     setIsNotificationsOpen(false)
                   }}
                   className="flex-1 py-2.5 px-4 bg-slate-900 text-white text-xs font-black rounded-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
@@ -263,7 +263,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
               <div className="px-5 py-4 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-black text-slate-900 dark:text-slate-100">Ajuda rápida</p>
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Supercob</p>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Mr Cobranças</p>
                 </div>
                 <button
                   type="button"

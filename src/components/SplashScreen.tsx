@@ -46,7 +46,7 @@ export function SplashScreen() {
             </div>
 
             <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">
-              SUPERCOB
+              Mr Cobranças
             </h1>
             <p className="text-blue-100 text-lg font-medium tracking-wide">
               A máquina de recuperar dinheiro

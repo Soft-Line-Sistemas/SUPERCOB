@@ -22,7 +22,7 @@ export async function requestPasswordReset(email: string) {
 
   const appUrl = resolveAppUrl()
   const link = `${appUrl}/redefinir-senha?token=${encodeURIComponent(token)}`
-  const subject = 'Recuperação de senha - SUPERCOB'
+  const subject = 'Recuperação de senha - Mr Cobranças'
   const text = `Olá, ${user.nome}.\n\nUse o link para redefinir sua senha:\n${link}\n\nEste link expira em 1 hora.\n`
   const html = `<p>Olá, <strong>${user.nome}</strong>.</p><p>Use o link abaixo para redefinir sua senha:</p><p><a href="${link}">${link}</a></p><p>Este link expira em 1 hora.</p>`
 
