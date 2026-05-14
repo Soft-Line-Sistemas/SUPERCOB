@@ -80,13 +80,13 @@ export function WhatsAppTemplates({ clienteNome, valorPendente, vencimento, cont
 
               <div className="space-y-4">
                 {templates.map((t) => (
-                  <div key={t.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-100 hover:border-emerald-200 transition-colors group">
-                    <p className="text-xs font-black text-slate-900">{t.title}</p>
-                    <p className="text-[10px] text-slate-500 mb-3">{t.desc}</p>
+                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/10 hover:border-emerald-200 dark:hover:border-gold-500/50 transition-colors group">
+                    <p className="text-xs font-black text-slate-900 dark:text-slate-100">{t.title}</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-3">{t.desc}</p>
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleCopy(t.text, t.id)}
-                        className="flex-1 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-600 flex items-center justify-center gap-1 hover:bg-slate-950"
+                        className="flex-1 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-[10px] font-black text-slate-600 dark:text-slate-400 flex items-center justify-center gap-1 hover:bg-slate-50 dark:hover:bg-white/10"
                       >
                         {copied === t.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                         Copiar

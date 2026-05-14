@@ -24,7 +24,7 @@ export function Shell({ currentView, onNavigate, onLogout, children }: ShellProp
       <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-gray-200">
           <Building2 className="h-6 w-6 text-indigo-600 mr-2" />
-          <span className="text-xl font-bold text-gray-900 tracking-tight">SUPERCOB</span>
+            <span className="text-xl font-bold text-gray-900">Mr Cobranças</span>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1">
           {navItems.map((item) => {
@@ -63,7 +63,7 @@ export function Shell({ currentView, onNavigate, onLogout, children }: ShellProp
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:hidden">
           <div className="flex items-center">
             <Building2 className="h-6 w-6 text-indigo-600 mr-2" />
-            <span className="text-xl font-bold text-gray-900">SUPERCOB</span>
+            <span className="text-xl font-bold text-gray-900">Mr Cobranças</span>
           </div>
           <button className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
             <Menu className="h-6 w-6" />

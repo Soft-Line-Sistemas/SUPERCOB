@@ -112,32 +112,31 @@ export default async function ReportsPage({
     }
   }
 
-  const [loans, colaboradores] = await Promise.all([
-    prisma.emprestimo.findMany({
-      where,
-      select: {
-        id: true,
-        valor: true,
-        valorPago: true,
-        jurosMes: true,
-        jurosAtrasoDia: true,
-        status: true,
-        vencimento: true,
-        createdAt: true,
-        clienteId: true,
-        usuarioId: true,
-        jurosPagos: true,
-        cliente: {
-          select: { nome: true, cidade: true, estado: true },
-        },
+  const loans = await prisma.emprestimo.findMany({
+    where,
+    select: {
+      id: true,
+      valor: true,
+      valorPago: true,
+      jurosMes: true,
+      jurosAtrasoDia: true,
+      status: true,
+      vencimento: true,
+      createdAt: true,
+      clienteId: true,
+      usuarioId: true,
+      jurosPagos: true,
+      cliente: {
+        select: { nome: true, cidade: true, estado: true },
       },
-    }),
-    prisma.usuario.findMany({ 
-      where: { role: { in: ['GERENTE', 'ESCRITORIO'] } }, 
-      select: { id: true, nome: true }, 
-      orderBy: { nome: 'asc' } 
-    }),
-  ])
+    },
+  })
+
+  const colaboradores = await prisma.usuario.findMany({ 
+    where: { role: { in: ['GERENTE', 'ESCRITORIO'] } }, 
+    select: { id: true, nome: true }, 
+    orderBy: { nome: 'asc' } 
+  })
   const monthId = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth()
   const startOfMonthUtc = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0, 0))
 

@@ -47,6 +47,11 @@ model MensagemInterna {
   createdAt      DateTime @default(now())
   destinatario   Usuario? @relation("MensagensRecebidas", fields: [destinatarioId], references: [id], onUpdate: NoAction)
   remetente      Usuario  @relation("MensagensEnviadas", fields: [remetenteId], references: [id], onUpdate: NoAction)
+
+  @@index([destinatarioId])
+  @@index([remetenteId])
+  @@index([createdAt])
+  @@index([isLida])
 }
 
 model Cliente {
@@ -108,6 +113,12 @@ model Emprestimo {
   cliente             Cliente               @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   usuario             Usuario?              @relation(fields: [usuarioId], references: [id])
   historico           EmprestimoHistorico[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([usuarioId])
+  @@index([clienteId])
+  @@index([vencimento])
 }
 
 model EmprestimoHistorico {
@@ -119,6 +130,10 @@ model EmprestimoHistorico {
   tipo         String?    @db.VarChar(20)
   createdBy    Usuario?   @relation("EmprestimoHistoricoCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   emprestimo   Emprestimo @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
+
+  @@index([emprestimoId])
+  @@index([tipo])
+  @@index([createdAt])
 }
 
 model ClienteDocumento {

@@ -29,7 +29,7 @@ export function Login() {
       if (result?.error) {
         toast.error('Acesso negado. Verifique suas credenciais.');
       } else {
-        toast.success('Bem-vindo ao SUPERCOB!');
+        toast.success('Bem-vindo ao Mister Cobrança!');
         router.push('/dashboard');
         router.refresh();
       }
@@ -54,7 +54,7 @@ export function Login() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="inline-flex items-center px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-8"
+            className="inline-flex items-center px-4 py-2 rounded-full bg-gold-500/10 border border-gold-500/20 text-gold-500 text-sm font-medium mb-8"
           >
             <Sparkles className="w-4 h-4 mr-2" />
             A nova era da recuperação de crédito
@@ -85,7 +85,7 @@ export function Login() {
             className="grid grid-cols-2 gap-4"
           >
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-              <ShieldCheck className="w-8 h-8 text-blue-500 mb-2 mx-auto" />
+              <ShieldCheck className="w-8 h-8 text-gold-500 mb-2 mx-auto" />
               <div className="text-2xl font-bold">+98%</div>
               <div className="text-xs text-slate-500 uppercase tracking-wider">Segurança</div>
             </div>
@@ -115,7 +115,7 @@ export function Login() {
               <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20 rotate-3">
                 <ShieldCheck className="text-white w-7 h-7" />
               </div>
-              <h2 className="text-3xl font-bold text-white tracking-tighter">SUPERCOB</h2>
+              <h2 className="text-3xl font-bold text-white tracking-tighter">Mr Cobranças</h2>
             </div>
             <h3 className="text-2xl font-semibold text-white mb-2">Bem-vindo de volta</h3>
             <p className="text-slate-400">Entre com suas credenciais para acessar o painel.</p>
@@ -125,7 +125,7 @@ export function Login() {
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300 ml-1">E-mail corporativo</label>
               <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-500">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-gold-500">
                   <Mail className="h-5 w-5 text-slate-500" />
                 </div>
                 <input
@@ -133,8 +133,8 @@ export function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-11 pr-4 py-3.5 bg-slate-900/50 border border-slate-800 text-white rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none placeholder:text-slate-600"
-                  placeholder="exemplo@supercob.com.br"
+                  className="block w-full pl-11 pr-4 py-3.5 bg-slate-900/50 border border-slate-800 text-white rounded-2xl focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all outline-none placeholder:text-slate-600"
+                  placeholder="exemplo@mrcobrancas.com.br"
                 />
               </div>
             </div>
@@ -142,12 +142,12 @@ export function Login() {
             <div className="space-y-2">
               <div className="flex items-center justify-between px-1">
                 <label className="text-sm font-medium text-slate-300">Senha</label>
-                <Link href="/recuperar-senha" className="text-sm text-blue-500 hover:text-blue-400 font-medium transition-colors">
+                <Link href="/recuperar-senha" className="text-sm text-gold-500 hover:text-gold-400 font-medium transition-colors">
                   Esqueceu a senha?
                 </Link>
               </div>
               <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-500">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-gold-500">
                   <Lock className="h-5 w-5 text-slate-500" />
                 </div>
                 <input
@@ -155,13 +155,13 @@ export function Login() {
                   required
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
-                  className="block w-full pl-11 pr-12 py-3.5 bg-slate-900/50 border border-slate-800 text-white rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none placeholder:text-slate-600"
+                  className="block w-full pl-11 pr-12 py-3.5 bg-slate-900/50 border border-slate-800 text-white rounded-2xl focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all outline-none placeholder:text-slate-600"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-blue-500 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-gold-500 transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -182,7 +182,7 @@ export function Login() {
               disabled={loading}
               className="relative w-full group overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 transition-transform group-hover:scale-105 duration-300" />
+              <div className="absolute inset-0 bg-gradient-to-r from-gold-600 to-gold-800 transition-transform group-hover:scale-105 duration-300" />
               <div className="relative flex items-center justify-center py-4 px-4 text-sm font-bold text-white transition-all disabled:opacity-50">
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -198,7 +198,7 @@ export function Login() {
 
           <div className="mt-12 pt-8 border-t border-slate-900 text-center">
             <p className="text-sm text-slate-500">
-              © 2026 SUPERCOB. Todos os direitos reservados.
+              © 2026 Mister Cobrança. Todos os direitos reservados.
             </p>
           </div>
         </motion.div>

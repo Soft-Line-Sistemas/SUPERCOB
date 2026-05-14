@@ -1,7 +1,7 @@
 export async function GET() {
   const manifest = {
-    name: 'SUPERCOB',
-    short_name: 'SUPERCOB',
+    name: 'Mr Cobranças',
+    short_name: 'Mr Cobranças',
     description: 'Sistema profissional para gestão e automação de cobranças',
     start_url: '/dashboard',
     scope: '/',

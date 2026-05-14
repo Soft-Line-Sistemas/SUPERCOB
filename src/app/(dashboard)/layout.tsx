@@ -19,35 +19,43 @@ export default async function DashboardLayout({
   }
 
   const userId = (session.user as any).id
-  const [unreadCount, notifications] = await Promise.all([
-    prisma.mensagemInterna.count({
-      where: {
-        destinatarioId: userId,
-        isLida: false,
-      },
-    }),
-    prisma.mensagemInterna.findMany({
-      where: {
-        OR: [
-          { destinatarioId: userId, isLida: false },
-          { isMassiva: true, destinatarioId: null },
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      include: {
-        remetente: { select: { nome: true, role: true } },
-      },
-    }),
-  ])
+  const unreadCount = await prisma.mensagemInterna.count({
+    where: {
+      destinatarioId: userId,
+      isLida: false
+    }
+  })
+
+  const recentNotificationsRaw = await prisma.mensagemInterna.findMany({
+    where: {
+      OR: [
+        { destinatarioId: userId },
+        { isMassiva: true, destinatarioId: null },
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    include: {
+      remetente: { select: { nome: true, role: true } },
+    },
+  })
+
+  const recentNotifications = recentNotificationsRaw.map((n) => ({
+    id: n.id,
+    conteudo: n.conteudo,
+    createdAt: n.createdAt,
+    isMassiva: n.isMassiva,
+    remetenteNome: n.remetente.nome,
+    remetenteRole: n.remetente.role,
+  }))
 
   return (
-    <div className="min-h-screen bg-slate-950 dark:bg-slate-950 flex overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header
           user={session.user}
-          notifications={notifications.map((n) => ({
+          notifications={recentNotifications.map((n) => ({
             id: n.id,
             conteudo: n.conteudo,
             createdAt: n.createdAt,

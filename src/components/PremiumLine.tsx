@@ -3,12 +3,12 @@ import { motion } from "framer-motion"
 
 export default function PremiumLine() {
   return (
-    <div className="relative w-56 h-[4px] bg-blue-600/10 rounded-full overflow-hidden">
+    <div className="relative w-56 h-[4px] bg-gold-600/10 rounded-full overflow-hidden">
 
       {/* núcleo da luz (mais definido) */}
       <motion.div
         className="absolute h-full w-28 rounded-full
-        bg-gradient-to-r from-transparent via-cyan-300 to-transparent
+        bg-gradient-to-r from-transparent via-gold-300 to-transparent
         opacity-90"
         
         initial={{ x: "-120%" }}
@@ -24,14 +24,14 @@ export default function PremiumLine() {
       {/* camada esfumaçada média */}
       <motion.div
         className="absolute h-full w-36 rounded-full
-        bg-cyan-400/40 blur-xl"
+        bg-gold-400/40 blur-xl"
         
         initial={{ x: "-120%" }}
         animate={{ x: "220%" }}
         
         transition={{
-          repeat: 3,
-          duration: 5,
+          repeat: Infinity,
+          duration: 2.5,
           ease: "linear"
         }}
       />
@@ -39,7 +39,7 @@ export default function PremiumLine() {
       {/* difusão larga (fumaça real) */}
       <motion.div
         className="absolute h-full w-48 rounded-full
-        bg-cyan-300/20 blur-2xl"
+        bg-gold-300/20 blur-2xl"
         
         initial={{ x: "-120%" }}
         animate={{ x: "220%" }}

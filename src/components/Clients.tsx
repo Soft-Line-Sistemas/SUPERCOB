@@ -106,7 +106,7 @@ export function Clients({ initialClients }: ClientsProps) {
   const [docs, setDocs] = useState<Array<{ id: string; originalName: string; mimeType: string; size: number; createdAt: string; url: string }>>([])
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const inputFileRef = useRef<HTMLInputElement>(null)
   const inputCameraRef = useRef<HTMLInputElement>(null)
@@ -306,8 +306,10 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
       } else {
         const created = await createCliente(payload);
         toast.success('Cliente cadastrado com sucesso!');
-        if (selectedFile) {
-          await uploadDocumento(created.id, selectedFile)
+        if (selectedFiles.length > 0) {
+          for (const file of selectedFiles) {
+            await uploadDocumento(created.id, file)
+          }
         }
         if (chargeData.enabled) {
           await createEmprestimo({
@@ -408,7 +410,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
       return true
     }
     if (tab === 'anexos') {
-      return !!selectedFile || (editingClient ? docs.length > 0 : false)
+      return selectedFiles.length > 0 || (editingClient ? docs.length > 0 : false)
     }
     if (tab === 'revisao') return false
     return false
@@ -454,28 +456,22 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
   }
 
   const validateFile = (file: File) => {
-    const allowed = ['image/jpeg', 'image/png', 'application/pdf']
-    if (!allowed.includes(file.type)) {
-      toast.error('Tipos permitidos: JPEG, PNG, PDF')
+    const allowed = ['image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'video/quicktime', 'video/x-msvideo']
+    if (!allowed.some(type => file.type.startsWith(type.split('/')[0]) || file.type === type)) {
+      toast.error(`Tipo ${file.type} não permitido.`)
       return false
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Tamanho máximo: 5MB')
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('Tamanho máximo: 50MB')
       return false
     }
     return true
   }
 
-  const onPickFile = (f: File | null) => {
-    if (!f) return
-    if (!validateFile(f)) return
-    setSelectedFile(f)
-    if (f.type.startsWith('image/')) {
-      const url = URL.createObjectURL(f)
-      setPreviewUrl(url)
-    } else {
-      setPreviewUrl(null)
-    }
+  const onPickFiles = (files: File[]) => {
+    if (files.length === 0) return
+    const validFiles = files.filter(f => validateFile(f))
+    setSelectedFiles(prev => [...prev, ...validFiles])
   }
 
   const uploadDocumento = async (clienteId: string, file: File) => {
@@ -503,23 +499,21 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
         const data = await res.json()
         setDocs(data)
       }
-      setSelectedFile(null)
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl)
-        setPreviewUrl(null)
-      }
       setProgress(0)
-      toast.success('Documento enviado')
     } catch {
-      toast.error('Erro no upload')
+      toast.error(`Erro no upload de ${file.name}`)
     } finally {
       setUploading(false)
     }
   }
 
   const handleUpload = async () => {
-    if (!editingClient || !selectedFile || uploading) return
-    await uploadDocumento(editingClient.id, selectedFile)
+    if (!editingClient || selectedFiles.length === 0 || uploading) return
+    for (const file of selectedFiles) {
+      await uploadDocumento(editingClient.id, file)
+    }
+    setSelectedFiles([])
+    toast.success('Documentos enviados com sucesso')
   }
 
   const handleDeleteDoc = async (docId: string) => {
@@ -591,7 +585,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
         </head>
         <body>
           <h1>Revisão do cadastro</h1>
-          <div class="sub">Supercob • ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</div>
+          <div class="sub">Mr Cobranças • ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</div>
           <table>
             ${lines.map(([k, v]) => `<tr><td class="k">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}
           </table>
@@ -826,15 +820,15 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
                     <ClientStepAnexos
                       editingClient={!!editingClient}
                       docs={docs}
-                      selectedFile={selectedFile}
+                      selectedFiles={selectedFiles}
                       previewUrl={previewUrl}
                       inputFileRef={inputFileRef}
                       inputCameraRef={inputCameraRef}
-                      onPickFile={onPickFile}
+                      onPickFiles={onPickFiles}
                       handleUpload={handleUpload}
                       uploading={uploading}
                       progress={progress}
-                      setSelectedFile={setSelectedFile}
+                      setSelectedFiles={setSelectedFiles}
                       setPreviewUrl={setPreviewUrl}
                       formatSize={formatSize}
                       handleDeleteDoc={handleDeleteDoc}
@@ -882,7 +876,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
                     <ClientStepRevisao
                       formData={formData}
                       chargeData={chargeData}
-                      selectedFile={selectedFile}
+                      selectedFile={selectedFiles[0] || null}
                       docs={docs}
                       editingClient={!!editingClient}
                       emergencia1={emergencia1}

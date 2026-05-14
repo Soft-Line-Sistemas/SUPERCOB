@@ -45,12 +45,17 @@ export async function addEmprestimoHistorico(input: { emprestimoId: string; desc
 
 export async function setEmprestimoStatus(input: {
   emprestimoId: string
-  status: 'CANCELADO' | 'QUITADO'
+  status: 'CANCELADO' | 'QUITADO' | 'ABERTO'
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const userRole = (session.user as any).role?.toUpperCase()
   const createdById = (session.user as any).id as string | undefined
+
+  if (input.status === 'ABERTO' && userRole !== 'ADM' && userRole !== 'ADMIN') {
+    throw new Error('Apenas administradores podem reabrir contratos.')
+  }
 
   if (input.status === 'QUITADO') {
     const atual = await prisma.emprestimo.findUnique({
@@ -67,7 +72,9 @@ export async function setEmprestimoStatus(input: {
       },
     })
     if (!atual) throw new Error('Contrato não encontrado')
-    if (atual.status === 'CANCELADO') throw new Error('Contrato cancelado')
+    if (atual.status === 'CANCELADO' && userRole !== 'ADM' && userRole !== 'ADMIN') {
+      throw new Error('Contrato cancelado não pode ser quitado diretamente sem reabertura.')
+    }
     const { principalRestante, jurosPendente } = calculateLoanInterest(atual)
     if (principalRestante > 0 || jurosPendente > 0) {
       throw new Error('Não é possível concluir: ainda existe saldo pendente de principal ou juros')
@@ -82,10 +89,16 @@ export async function setEmprestimoStatus(input: {
     },
   })
 
+  const getDesc = () => {
+    if (input.status === 'QUITADO') return 'Status alterado para concluído.'
+    if (input.status === 'CANCELADO') return 'Status alterado para cancelado.'
+    return 'Contrato reaberto pelo administrador.'
+  }
+
   const evento = await prisma.emprestimoHistorico.create({
     data: {
       emprestimoId: input.emprestimoId,
-      descricao: input.status === 'QUITADO' ? 'Status alterado para concluído.' : 'Status alterado para cancelado.',
+      descricao: getDesc(),
       createdById,
       tipo: 'SISTEMA'
     },

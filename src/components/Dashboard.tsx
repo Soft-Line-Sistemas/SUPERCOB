@@ -10,11 +10,10 @@ interface DashboardProps {
   data: {
     metrics: {
       open: { count: number; amount: number };
-      negotiation: { count: number; amount: number };
       paid: { count: number; amount: number };
+      rentabilidade: number;
       totalClients: number;
       taxaRecuperacao: string;
-      jurosEsperados: number;
     };
     statusDistribution: { name: string; value: number; color: string }[];
     agentData: { name: string; value: number; color: string }[];
@@ -61,21 +60,14 @@ export function Dashboard({ data }: DashboardProps) {
       {/* Welcome Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard Executivo</h1>
-          <p className="text-slate-500">Bem-vindo ao centro de comando do SUPERCOB.</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Dashboard Executivo</h1>
+          <p className="text-slate-500 dark:text-slate-400">Bem-vindo ao centro de comando do Mr Cobrança.</p>
         </div>
-        <div className="flex items-center gap-3 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
           <button
             type="button"
             disabled={isPending}
-            onClick={() => {
-              setPeriod('hoje')
-              startTransition(async () => {
-                const next = await getDashboardData('hoje')
-                setCurrentData(next)
-              })
-            }}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'hoje' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-950'} ${isPending ? 'opacity-60' : ''}`}
+            className={`px-4 py-2 text-sm font-black rounded-lg transition-all ${period === 'hoje' ? 'text-white bg-gold-600 shadow-lg shadow-gold-600/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'} ${isPending ? 'opacity-60' : ''}`}
           >
             Hoje
           </button>
@@ -89,7 +81,7 @@ export function Dashboard({ data }: DashboardProps) {
                 setCurrentData(next)
               })
             }}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'semana' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-950'} ${isPending ? 'opacity-60' : ''}`}
+            className={`px-4 py-2 text-sm font-black rounded-lg transition-all ${period === 'semana' ? 'text-white bg-gold-600 shadow-lg shadow-gold-600/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'} ${isPending ? 'opacity-60' : ''}`}
           >
             Semana
           </button>
@@ -103,7 +95,7 @@ export function Dashboard({ data }: DashboardProps) {
                 setCurrentData(next)
               })
             }}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${period === 'mes' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-950'} ${isPending ? 'opacity-60' : ''}`}
+            className={`px-4 py-2 text-sm font-black rounded-lg transition-all ${period === 'mes' ? 'text-white bg-gold-600 shadow-lg shadow-gold-600/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'} ${isPending ? 'opacity-60' : ''}`}
           >
             Mês
           </button>
@@ -119,32 +111,32 @@ export function Dashboard({ data }: DashboardProps) {
             trend="+12.5%"
             trendUp={true}
             icon={TrendingUp}
-            color="blue"
-          />
-        </motion.div>
-        <motion.div variants={item}>
-          <ModernMetricCard
-            title="Capital em Risco"
-            value={formatCurrency(metrics.open.amount)}
-            trend="-2.4%"
-            trendUp={false}
-            icon={AlertCircle}
-            color="red"
-          />
-        </motion.div>
-        <motion.div variants={item}>
-          <ModernMetricCard
-            title="Juros Projetados"
-            value={formatCurrency(metrics.jurosEsperados)}
-            trend="+5.2%"
-            trendUp={true}
-            icon={Coins}
             color="emerald"
           />
         </motion.div>
         <motion.div variants={item}>
           <ModernMetricCard
-            title="Taxa de Conversão"
+            title="Principal Ativo"
+            value={formatCurrency(metrics.open.amount)}
+            trend="-2.4%"
+            trendUp={false}
+            icon={AlertCircle}
+            color="gold"
+          />
+        </motion.div>
+        <motion.div variants={item}>
+          <ModernMetricCard
+            title="Rentabilidade"
+            value={formatCurrency(metrics.rentabilidade)}
+            trend="+5.2%"
+            trendUp={true}
+            icon={Coins}
+            color="amber"
+          />
+        </motion.div>
+        <motion.div variants={item}>
+          <ModernMetricCard
+            title="Eficiência Global"
             value={`${metrics.taxaRecuperacao}%`}
             trend="+1.8%"
             trendUp={true}
@@ -156,14 +148,14 @@ export function Dashboard({ data }: DashboardProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Evolution Chart */}
-        <motion.div variants={item} className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <motion.div variants={item} className="lg:col-span-2 bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Evolução de Cobranças</h3>
-              <p className="text-sm text-slate-500">Volume recuperado nos últimos 6 meses</p>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Evolução de Cobranças</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Volume recuperado nos últimos 6 meses</p>
             </div>
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-100">
-              <Calendar className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-950 dark:bg-white/5 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-white/10">
+              <Calendar className="w-4 h-4 text-gold-500" />
               Últimos 6 meses
             </div>
           </div>
@@ -172,22 +164,24 @@ export function Dashboard({ data }: DashboardProps) {
               <AreaChart data={evolutionData}>
                 <defs>
                   <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#D4AF37" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-slate-100 dark:text-white/5" />
                 <XAxis 
                   dataKey="name" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tick={{ fill: 'currentColor', fontSize: 10, fontWeight: 700 }}
+                  className="text-slate-400 dark:text-slate-500 uppercase tracking-widest"
                   dy={10}
                 />
                 <YAxis 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tick={{ fill: 'currentColor', fontSize: 10, fontWeight: 700 }}
+                  className="text-slate-400 dark:text-slate-500"
                   tickFormatter={(value) => `R$ ${value/1000}k`}
                 />
                 <Tooltip 
@@ -197,7 +191,7 @@ export function Dashboard({ data }: DashboardProps) {
                 <Area 
                   type="monotone" 
                   dataKey="valor" 
-                  stroke="#3b82f6" 
+                  stroke="#D4AF37" 
                   strokeWidth={3}
                   fillOpacity={1} 
                   fill="url(#colorValor)" 
@@ -208,9 +202,9 @@ export function Dashboard({ data }: DashboardProps) {
         </motion.div>
 
         {/* Distribution Chart */}
-        <motion.div variants={item} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <h3 className="text-lg font-bold text-slate-900 mb-2">Status da Carteira</h3>
-          <p className="text-sm text-slate-500 mb-8">Distribuição total de ativos</p>
+        <motion.div variants={item} className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Status da Carteira</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-8">Distribuição total de ativos</p>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -236,12 +230,12 @@ export function Dashboard({ data }: DashboardProps) {
           </div>
           <div className="space-y-3 mt-4">
             {statusDistribution.map((status, i) => (
-              <div key={i} className="flex items-center justify-between">
+              <div key={i} className="flex items-center justify-between group cursor-default">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: status.color }} />
-                  <span className="text-sm font-medium text-slate-600">{status.name}</span>
+                  <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: status.color }} />
+                  <span className="text-sm font-semibold text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">{status.name}</span>
                 </div>
-                <span className="text-sm font-bold text-slate-900">{status.value}</span>
+                <span className="text-sm font-black text-slate-900 dark:text-slate-100">{status.value}</span>
               </div>
             ))}
           </div>
@@ -250,27 +244,27 @@ export function Dashboard({ data }: DashboardProps) {
 
       {/* Agents Ranking (Admin only) */}
       {agentData && agentData.length > 0 && (
-        <motion.div variants={item} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <motion.div variants={item} className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-slate-900">Performance por Agente</h3>
-            <button className="text-sm font-medium text-blue-600 hover:underline">Ver ranking completo</button>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Performance por Agente</h3>
+            <button className="text-sm font-medium text-gold-600 hover:underline">Ver ranking completo</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {agentData.map((agent, i) => (
-              <div key={i} className="p-4 rounded-2xl bg-slate-950 border border-slate-100 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center font-bold text-slate-700 shadow-sm">
+              <div key={i} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-slate-950 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center font-bold text-white shadow-sm">
                   {agent.name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-900 truncate">{agent.name}</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{agent.name}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-blue-500 rounded-full" 
+                        className="h-full bg-gold-500 rounded-full" 
                         style={{ width: `${(agent.value / Math.max(...agentData.map(a => a.value))) * 100}%` }} 
                       />
                     </div>
-                    <span className="text-xs font-bold text-slate-500">{agent.value}</span>
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{agent.value}</span>
                   </div>
                 </div>
               </div>
@@ -284,26 +278,28 @@ export function Dashboard({ data }: DashboardProps) {
 
 function ModernMetricCard({ title, value, trend, trendUp, icon: Icon, color }: any) {
   const colorMap: any = {
-    blue: 'bg-blue-500 text-blue-500 border-blue-100',
-    red: 'bg-red-500 text-red-500 border-red-100',
-    emerald: 'bg-emerald-500 text-emerald-500 border-emerald-100',
-    indigo: 'bg-indigo-500 text-indigo-500 border-indigo-100',
+    blue: 'bg-blue-600/10 text-blue-600 border-blue-200 dark:border-blue-500/20',
+    red: 'bg-red-600/10 text-red-600 border-red-200 dark:border-red-500/20',
+    emerald: 'bg-emerald-600/10 text-emerald-600 border-emerald-200 dark:border-emerald-500/20',
+    indigo: 'bg-indigo-600/10 text-indigo-600 border-indigo-200 dark:border-indigo-500/20',
+    gold: 'bg-gold-600/10 text-gold-600 border-gold-200 dark:border-gold-500/20',
+    amber: 'bg-amber-600/10 text-amber-600 border-amber-200 dark:border-amber-500/20',
   };
 
   return (
-    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-2.5 rounded-2xl bg-opacity-10 ${colorMap[color].split(' ')[0]} ${colorMap[color].split(' ')[1]}`}>
-          <Icon className="w-6 h-6  text-white" />
+    <div className="bg-white dark:bg-slate-900/50 p-6 rounded-[2.5rem] border border-slate-200 dark:border-white/5 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none transition-all duration-300 group">
+      <div className="flex items-center justify-between mb-6">
+        <div className={`p-3 rounded-2xl border transition-colors ${colorMap[color]}`}>
+          <Icon className="w-6 h-6" />
         </div>
-        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold ${trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-          {trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+        <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${trendUp ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600' : 'bg-red-50 dark:bg-red-500/10 text-red-600'}`}>
+          {trendUp ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
           {trend}
         </div>
       </div>
       <div>
-        <p className="text-sm font-medium text-slate-500">{title}</p>
-        <h4 className="text-2xl font-bold text-slate-900 mt-1">{value}</h4>
+        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{title}</p>
+        <h4 className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-2 group-hover:scale-105 transition-transform origin-left">{value}</h4>
       </div>
     </div>
   );

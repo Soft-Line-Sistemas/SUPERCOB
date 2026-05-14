@@ -60,7 +60,7 @@ export async function POST(req: Request) {
   })
 
   y = height - 40
-  drawText('SUPERCOB - DOSSIÊ ESTRATÉGICO', { bold: true, size: 20, color: rgb(1, 1, 1), align: 'center' })
+  drawText('Mr Cobranças - DOSSIÊ ESTRATÉGICO', { bold: true, size: 20, color: rgb(1, 1, 1), align: 'center' })
   y -= 22
   drawText(`CLIENTE: ${cliente.nome.toUpperCase()}`, { bold: true, size: 10, color: rgb(0.2, 0.5, 1), align: 'center' })
   y -= 16
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
     if (y < needed) {
       page = pdfDoc.addPage([595.28, 841.89])
       y = height - 50
-      drawText('SUPERCOB - CONTINUAÇÃO DO DOSSIÊ', { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'right' })
+      drawText('Mr Cobranças - CONTINUAÇÃO DO DOSSIÊ', { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'right' })
       y -= 20
       return true
     }
@@ -182,7 +182,7 @@ export async function POST(req: Request) {
 
   // Footer
   page.drawLine({ start: { x: 50, y: 30 }, end: { x: width - 50, y: 30 }, color: rgb(0.9, 0.9, 0.9), thickness: 0.5 })
-  drawText('DOCUMENTO CONFIDENCIAL - SUPERCOB GESTÃO DE ATIVOS E COBRANÇAS', { x: 50, y: 20, size: 6.5, color: rgb(0.6, 0.6, 0.6), align: 'center' })
+  drawText('DOCUMENTO CONFIDENCIAL - Mr Cobranças GESTÃO DE ATIVOS E COBRANÇAS', { x: 50, y: 20, size: 6.5, color: rgb(0.6, 0.6, 0.6), align: 'center' })
 
   const pdfBytes = await pdfDoc.save()
   return new NextResponse(Buffer.from(pdfBytes), {

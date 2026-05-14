@@ -45,11 +45,12 @@ export default async function EmprestimosPage({
       select: { id: true, nome: true, email: true, whatsapp: true },
     }),
     prisma.usuario.findMany({
-      where: { role: 'OPERADOR' },
+      where: { role: 'OPERADOR', isActive: true },
       select: { id: true, nome: true },
       orderBy: { nome: 'asc' },
-    }),
+    })
   ])
+
   let analytics: any[] = []
   if (role === 'ADMIN') {
     const analyticsWhere: any = {}

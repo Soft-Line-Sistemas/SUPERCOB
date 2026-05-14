@@ -24,20 +24,22 @@ export function calculateLoanInterest(input: LoanInterestInput) {
   const now = input.now ?? new Date()
   const baseDate = new Date((input.vencimento ?? input.createdAt ?? now) as any)
 
+  const jurosBase = principalBaseJuros * (jurosPercent / 100)
+
   if (jurosPercent <= 0 || baseDate.getTime() > now.getTime()) {
     return {
       principalRestante,
-      jurosBase: 0,
+      jurosBase,
       jurosAcumuladoTotal: 0,
       jurosPendente: 0,
       totalDevido: principalRestante,
       monthsAccrued: 0,
       daysLate: 0,
       usesDailyLateInterest: jurosAtrasoPercent > 0,
+      nextMonthInterest: jurosBase,
     }
   }
 
-  const jurosBase = principalBaseJuros * (jurosPercent / 100)
   const daysLate = Math.max(0, Math.floor((toUtcDay(now) - toUtcDay(baseDate)) / DAY_MS))
 
   if (jurosAtrasoPercent > 0) {
@@ -53,11 +55,18 @@ export function calculateLoanInterest(input: LoanInterestInput) {
       monthsAccrued: 0,
       daysLate,
       usesDailyLateInterest: true,
+      nextMonthInterest: (principalRestante + jurosPendente) * (jurosAtrasoPercent / 100), // Diário
     }
   }
 
+  // Capitalização Mensal (Juros Compostos)
   const monthsAccrued = Math.max(1, monthId(now) - monthId(baseDate) + 1)
-  const jurosAcumuladoTotal = jurosBase * monthsAccrued
+  
+  // Fórmula de Juros Compostos: M = P * (1 + i)^n
+  // Juros = M - P
+  const totalWithInterest = principalBaseJuros * Math.pow(1 + jurosPercent / 100, monthsAccrued)
+  const jurosAcumuladoTotal = totalWithInterest - principalBaseJuros
+  
   const jurosPendente = Math.max(jurosAcumuladoTotal - jurosPagos, 0)
 
   return {
@@ -69,5 +78,6 @@ export function calculateLoanInterest(input: LoanInterestInput) {
     monthsAccrued,
     daysLate,
     usesDailyLateInterest: false,
+    nextMonthInterest: (principalRestante + jurosPendente) * (jurosPercent / 100),
   }
 }

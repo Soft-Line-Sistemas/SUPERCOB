@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Payload inválido' }, { status: 400 })
   }
 
-  const title = typeof (body as any).title === 'string' && (body as any).title.trim() !== '' ? (body as any).title : 'Relatório Avançado Supercob'
+  const title = typeof (body as any).title === 'string' && (body as any).title.trim() !== '' ? (body as any).title : 'Relatório Avançado Mr Cobranças'
   const filters = (body as any).filters ?? {}
   const report = (body as any).report ?? null
 
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
   })
 
   y = height - 40
-  drawText('SUPERCOB - INTELIGÊNCIA FINANCEIRA', { bold: true, size: 16, color: rgb(1, 1, 1), align: 'center' })
+  drawText('Mr Cobranças - INTELIGÊNCIA FINANCEIRA', { bold: true, size: 16, color: rgb(1, 1, 1), align: 'center' })
   y -= 22
   drawText(title.toUpperCase(), { bold: true, size: 12, color: rgb(0.2, 0.5, 1), align: 'center' })
   y -= 16
@@ -130,7 +130,7 @@ export async function POST(req: Request) {
     if (y < needed) {
       page = pdfDoc.addPage([595.28, 841.89])
       y = height - 50
-      drawText('SUPERCOB - CONTINUAÇÃO DO RELATÓRIO', { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'right' })
+      drawText('Mr Cobranças - CONTINUAÇÃO DO RELATÓRIO', { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'right' })
       y -= 20
       return true
     }
@@ -250,7 +250,7 @@ export async function POST(req: Request) {
 
   // Footer on current page
   page.drawLine({ start: { x: 50, y: 30 }, end: { x: width - 50, y: 30 }, color: rgb(0.9, 0.9, 0.9), thickness: 0.5 })
-  page.drawText('SUPERCOB INTELIGÊNCIA FINANCEIRA - DOCUMENTO CONFIDENCIAL', { x: 50, y: 20, size: 6, font: font, color: rgb(0.6, 0.6, 0.6) })
+  page.drawText('Mr Cobranças INTELIGÊNCIA FINANCEIRA - DOCUMENTO CONFIDENCIAL', { x: 50, y: 20, size: 6, font: font, color: rgb(0.6, 0.6, 0.6) })
   page.drawText(`Página 1 de 1`, { x: width - 100, y: 20, size: 6, font: font, color: rgb(0.6, 0.6, 0.6) })
 
   const pdfBytes = await pdfDoc.save()

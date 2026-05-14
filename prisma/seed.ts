@@ -8,7 +8,7 @@ async function main() {
   const opPassword = await bcrypt.hash('op123456', 10)
   
   const admin = await prisma.usuario.upsert({
-    where: { email: 'admin@supercob.com.br' },
+    where: { email: 'admin@mrcobrancas.com.br' },
     update: {
       nome: 'Admin',
       role: 'ADMIN',
@@ -18,7 +18,7 @@ async function main() {
       canManageLoans: true,
     },
     create: {
-      email: 'admin@supercob.com.br',
+      email: 'admin@mrcobrancas.com.br',
       nome: 'Admin',
       senha: adminPassword,
       role: 'ADMIN',
@@ -30,7 +30,7 @@ async function main() {
   })
 
   const operador = await prisma.usuario.upsert({
-    where: { email: 'op@supercob.com.br' },
+    where: { email: 'op@mrcobrancas.com.br' },
     update: {
       nome: 'Operador',
       role: 'OPERADOR',
@@ -40,7 +40,7 @@ async function main() {
       canManageLoans: true,
     },
     create: {
-      email: 'op@supercob.com.br',
+      email: 'op@mrcobrancas.com.br',
       nome: 'Operador',
       senha: opPassword,
       role: 'OPERADOR',

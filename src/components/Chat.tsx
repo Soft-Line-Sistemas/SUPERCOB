@@ -42,14 +42,14 @@ export function Chat({ currentUser }: { currentUser: any }) {
 
   useEffect(() => {
     const handler = () => setIsOpen(true)
-    window.addEventListener('supercob:open-chat', handler)
-    return () => window.removeEventListener('supercob:open-chat', handler)
+    window.addEventListener('mrcobrancas:open-chat', handler)
+    return () => window.removeEventListener('mrcobrancas:open-chat', handler)
   }, [])
 
   useEffect(() => {
     if (selectedUser || isMassMode) {
       loadMessages();
-      const interval = setInterval(loadMessages, 5000); // Poll for new messages
+      const interval = setInterval(loadMessages, 30000); // Poll for new messages every 30s to save connections
       return () => clearInterval(interval);
     }
   }, [selectedUser, isMassMode]);
@@ -126,7 +126,7 @@ export function Chat({ currentUser }: { currentUser: any }) {
                 </div>
                 <div>
                   <h3 className="font-bold">Comunicação Interna</h3>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Supercob Network</p>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Mr Cobranças Network</p>
                 </div>
               </div>
               <button 

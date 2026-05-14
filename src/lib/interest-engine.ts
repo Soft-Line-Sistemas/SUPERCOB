@@ -27,27 +27,44 @@ export async function processInterestAccrual(loanId: string) {
 
   const entriesGenerated = []
 
-  while (currentPointer <= now) {
-    const principalRestante = Math.max(loan.valor - (loan.valorPago || 0), 0)
-    if (principalRestante <= 0) break
+  // Para capitalização, precisamos saber o total de juros já gerados mas não pagos
+  const history = await prisma.emprestimoHistorico.findMany({
+    where: { emprestimoId: loan.id, tipo: 'JUROS' },
+    select: { descricao: true }
+  })
+  
+  const jurosPagos = Number(loan.jurosPagos || 0)
+  const principalBase = Math.max(loan.valor - (loan.valorPago || 0), 0)
+  
+  // Como não temos um campo 'jurosAcumulado' persistente fácil, 
+  // vamos simular a capitalização mês a mês
+  let compoundedBase = principalBase
 
-    const jurosValor = principalRestante * (jurosPercent / 100)
+  // VERIFICAÇÃO DE IDEMPOTÊNCIA: Pegar todos os juros já lançados para comparar em memória
+  const existingJuros = await prisma.emprestimoHistorico.findMany({
+    where: {
+      emprestimoId: loan.id,
+      tipo: 'JUROS'
+    },
+    select: { createdAt: true }
+  })
+
+  while (currentPointer <= now) {
+    if (compoundedBase <= 0) break
+
+    const jurosValor = compoundedBase * (jurosPercent / 100)
     const formattedDate = currentPointer.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     
-    // VERIFICAÇÃO DE IDEMPOTÊNCIA: Evitar duplicatas para o mesmo mês
-    const monthStart = new Date(currentPointer.getUTCFullYear(), currentPointer.getUTCMonth(), 1)
-    const monthEnd = new Date(currentPointer.getUTCFullYear(), currentPointer.getUTCMonth() + 1, 0, 23, 59, 59)
+    const year = currentPointer.getUTCFullYear()
+    const month = currentPointer.getUTCMonth()
     
-    const existing = await prisma.emprestimoHistorico.findFirst({
-      where: {
-        emprestimoId: loan.id,
-        tipo: 'JUROS',
-        createdAt: { gte: monthStart, lte: monthEnd }
-      }
+    const alreadyExists = existingJuros.some(ej => {
+      const d = new Date(ej.createdAt)
+      return d.getUTCFullYear() === year && d.getUTCMonth() === month
     })
 
-    if (!existing) {
-      const description = `Juros mensal gerado automaticamente: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(jurosValor)} (Ref. ${formattedDate})`
+    if (!alreadyExists) {
+      const description = `Juros mensal (Capitalizado): ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(jurosValor)} (Ref. ${formattedDate})`
 
       const entry = await prisma.emprestimoHistorico.create({
         data: {
@@ -60,7 +77,7 @@ export async function processInterestAccrual(loanId: string) {
       entriesGenerated.push(entry)
     }
     
-    // Avançar um mês
+    compoundedBase += jurosValor
     currentPointer = new Date(currentPointer)
     currentPointer.setUTCMonth(currentPointer.getUTCMonth() + 1)
   }
