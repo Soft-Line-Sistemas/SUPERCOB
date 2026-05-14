@@ -149,19 +149,19 @@ export function LoanCard({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-slate-950 rounded-2xl border border-slate-100">
-            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Valor Total</p>
-            <p className="text-lg font-black text-slate-900">{formatCurrency(loan.valor)}</p>
+          <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10">
+            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Capital Emprest.</p>
+            <p className="text-base font-black text-slate-900 dark:text-slate-100">{formatCurrency(loan.valor)}</p>
           </div>
-          <div className="p-3 bg-slate-950 rounded-2xl border border-slate-100">
-            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Data Início</p>
-            <p className="text-sm font-bold text-slate-700">{formatDate(loan.createdAt)}</p>
+          <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10">
+            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Juros Mensal</p>
+            <p className="text-base font-black text-gold-600 dark:text-gold-500">{loan.jurosMes}%</p>
           </div>
         </div>
       </div>
 
       {/* Card Footer */}
-      <div className="px-4 md:px-6 py-3 md:py-4 bg-slate-950 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
+      <div className="px-4 md:px-6 py-3 md:py-4 bg-slate-50 dark:bg-white/[0.02] flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-white/10">
         <div className="flex items-center gap-3">
           {/* Atribuição/Consultor Info */}
           <div className="flex items-center gap-2">
@@ -197,7 +197,7 @@ export function LoanCard({
               e.stopPropagation();
               onDetail(loan);
             }}
-            className="px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl hover:bg-slate-950 transition-colors shadow-sm"
+            className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 text-xs font-black rounded-xl hover:bg-slate-50 dark:hover:bg-white/10 transition-colors shadow-sm"
           >
             Detalhes
           </button>
@@ -209,7 +209,7 @@ export function LoanCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white text-xs font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-md active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-md active:scale-95"
               >
                 <Send className="w-3.5 h-3.5" />
                 Cobrar

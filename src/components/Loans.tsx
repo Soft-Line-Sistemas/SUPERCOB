@@ -10,6 +10,9 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChargeModal } from './ChargeModal';
 import { parseDateInputToUTCNoon } from '@/lib/date-utils'
 import { LoanCard } from './LoanCard';
+import { LoanHeader } from './loans/LoanHeader'
+import { LoanFilters } from './loans/LoanFilters'
+import { ColaboradorAnalytics } from './loans/ColaboradorAnalytics'
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
 
@@ -84,7 +87,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     const usuarioId = initialSearch?.get('usuarioId') ?? ''
     const cobrancaOnly = initialSearch?.get('cobrancaOnly') === '1'
     const dateFilterMode = (initialSearch?.get('dateFilterMode') as 'created' | 'vencimento') || 'created'
-    return { status, q, startDate, endDate, usuarioId, cobrancaOnly, dateFilterMode }
+    const vencimentoDay = initialSearch?.get('vencimentoDay') ?? ''
+    return { status, q, startDate, endDate, usuarioId, cobrancaOnly, dateFilterMode, vencimentoDay }
   })
   const [contactOnly, setContactOnly] = useState(() => (initialSearch?.get('contactOnly') ?? '') === '1')
 
@@ -159,6 +163,9 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     if (filters.dateFilterMode === 'vencimento') next.set('dateFilterMode', 'vencimento')
     else next.delete('dateFilterMode')
 
+    if (filters.vencimentoDay) next.set('vencimentoDay', filters.vencimentoDay)
+    else next.delete('vencimentoDay')
+
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
     setIsFiltersOpen(false)
@@ -192,7 +199,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
   };
 
   const resetFilters = () => {
-    setFilters({ status: '', q: '', startDate: '', endDate: '', usuarioId: '', cobrancaOnly: false, dateFilterMode: 'created' })
+    setFilters({ status: '', q: '', startDate: '', endDate: '', usuarioId: '', cobrancaOnly: false, dateFilterMode: 'created', vencimentoDay: '' })
     setContactOnly(false)
     const next = new URLSearchParams(searchParams.toString())
     next.delete('status')
@@ -202,6 +209,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     next.delete('usuarioId')
     next.delete('contactOnly')
     next.delete('cobrancaOnly')
+    next.delete('vencimentoDay')
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
   }
@@ -235,6 +243,12 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
       
       if (!targetDate) return false
       if (!(targetDate >= start && targetDate <= end)) return false
+    }
+    
+    if (filters.vencimentoDay) {
+      const day = Number(filters.vencimentoDay)
+      const loanVenc = loan.vencimento ? new Date(loan.vencimento) : null
+      if (!loanVenc || loanVenc.getUTCDate() !== day) return false
     }
     if (contactOnly && !contactFilter(loan)) return false
     if (filters.cobrancaOnly && !loan.cobrancaAtiva) return false
@@ -374,265 +388,25 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
 
   return (
     <div className="space-y-4 md:space-y-8">
-      {/* Header Actions */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Gestão de Carteira</h1>
-          <p className="text-sm text-slate-500">Monitore e gerencie todos os ativos financeiros.</p>
-        </div>
-        
-        <div className="w-full lg:w-[780px]">
-          <div className="flex flex-col lg:flex-row gap-3">
-            <div className="relative flex-1 group">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-gold-500 transition-colors" />
-              <input
-                type="text"
-                value={filters.q}
-                onChange={(e) => setFilters({ ...filters, q: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') applyFiltersToUrl()
-                }}
-                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:ring-4 focus:ring-gold-500/5 focus:border-gold-500 outline-none transition-all shadow-sm"
-                placeholder="Buscar por nome, e-mail ou WhatsApp..."
-              />
-            </div>
+      <LoanHeader onNewLoan={() => handleOpenModal()} />
 
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setIsFiltersOpen((v) => !v)}
-                className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-black text-slate-700 dark:text-slate-200 hover:bg-slate-950 transition-all shadow-sm"
-              >
-                <Filter className="h-4 w-4 text-gold-500" />
-                Filtros
-              </button>
+      <LoanFilters 
+        filters={filters}
+        setFilters={setFilters}
+        isFiltersOpen={isFiltersOpen}
+        setIsFiltersOpen={setIsFiltersOpen}
+        applyFilters={applyFiltersToUrl}
+        resetFilters={resetFilters}
+        userRole={userRole}
+        colaboradores={colaboradores}
+        contactOnly={contactOnly}
+        setContactOnly={setContactOnly}
+      />
 
-              <button
-                type="button"
-                onClick={() => handleOpenModal()}
-                className="flex items-center gap-2 px-5 py-3 bg-gold-600 text-white text-sm font-black rounded-2xl hover:bg-gold-700 shadow-lg shadow-gold-600/20 transition-all active:scale-95"
-              >
-                <Plus className="h-5 w-5" />
-                <span className="hidden sm:inline">Nova </span>Cobrança
-              </button>
-            </div>
-          </div>
-
-          {isFiltersOpen && (
-            <div className="mt-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-3xl p-5 shadow-xl">
-              <div className="mb-4 flex gap-2 p-1 bg-slate-950 dark:bg-white/5 rounded-2xl w-fit">
-                <button
-                  onClick={() => setFilters({ ...filters, dateFilterMode: 'created' })}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filters.dateFilterMode === 'created' ? 'bg-white dark:bg-slate-900 shadow-sm text-gold-600' : 'text-slate-500'}`}
-                >
-                  Data Cadastro
-                </button>
-                <button
-                  onClick={() => setFilters({ ...filters, dateFilterMode: 'vencimento' })}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filters.dateFilterMode === 'vencimento' ? 'bg-white dark:bg-slate-900 shadow-sm text-gold-600' : 'text-slate-500'}`}
-                >
-                  Vencimento
-                </button>
-              </div>
-              <div className={`grid grid-cols-1 ${userRole === 'ADMIN' ? 'md:grid-cols-6' : 'md:grid-cols-5'} gap-3 items-end`}>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Status</label>
-                  <select
-                    value={filters.status}
-                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-gold-500/5"
-                  >
-                    <option value="">Todos</option>
-                    <option value="ABERTO">Abertos</option>
-                    <option value="NEGOCIACAO">Negociação</option>
-                    <option value="QUITADO">Quitados</option>
-                    <option value="CANCELADO">Cancelados</option>
-                  </select>
-                </div>
-
-                {userRole === 'ADMIN' && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Consultor</label>
-                    <select
-                      value={filters.usuarioId}
-                      onChange={(e) => setFilters({ ...filters, usuarioId: e.target.value })}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-gold-500/5"
-                    >
-                      <option value="">Todos</option>
-                      <option value="__UNASSIGNED__">Sem atribuição</option>
-                      {colaboradores.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">De</label>
-                  <input
-                    type="date"
-                    value={filters.startDate}
-                    onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-gold-500/5"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Até</label>
-                  <input
-                    type="date"
-                    value={filters.endDate}
-                    onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-gold-500/5"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setFilters(prev => ({ ...prev, cobrancaOnly: !prev.cobrancaOnly }))}
-                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all ${
-                    filters.cobrancaOnly ? 'bg-red-600 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10'
-                  }`}
-                >
-                  <Download className="h-4 w-4" />
-                  Filtrar Cobrança
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setContactOnly((v) => !v)}
-                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all ${
-                    contactOnly ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10'
-                  }`}
-                >
-                  <Send className="h-4 w-4" />
-                  Contatar WhatsApp
-                </button>
-              </div>
-
-              <div className="hidden md:flex mt-4 flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetFilters()
-                    setIsFiltersOpen(false)
-                  }}
-                  className="flex-1 py-3 px-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-black rounded-2xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
-                >
-                  Limpar
-                </button>
-                <button
-                  type="button"
-                  onClick={applyFiltersToUrl}
-                  className="flex-[2] py-3 px-4 bg-slate-900 dark:bg-gold-600 text-white font-black rounded-2xl hover:bg-slate-800 dark:hover:bg-gold-700 transition-colors"
-                >
-                  Aplicar filtros
-                </button>
-              </div>
-              </div>
-
-              <AnimatePresence>
-                <motion.div
-                  className="md:hidden fixed inset-0 z-50"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                >
-                  <button
-                    type="button"
-                    aria-label="Fechar filtros"
-                    onClick={() => setIsFiltersOpen(false)}
-                    className="absolute inset-0 bg-slate-950/60"
-                  />
-                  <motion.div
-                    initial={{ y: 40, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 40, opacity: 0 }}
-                    transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-                    className="absolute inset-x-0 bottom-0 bg-white rounded-t-[2.25rem] border-t border-slate-200 shadow-2xl p-6"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-lg font-black text-slate-900">Filtros</p>
-                        <p className="text-xs text-slate-500">Ajuste a busca e aplique.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setIsFiltersOpen(false)}
-                        className="p-2 rounded-2xl hover:bg-slate-950 transition-colors text-slate-600"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                    </div>
-
-                    <div className="mt-5 space-y-4">
-                      {/* Mobile Filters UI continues... */}
-                      <button
-                        type="button"
-                        onClick={() => setFilters(prev => ({ ...prev, cobrancaOnly: !prev.cobrancaOnly }))}
-                        className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all ${
-                          filters.cobrancaOnly ? 'bg-red-600 text-white' : 'bg-slate-950 border border-slate-200 text-slate-700'
-                        }`}
-                      >
-                        <Download className="h-4 w-4" />
-                        Filtrar Cobrança
-                      </button>
-                      
-                      {/* ... rest of mobile fields ... */}
-                      <button
-                        type="button"
-                        onClick={applyFiltersToUrl}
-                        className="w-full py-3 px-4 bg-slate-900 text-white font-black rounded-2xl"
-                      >
-                        Aplicar
-                      </button>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {userRole === 'ADMIN' && !filters.usuarioId && analytics && analytics.length > 0 && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">Visão por Colaborador</h3>
-              <p className="text-sm text-slate-500">Andamento da carteira por responsável</p>
-            </div>
-          </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {analytics.map((a) => (
-              <div key={a.id} className="p-5 rounded-2xl bg-slate-950 border border-slate-100">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-black text-slate-900">{a.nome}</p>
-                  <span className="text-[10px] font-black text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded-full">
-                    {a.total} casos
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-2 rounded-xl bg-white border border-slate-200">
-                    <p className="text-[10px] font-black text-slate-400 uppercase">Aberto</p>
-                    <p className="text-sm font-black text-slate-900 mt-1">{a.aberto}</p>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white border border-slate-200">
-                    <p className="text-[10px] font-black text-slate-400 uppercase">Negociação</p>
-                    <p className="text-sm font-black text-slate-900 mt-1">{a.negociacao}</p>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white border border-slate-200">
-                    <p className="text-[10px] font-black text-slate-400 uppercase">Quitado</p>
-                    <p className="text-sm font-black text-slate-900 mt-1">{a.quitado}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <ColaboradorAnalytics 
+        analytics={analytics || []} 
+        visible={userRole === 'ADMIN' && !filters.usuarioId} 
+      />
 
       {/* Grid Layout for Loans */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
