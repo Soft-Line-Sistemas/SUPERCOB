@@ -19,7 +19,14 @@ export default async function DashboardLayout({
   }
 
   const userId = (session.user as any).id
-  const notifications = await prisma.mensagemInterna.findMany({
+  const unreadCount = await prisma.mensagemInterna.count({
+    where: {
+      destinatarioId: userId,
+      isLida: false
+    }
+  })
+
+  const recentNotificationsRaw = await prisma.mensagemInterna.findMany({
     where: {
       OR: [
         { destinatarioId: userId },
@@ -27,14 +34,20 @@ export default async function DashboardLayout({
       ],
     },
     orderBy: { createdAt: 'desc' },
-    take: 100,
+    take: 10,
     include: {
       remetente: { select: { nome: true, role: true } },
     },
   })
 
-  const unreadCount = notifications.filter(n => !n.isLida && n.destinatarioId === userId).length
-  const recentNotifications = notifications.slice(0, 5)
+  const recentNotifications = recentNotificationsRaw.map((n) => ({
+    id: n.id,
+    conteudo: n.conteudo,
+    createdAt: n.createdAt,
+    isMassiva: n.isMassiva,
+    remetenteNome: n.remetente.nome,
+    remetenteRole: n.remetente.role,
+  }))
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex overflow-hidden">

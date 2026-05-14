@@ -90,7 +90,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
     () => displayedNotifications.filter((n) => !n.isMassiva).map((n) => n.id),
     [displayedNotifications]
   )
-  
+
   const getTitle = () => {
     if (pathname.startsWith('/dashboard')) return 'Overview'
     if (pathname.startsWith('/clientes')) return 'Clientes'
@@ -101,9 +101,9 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
   }
 
   return (
-    <header className="h-16 md:h-20 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-white/10 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 shadow-sm shadow-slate-900/5 dark:shadow-none">
+    <header className="h-16 md:h-20 bg-black dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-white/10 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 shadow-sm shadow-slate-900/5 dark:shadow-none">
       {/* Page Title with Animation */}
-      <motion.div 
+      <motion.div
         key={pathname}
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
@@ -118,7 +118,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
       {/* Action Icons */}
       <div className="flex items-center gap-2 md:gap-3">
         {/* Search Bar - Desktop Only */}
-        <button 
+        <button
           onClick={() => setIsCommandPaletteOpen(true)}
           className="hidden lg:flex items-center gap-2 bg-slate-950/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 py-2 rounded-2xl w-64 group hover:border-gold-500/50 transition-all text-left"
         >

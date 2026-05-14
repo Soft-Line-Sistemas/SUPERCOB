@@ -49,7 +49,7 @@ export function Chat({ currentUser }: { currentUser: any }) {
   useEffect(() => {
     if (selectedUser || isMassMode) {
       loadMessages();
-      const interval = setInterval(loadMessages, 5000); // Poll for new messages
+      const interval = setInterval(loadMessages, 30000); // Poll for new messages every 30s to save connections
       return () => clearInterval(interval);
     }
   }, [selectedUser, isMassMode]);
