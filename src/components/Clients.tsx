@@ -287,8 +287,10 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
       if (editingClient) {
         await updateCliente(editingClient.id, payload);
         toast.success('Cliente atualizado com sucesso!');
-        if (selectedFile) {
-          await uploadDocumento(editingClient.id, selectedFile)
+        if (selectedFiles.length > 0) {
+          for (const file of selectedFiles) {
+            await uploadDocumento(editingClient.id, file)
+          }
         }
         if (chargeData.enabled) {
           await createEmprestimo({

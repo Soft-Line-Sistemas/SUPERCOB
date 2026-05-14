@@ -55,14 +55,7 @@ export default async function DashboardLayout({
       <div className="flex-1 flex flex-col min-w-0">
         <Header
           user={session.user}
-          notifications={recentNotifications.map((n) => ({
-            id: n.id,
-            conteudo: n.conteudo,
-            createdAt: n.createdAt,
-            isMassiva: n.isMassiva,
-            remetenteNome: n.remetente.nome,
-            remetenteRole: n.remetente.role,
-          }))}
+          notifications={recentNotifications}
           unreadCount={unreadCount}
         />
         <main className="flex-1 overflow-y-auto p-4 pb-24 md:p-8 custom-scrollbar">
