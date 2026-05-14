@@ -26,9 +26,8 @@ export default async function EmprestimosPage({
 
   const includeIds = clienteId ? [clienteId] : []
 
-  const emprestimos = await getEmprestimos(filters)
-
-  const [clientes, colaboradores] = await Promise.all([
+  const [emprestimos, clientes, colaboradores] = await Promise.all([
+    getEmprestimos(filters),
     prisma.cliente.findMany({
       where:
         role === 'OPERADOR'
