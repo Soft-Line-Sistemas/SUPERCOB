@@ -154,6 +154,7 @@ export function ContractDetails({
     monthsAccrued,
     daysLate,
     usesDailyLateInterest,
+    nextMonthInterest,
   } = calculateLoanInterest({ ...emprestimo, valorPago })
   const canFinish = status !== 'QUITADO' && status !== 'CANCELADO' && restante <= 0 && jurosPendente <= 0
 
@@ -237,7 +238,7 @@ export function ContractDetails({
           </button>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Dossiê de Cobrança</h1>
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Dossiê de Cobrança</h1>
               <span className="text-slate-400 font-medium text-sm hidden md:inline">#{emprestimo.id.slice(0, 8).toUpperCase()}</span>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -253,12 +254,22 @@ export function ContractDetails({
         </div>
 
         <div className="flex items-center gap-3">
+          {(status === 'QUITADO' || status === 'CANCELADO') && myRole === 'ADMIN' && (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => handleSetStatus('ABERTO' as any)}
+              className="flex-1 md:flex-none px-5 py-3.5 bg-gold-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gold-700 transition-all shadow-lg shadow-gold-600/20 active:scale-95"
+            >
+              Reabrir Contrato
+            </button>
+          )}
           <button
             type="button"
             disabled={!canCancel || isPending}
             onClick={() => handleSetStatus('CANCELADO')}
             className={`flex-1 md:flex-none px-5 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
-              !canCancel || isPending ? 'bg-slate-100 text-slate-400' : 'bg-white border border-red-200 text-red-600 hover:bg-red-50 active:scale-95'
+              !canCancel || isPending ? 'bg-slate-100 dark:bg-white/5 text-slate-400' : 'bg-white dark:bg-slate-900 border border-red-200 dark:border-red-500/30 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 active:scale-95'
             }`}
           >
             Cancelar Contrato
@@ -268,7 +279,7 @@ export function ContractDetails({
             disabled={!canFinish || isPending}
             onClick={() => handleSetStatus('QUITADO')}
             className={`flex-1 md:flex-none px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
-              !canFinish || isPending ? 'bg-slate-100 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 active:scale-95'
+              !canFinish || isPending ? 'bg-slate-100 dark:bg-white/5 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 active:scale-95'
             }`}
           >
             Concluir Cobrança
@@ -281,14 +292,14 @@ export function ContractDetails({
         <div className="xl:col-span-8 space-y-6">
           
           {/* Financial Summary Card */}
-          <div className={`bg-white rounded-[2.5rem] border-2 ${borderClass} shadow-xl shadow-slate-200/50 overflow-hidden relative group`}>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full -mr-32 -mt-32 transition-transform group-hover:scale-110" />
+          <div className={`bg-white dark:bg-slate-950 rounded-[2.5rem] border-2 ${borderClass} shadow-xl shadow-slate-200/50 dark:shadow-none overflow-hidden relative group`}>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 dark:bg-white/5 rounded-full -mr-32 -mt-32 transition-transform group-hover:scale-110" />
             
-            <div className="relative z-10 p-8 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div className="relative z-10 p-8 border-b border-slate-100 dark:border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Resumo de Ativos</p>
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">Resumo de Ativos</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <h2 className="text-4xl font-black text-slate-900">{formatBRL(totalDevido)}</h2>
+                  <h2 className="text-4xl font-black text-slate-900 dark:text-slate-100">{formatBRL(totalDevido)}</h2>
                   <span className="text-xs font-bold text-slate-400 uppercase">Saldo Total</span>
                 </div>
               </div>
@@ -307,29 +318,34 @@ export function ContractDetails({
               </div>
             </div>
 
-            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-px bg-slate-100">
-              <div className="bg-white p-8 group/item">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-blue-500 transition-colors">Principal Aberto</p>
-                <p className="text-2xl font-black text-slate-900">{formatBRL(restante)}</p>
+            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-4 gap-px bg-slate-100 dark:bg-white/5">
+              <div className="bg-white dark:bg-slate-950 p-8 group/item">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-gold-500 transition-colors">Principal Aberto</p>
+                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{formatBRL(restante)}</p>
                 <div className="mt-3 flex items-center gap-2">
-                  <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-1 flex-1 bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-blue-500 transition-all duration-1000" 
+                      className="h-full bg-gold-500 transition-all duration-1000" 
                       style={{ width: `${Math.min(100, (restante / (emprestimo.valor || 1)) * 100)}%` }} 
                     />
                   </div>
                 </div>
               </div>
-              <div className="bg-white p-8 group/item">
+              <div className="bg-white dark:bg-slate-950 p-8 group/item">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-red-500 transition-colors">Juros Pendente</p>
-                <p className="text-2xl font-black text-red-600">{formatBRL(jurosPendente)}</p>
+                <p className="text-2xl font-black text-red-600 dark:text-red-500">{formatBRL(jurosPendente)}</p>
                 <p className="text-[10px] font-bold text-slate-400 mt-2">
                   {usesDailyLateInterest ? `${daysLate} dias em atraso` : `${monthsAccrued} meses acumulados`}
                 </p>
               </div>
-              <div className="bg-white p-8 group/item">
+              <div className="bg-white dark:bg-slate-950 p-8 group/item">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-gold-500 transition-colors">Próximo Juros</p>
+                <p className="text-2xl font-black text-gold-600 dark:text-gold-500">{formatBRL(nextMonthInterest)}</p>
+                <p className="text-[10px] font-bold text-slate-400 mt-2 italic">Valor projetado p/ mês</p>
+              </div>
+              <div className="bg-white dark:bg-slate-950 p-8 group/item">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-emerald-500 transition-colors">Total Amortizado</p>
-                <p className="text-2xl font-black text-emerald-600">{formatBRL(valorPago)}</p>
+                <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">{formatBRL(valorPago)}</p>
                 <p className="text-[10px] font-bold text-slate-400 mt-2 italic">Ref. ao valor principal</p>
               </div>
             </div>
@@ -511,11 +527,11 @@ export function ContractDetails({
                       </select>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
-                      <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-black text-white">
+                    <div className="flex items-center gap-3 p-3 bg-gold-50 dark:bg-gold-500/10 rounded-xl border border-gold-100 dark:border-gold-500/20">
+                      <div className="w-6 h-6 rounded-full bg-gold-600 flex items-center justify-center text-[10px] font-black text-white">
                         {emprestimo.usuario?.nome?.[0] || 'S'}
                       </div>
-                      <p className="text-sm font-black text-blue-900">{emprestimo.usuario?.nome || 'Supercob Central'}</p>
+                      <p className="text-sm font-black text-gold-900 dark:text-gold-400">{emprestimo.usuario?.nome || 'Mr Cobrança Central'}</p>
                     </div>
                   )}
                 </div>

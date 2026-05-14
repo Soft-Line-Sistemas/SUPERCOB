@@ -5,13 +5,13 @@ import { Toaster } from 'sonner';
 import { SplashScreen } from '../components/SplashScreen';
 
 export const metadata: Metadata = {
-  title: 'Mr Cobranças - Gestão de Cobranças',
+  title: 'Mister Cobrança - Gestão Inteligente',
   description: 'Sistema profissional para gestão e automação de cobranças',
-  applicationName: 'Mr Cobranças',
+  applicationName: 'Mister Cobrança',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
-    title: 'Mr Cobranças',
+    title: 'Mister Cobrança',
     statusBarStyle: 'default',
   },
   icons: {
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
   ],
   colorScheme: 'light dark',
   width: 'device-width',
@@ -48,7 +48,7 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
         <SessionProvider>
           <SplashScreen />
           {children}
-          <Toaster position="top-right" richColors />
+          <Toaster position="bottom-center" richColors />
         </SessionProvider>
       </body>
     </html>

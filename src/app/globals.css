@@ -2,6 +2,16 @@
 
 @theme {
   --animate-blob: blob 7s infinite;
+  --color-gold-50: #fffdf0;
+  --color-gold-100: #fef9c3;
+  --color-gold-200: #fef08a;
+  --color-gold-300: #fde047;
+  --color-gold-400: #facc15;
+  --color-gold-500: #eab308;
+  --color-gold-600: #ca8a04;
+  --color-gold-700: #a16207;
+  --color-gold-800: #854d0e;
+  --color-gold-900: #713f12;
 
   @keyframes blob {
     0% {
@@ -35,7 +45,7 @@
 }
 
 .dark {
-  --background: 222.2 84% 4.9%;
+  --background: 0 0% 0%;
   --foreground: 210 40% 98%;
   color-scheme: dark;
 }
@@ -52,59 +62,53 @@ body {
 }
 
 .dark .bg-white {
-  background-color: rgb(2 6 23);
+  background-color: #0a0a0a;
 }
 
 .dark .bg-slate-50 {
-  background-color: rgb(15 23 42);
+  background-color: #000000;
 }
 
 .dark .bg-slate-950 {
-  background-color: rgb(30 41 59);
+  background-color: #121212;
 }
 
 .dark .border-slate-200,
-.dark .border-gray-200 {
-  border-color: rgb(51 65 85);
-}
-
+.dark .border-gray-200,
 .dark .border-slate-100,
 .dark .border-gray-100 {
-  border-color: rgb(30 41 59);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .dark .text-slate-900,
 .dark .text-gray-900 {
-  color: rgb(241 245 249);
+  color: #ffffff;
 }
 
 .dark .text-slate-800,
 .dark .text-gray-800 {
-  color: rgb(226 232 240);
+  color: #f1f5f9;
 }
 
 .dark .text-slate-700,
 .dark .text-gray-700 {
-  color: rgb(203 213 225);
+  color: #e2e8f0;
 }
 
 .dark .text-slate-600,
-.dark .text-gray-600 {
-  color: rgb(148 163 184);
-}
-
+.dark .text-gray-600,
 .dark .text-slate-500,
 .dark .text-gray-500 {
-  color: rgb(148 163 184);
+  color: #94a3b8;
 }
 
 .dark .text-slate-400,
 .dark .text-gray-400 {
-  color: rgb(100 116 139);
+  color: #64748b;
 }
 
 :focus-visible {
-  outline: 3px solid rgba(59, 130, 246, 0.8);
+  outline: 3px solid #eab308;
   outline-offset: 3px;
 }
 

@@ -97,11 +97,11 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
     if (pathname.startsWith('/emprestimos')) return 'Contratos'
     if (pathname.startsWith('/usuarios')) return 'Equipe'
     if (pathname.startsWith('/reports')) return 'Relatórios'
-    return 'Mr Cobranças'
+    return 'Mr Cobrança'
   }
 
   return (
-    <header className="h-16 md:h-20 bg-white dark:bg-slate-950 border-b border-slate-200/70 dark:border-white/10 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 shadow-sm shadow-slate-900/5 dark:shadow-none">
+    <header className="h-16 md:h-20 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-white/10 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 shadow-sm shadow-slate-900/5 dark:shadow-none">
       {/* Page Title with Animation */}
       <motion.div 
         key={pathname}
@@ -109,7 +109,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
         animate={{ opacity: 1, x: 0 }}
         className="flex items-center gap-4"
       >
-        <div className="h-8 w-1 bg-blue-600 rounded-full hidden md:block" />
+        <div className="h-8 w-1 bg-gold-500 rounded-full hidden md:block" />
         <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
           {getTitle()}
         </h1>
@@ -120,7 +120,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
         {/* Search Bar - Desktop Only */}
         <button 
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="hidden lg:flex items-center gap-2 bg-slate-950/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 py-2 rounded-2xl w-64 group hover:border-blue-500/50 transition-all text-left"
+          className="hidden lg:flex items-center gap-2 bg-slate-950/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-4 py-2 rounded-2xl w-64 group hover:border-gold-500/50 transition-all text-left"
         >
           <Search className="w-4 h-4 text-slate-500 dark:text-slate-300" />
           <span className="flex-1 text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -214,7 +214,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
                 <button
                   type="button"
                   onClick={() => {
-                    window.dispatchEvent(new Event('mrcobrancas:open-chat'))
+                    window.dispatchEvent(new Event('mistercobranca:open-chat'))
                     setIsNotificationsOpen(false)
                   }}
                   className="flex-1 py-2.5 px-4 bg-slate-900 text-white text-xs font-black rounded-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
@@ -263,7 +263,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
               <div className="px-5 py-4 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-black text-slate-900 dark:text-slate-100">Ajuda rápida</p>
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Mr Cobranças</p>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Mister Cobrança</p>
                 </div>
                 <button
                   type="button"
@@ -308,7 +308,7 @@ export function Header({ user, notifications, unreadCount }: { user: any; notifi
         <Link href="/perfil" className="flex items-center gap-3 pl-2">
           <div className="hidden md:block text-right">
             <p className="text-xs font-black text-slate-900 dark:text-slate-100">{user?.nome?.split(' ')[0]}</p>
-            <p className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter">
+            <p className="text-[9px] font-bold text-gold-600 uppercase tracking-tighter">
               {user?.role === 'OPERADOR' ? 'GERÊNCIA' : user?.role}
             </p>
           </div>

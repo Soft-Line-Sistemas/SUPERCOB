@@ -26,30 +26,28 @@ export default async function EmprestimosPage({
 
   const includeIds = clienteId ? [clienteId] : []
 
-  const [emprestimos, clientes, colaboradores] = await Promise.all([
-    getEmprestimos(filters),
-    prisma.cliente.findMany({
-      where:
-        role === 'OPERADOR'
-          ? {
-              OR: [
-                { loans: { some: { usuarioId: userId } } },
-                ...(includeIds.length ? [{ id: { in: includeIds } }] : []),
-              ],
-            }
-          : includeIds.length
-            ? { id: { in: includeIds } }
-            : undefined,
-      orderBy: { createdAt: 'desc' },
-      take: 30,
-      select: { id: true, nome: true, email: true, whatsapp: true },
-    }),
-    prisma.usuario.findMany({
-      where: { role: 'OPERADOR' },
-      select: { id: true, nome: true },
-      orderBy: { nome: 'asc' },
-    }),
-  ])
+  const emprestimos = await getEmprestimos(filters)
+  const clientes = await prisma.cliente.findMany({
+    where:
+      role === 'OPERADOR'
+        ? {
+            OR: [
+              { loans: { some: { usuarioId: userId } } },
+              ...(includeIds.length ? [{ id: { in: includeIds } }] : []),
+            ],
+          }
+        : includeIds.length
+          ? { id: { in: includeIds } }
+          : undefined,
+    orderBy: { createdAt: 'desc' },
+    take: 30,
+    select: { id: true, nome: true, email: true, whatsapp: true },
+  })
+  const colaboradores = await prisma.usuario.findMany({
+    where: { role: 'OPERADOR' },
+    select: { id: true, nome: true },
+    orderBy: { nome: 'asc' },
+  })
   let analytics: any[] = []
   if (role === 'ADMIN') {
     const analyticsWhere: any = {}

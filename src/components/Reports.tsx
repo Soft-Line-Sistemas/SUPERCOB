@@ -134,7 +134,7 @@ export function Reports({
   };
 
   return (
-    <motion.div 
+    <motion.div
       variants={container}
       initial="hidden"
       animate="show"
@@ -143,10 +143,10 @@ export function Reports({
       {/* Header with Export Actions */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Relatórios Avançados</h1>
-          <p className="text-slate-500">Análise profunda de métricas e performance de cobrança.</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Relatórios Avançados</h1>
+          <p className="text-slate-500 dark:text-slate-400">Análise profunda de métricas e performance de cobrança.</p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -154,26 +154,26 @@ export function Reports({
               setDraftFilters(filters)
               setIsFiltersOpen(true)
             }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 hover:bg-slate-950 transition-all shadow-sm"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-950 transition-all shadow-sm"
           >
-            <Filter className="w-4 h-4" />
+            <Filter className="w-4 h-4 text-gold-500" />
             Filtros
           </button>
-          <button 
+          <button
             onClick={handleExportPDF}
-            className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-2xl hover:bg-slate-800 shadow-lg shadow-slate-900/20 transition-all active:scale-95"
+            className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 dark:bg-gold-600 text-white text-sm font-bold rounded-2xl hover:bg-slate-800 dark:hover:bg-gold-700 shadow-lg shadow-slate-900/20 dark:shadow-gold-600/20 transition-all active:scale-95"
           >
             <Download className="w-4 h-4" />
             Exportar PDF
           </button>
-          <button 
+          <button
             onClick={handleExportDailyPDF}
             className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-2xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
           >
             <CalendarDays className="w-4 h-4" />
             Relatório Diário
           </button>
-          <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-950 transition-colors shadow-sm">
+          <button className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors shadow-sm">
             <Share2 className="w-5 h-5" />
           </button>
         </div>
@@ -220,14 +220,14 @@ export function Reports({
       </div>
 
       {/* Daily Interest Entries Table */}
-      <motion.div variants={item} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-        <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-indigo-50/30">
+      <motion.div variants={item} className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
+        <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 flex justify-between items-center bg-indigo-50/30 dark:bg-white/5">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <CalendarDays className="w-5 h-5 text-indigo-500" />
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-gold-500" />
               Agenda de Juros do Dia
             </h3>
-            <p className="text-sm text-slate-500">Clientes com vencimento de juros hoje ({new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Clientes com vencimento de juros hoje ({new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})</p>
           </div>
           <span className="bg-indigo-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg uppercase">
             {report.dailyInterestData.length} Lançamentos
@@ -243,32 +243,31 @@ export function Reports({
                 <th className="px-8 py-4 text-center text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-50 dark:divide-white/5 bg-white dark:bg-slate-950">
               {paginatedDailyInterest.length === 0 ? (
-                <tr>
+                <tr className="bg-white dark:bg-slate-950">
                   <td colSpan={4} className="px-8 py-10 text-center text-sm text-slate-400">
                     Nenhuma entrada de juros identificada hoje.
                   </td>
                 </tr>
               ) : (
                 paginatedDailyInterest.map((entry, idx) => (
-                  <tr key={`${entry.loanId}-${entry.date}-${idx}`} className="hover:bg-slate-950 transition-colors">
+                  <tr key={`${entry.loanId}-${entry.date}-${idx}`} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors bg-white dark:bg-slate-950">
                     <td className="px-8 py-4">
-                      <div className="text-sm font-black text-slate-700">{entry.date}</div>
+                      <div className="text-sm font-black text-slate-700 dark:text-slate-300">{entry.date}</div>
                     </td>
                     <td className="px-8 py-4">
-                      <div className="text-sm font-bold text-slate-900">{entry.client}</div>
+                      <div className="text-sm font-bold text-slate-900 dark:text-slate-100">{entry.client}</div>
                       <div className="text-[10px] font-medium text-slate-400">{entry.loanId}</div>
                     </td>
                     <td className="px-8 py-4 text-right">
-                      <div className="text-sm font-black text-slate-900">{formatCurrency(entry.amount)}</div>
+                      <div className="text-sm font-black text-slate-900 dark:text-slate-100">{formatCurrency(entry.amount)}</div>
                     </td>
                     <td className="px-8 py-4 text-center">
-                      <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black ${
-                        entry.isPaid 
-                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200/50' 
-                        : 'bg-amber-100 text-amber-700 border border-amber-200/50'
-                      }`}>
+                      <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black ${entry.isPaid
+                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-200/50 dark:bg-emerald-500/10 dark:text-emerald-400'
+                          : 'bg-amber-100 text-amber-700 border border-amber-200/50 dark:bg-amber-500/10 dark:text-amber-400'
+                        }`}>
                         {entry.isPaid ? 'Pago' : 'A Pagar'}
                       </span>
                     </td>
@@ -281,22 +280,22 @@ export function Reports({
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="px-8 py-4 bg-slate-950/50 border-t border-slate-100 flex items-center justify-between">
-            <p className="text-xs font-bold text-slate-500">
-              Mostrando {Math.min(report.dailyInterestData.length, (currentPage - 1) * itemsPerPage + 1)} a {Math.min(report.dailyInterestData.length, currentPage * itemsPerPage)} de {report.dailyInterestData.length} entries
+          <div className="px-8 py-4 bg-slate-50 dark:bg-white/5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+              Mostrando {Math.min(report.dailyInterestData.length, (currentPage - 1) * itemsPerPage + 1)} a {Math.min(report.dailyInterestData.length, currentPage * itemsPerPage)} de {report.dailyInterestData.length} lançamentos
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-white disabled:opacity-50 transition-colors"
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
               >
                 Anterior
               </button>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-white disabled:opacity-50 transition-colors"
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
               >
                 Próxima
               </button>
@@ -308,10 +307,10 @@ export function Reports({
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Interest Evolution Chart */}
-        <motion.div variants={item} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <motion.div variants={item} className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-lg font-bold text-slate-900">Evolução de Juros (Mensal)</h3>
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Evolução de Juros (Mensal)</h3>
+            <div className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl">
               <TrendingUp className="w-5 h-5" />
             </div>
           </div>
@@ -320,19 +319,20 @@ export function Reports({
               <AreaChart data={report.interestByMonth}>
                 <defs>
                   <linearGradient id="colorJuros" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#4F46E5" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} dy={10} />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#64748b' }}
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-slate-100 dark:text-white/5" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', fontSize: 10, fontWeight: 700 }} className="text-slate-400 dark:text-slate-500" dy={10} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: 'currentColor', fontSize: 10, fontWeight: 700 }}
+                  className="text-slate-400 dark:text-slate-500"
                   tickFormatter={(value) => `R$ ${value / 1000}k`}
                 />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   formatter={(value: any) => [formatCurrency(value as number), 'Juros']}
                 />
@@ -343,10 +343,10 @@ export function Reports({
         </motion.div>
 
         {/* Volume by Location Chart */}
-        <motion.div variants={item} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <motion.div variants={item} className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-lg font-bold text-slate-900">Distribuição por Localidade</h3>
-            <div className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Distribuição por Localidade</h3>
+            <div className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-3 py-1.5 rounded-full">
               <MapPin className="w-3.5 h-3.5" />
               Liderança: {leaderCity || '-'}
             </div>
@@ -354,10 +354,10 @@ export function Reports({
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={report.volumeByLocation} layout="vertical" margin={{ left: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} tickFormatter={(value) => `${value / 1000}k`} />
-                <YAxis dataKey="city" type="category" axisLine={false} tickLine={false} tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }} width={100} />
-                <Tooltip 
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="currentColor" className="text-slate-100 dark:text-white/5" />
+                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', fontSize: 10, fontWeight: 700 }} className="text-slate-400 dark:text-slate-500" tickFormatter={(value) => `${value / 1000}k`} />
+                <YAxis dataKey="city" type="category" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', fontSize: 10, fontWeight: 700 }} className="text-slate-600 dark:text-slate-400" width={100} />
+                <Tooltip
                   cursor={{ fill: 'rgba(0,0,0,0.03)' }}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   formatter={(value: any) => [formatCurrency(value as number), 'Volume']}
@@ -373,18 +373,18 @@ export function Reports({
         </motion.div>
       </div>
 
-      
+
 
       {/* Detailed Tables Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ABC Curve Table */}
-        <motion.div variants={item} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-950/30">
+        <motion.div variants={item} className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
+          <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 flex justify-between items-center bg-slate-950/30 dark:bg-white/5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Curva ABC de Clientes</h3>
-              <p className="text-sm text-slate-500">Concentração de risco por tomador</p>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Curva ABC de Clientes</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Concentração de risco por tomador</p>
             </div>
-            <FileText className="w-5 h-5 text-slate-400" />
+            <FileText className="w-5 h-5 text-gold-500" />
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -395,23 +395,22 @@ export function Reports({
                   <th className="px-8 py-4 text-center text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Classe</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-50 dark:divide-white/5 bg-white dark:bg-slate-950">
                 {report.abcCurveData.map((item) => (
-                  <tr key={item.rank} className="hover:bg-slate-700 transition-colors">
+                  <tr key={item.rank} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors bg-white dark:bg-slate-950">
                     <td className="px-8 py-4">
-                      <div className="text-sm font-bold text-slate-900">{item.client}</div>
+                      <div className="text-sm font-bold text-slate-900 dark:text-slate-100">{item.client}</div>
                       <div className="text-[10px] font-medium text-slate-400">{item.city}</div>
                     </td>
                     <td className="px-8 py-4 text-right">
-                      <div className="text-sm font-black text-slate-900">{formatCurrency(item.volume)}</div>
-                      <div className="text-[10px] font-bold text-blue-500">Acumulado: {item.acc}</div>
+                      <div className="text-sm font-black text-slate-900 dark:text-slate-100">{formatCurrency(item.volume)}</div>
+                      <div className="text-[10px] font-bold text-gold-500">Acumulado: {item.acc}</div>
                     </td>
                     <td className="px-8 py-4 text-center">
-                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-xl text-xs font-black ${
-                        item.class === 'A' ? 'bg-emerald-100 text-emerald-700' :
-                        item.class === 'B' ? 'bg-blue-100 text-blue-700' :
-                        'bg-slate-950 text-slate-600'
-                      }`}>
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-xl text-xs font-black ${item.class === 'A' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                          item.class === 'B' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' :
+                            'bg-slate-950 dark:bg-white/10 text-slate-600 dark:text-slate-400'
+                        }`}>
                         {item.class}
                       </span>
                     </td>
@@ -423,14 +422,14 @@ export function Reports({
         </motion.div>
 
         {/* Defaulters Report Table */}
-        <motion.div variants={item} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-red-50/30">
+        <motion.div variants={item} className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
+          <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 flex justify-between items-center bg-red-50/30 dark:bg-red-500/5">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
                 Relatório de Inadimplência
               </h3>
-              <p className="text-sm text-slate-500">Contratos com atraso superior a 5 dias</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Contratos com atraso superior a 5 dias</p>
             </div>
             <span className="bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
               {report.defaultersData.length} ALERTAS
@@ -445,28 +444,28 @@ export function Reports({
                   <th className="px-8 py-4 text-right text-[10px] font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-widest">Dívida Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-50 dark:divide-white/5 bg-white dark:bg-slate-950">
                 {report.defaultersData.map((item) => (
-                  <tr key={item.id} className="hover:bg-red-50/30 transition-colors">
+                  <tr key={item.id} className="hover:bg-red-50/30 dark:hover:bg-red-500/10 transition-colors bg-white dark:bg-slate-950">
                     <td className="px-8 py-4">
-                      <div className="text-sm font-bold text-slate-900">{item.client}</div>
+                      <div className="text-sm font-bold text-slate-900 dark:text-slate-100">{item.client}</div>
                       <div className="text-[10px] font-medium text-slate-400">{item.id} • {item.city}</div>
                     </td>
                     <td className="px-8 py-4 text-center">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black bg-red-100 text-red-700 border border-red-200/50">
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black bg-red-100 text-red-700 border border-red-200/50 dark:bg-red-500/10 dark:text-red-400">
                         {item.daysLate} dias
                       </span>
                     </td>
                     <td className="px-8 py-4 text-right">
-                      <div className="text-sm font-black text-red-600">{formatCurrency(item.amount)}</div>
+                      <div className="text-sm font-black text-red-600 dark:text-red-400">{formatCurrency(item.amount)}</div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div className="p-4 bg-slate-950 mt-auto text-center border-t border-slate-100">
-            <button className="text-xs font-bold text-blue-600 hover:underline">Ver todos os inadimplentes</button>
+          <div className="p-4 bg-slate-950 dark:bg-white/5 mt-auto text-center border-t border-slate-100 dark:border-white/10">
+            <button className="text-xs font-bold text-gold-500 hover:underline">Ver todos os inadimplentes</button>
           </div>
         </motion.div>
       </div>
@@ -485,18 +484,18 @@ export function Reports({
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100"
+              className="relative bg-white dark:bg-slate-950 rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 dark:border-white/10"
             >
               <div className="p-8">
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900">Filtros</h3>
-                    <p className="text-slate-500 text-sm">Selecione período e critérios.</p>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Filtros</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Selecione período e critérios.</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsFiltersOpen(false)}
-                    className="p-2 hover:bg-slate-950 rounded-full text-slate-400 transition-colors"
+                    className="p-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-full text-slate-400 transition-colors"
                   >
                     <X className="h-6 w-6" />
                   </button>
@@ -505,31 +504,31 @@ export function Reports({
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-sm font-bold text-slate-700 ml-1">Início</label>
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Início</label>
                       <input
                         type="date"
                         value={draftFilters.startDate}
                         onChange={(e) => setDraftFilters({ ...draftFilters, startDate: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-4 focus:ring-gold-500/5 focus:border-gold-500 outline-none transition-all dark:text-slate-200"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-sm font-bold text-slate-700 ml-1">Fim</label>
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Fim</label>
                       <input
                         type="date"
                         value={draftFilters.endDate}
                         onChange={(e) => setDraftFilters({ ...draftFilters, endDate: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-4 focus:ring-gold-500/5 focus:border-gold-500 outline-none transition-all dark:text-slate-200"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-slate-700 ml-1">Status</label>
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Status</label>
                     <select
                       value={draftFilters.status}
                       onChange={(e) => setDraftFilters({ ...draftFilters, status: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-gold-500/5"
                     >
                       <option value="">Todos</option>
                       <option value="ABERTO">Aberto</option>
@@ -540,11 +539,11 @@ export function Reports({
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-slate-700 ml-1">Consultor</label>
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Consultor</label>
                     <select
                       value={draftFilters.usuarioId ?? ''}
                       onChange={(e) => setDraftFilters({ ...draftFilters, usuarioId: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-gold-500/5"
                     >
                       <option value="">Todos</option>
                       <option value="__UNASSIGNED__">Sem atribuição</option>
@@ -558,40 +557,40 @@ export function Reports({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-sm font-bold text-slate-700 ml-1">Cidade</label>
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Cidade</label>
                       <input
                         type="text"
                         value={draftFilters.cidade}
                         onChange={(e) => setDraftFilters({ ...draftFilters, cidade: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-4 focus:ring-gold-500/5 focus:border-gold-500 outline-none transition-all dark:text-slate-200"
                         placeholder="Cidade"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-sm font-bold text-slate-700 ml-1">Estado</label>
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Estado</label>
                       <input
                         type="text"
                         value={draftFilters.estado}
                         onChange={(e) => setDraftFilters({ ...draftFilters, estado: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-4 focus:ring-gold-500/5 focus:border-gold-500 outline-none transition-all dark:text-slate-200"
                         placeholder="UF"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-6 flex gap-3">
+                <div className="pt-8 flex gap-3">
                   <button
                     type="button"
                     onClick={() => setDraftFilters({ startDate: '', endDate: '', status: '', cidade: '', estado: '', usuarioId: '' })}
-                    className="flex-1 py-3.5 px-4 bg-slate-950 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                    className="flex-1 py-3.5 px-4 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
                   >
                     Limpar
                   </button>
                   <button
                     type="button"
                     onClick={applyFilters}
-                    className="flex-[2] py-3.5 px-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 shadow-lg shadow-slate-900/20 transition-all"
+                    className="flex-[2] py-3.5 px-4 bg-slate-900 dark:bg-gold-600 text-white font-bold rounded-2xl hover:bg-slate-800 dark:hover:bg-gold-700 shadow-lg shadow-slate-900/20 dark:shadow-gold-600/20 transition-all"
                   >
                     Aplicar
                   </button>
@@ -614,19 +613,19 @@ function ReportMetricCard({ title, value, subtitle, icon: Icon, color }: any) {
   };
 
   return (
-    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-2xl bg-opacity-10 ${colorMap[color].split(' ')[0]} ${colorMap[color].split(' ')[1]}`}>
+        <div className={`p-3 rounded-2xl ${colorMap[color].split(' ')[0]} bg-opacity-10 dark:bg-opacity-20 ${colorMap[color].split(' ')[1]}`}>
           <Icon className="h-6 w-6" />
         </div>
-        <button className="p-2 text-slate-300 hover:text-slate-600 transition-colors">
+        <button className="p-2 text-slate-300 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400 transition-colors">
           <MoreVertical className="w-5 h-5" />
         </button>
       </div>
       <div>
-        <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">{title}</p>
-        <p className="text-2xl font-black text-slate-900 mt-1">{value}</p>
-        <p className="text-xs font-medium text-slate-400 mt-1">{subtitle}</p>
+        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{title}</p>
+        <p className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-2">{value}</p>
+        <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-1">{subtitle}</p>
       </div>
     </div>
   );

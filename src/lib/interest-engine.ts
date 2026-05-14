@@ -27,11 +27,23 @@ export async function processInterestAccrual(loanId: string) {
 
   const entriesGenerated = []
 
-  while (currentPointer <= now) {
-    const principalRestante = Math.max(loan.valor - (loan.valorPago || 0), 0)
-    if (principalRestante <= 0) break
+  // Para capitalização, precisamos saber o total de juros já gerados mas não pagos
+  const history = await prisma.emprestimoHistorico.findMany({
+    where: { emprestimoId: loan.id, tipo: 'JUROS' },
+    select: { descricao: true }
+  })
+  
+  const jurosPagos = Number(loan.jurosPagos || 0)
+  const principalBase = Math.max(loan.valor - (loan.valorPago || 0), 0)
+  
+  // Como não temos um campo 'jurosAcumulado' persistente fácil, 
+  // vamos simular a capitalização mês a mês
+  let compoundedBase = principalBase
 
-    const jurosValor = principalRestante * (jurosPercent / 100)
+  while (currentPointer <= now) {
+    if (compoundedBase <= 0) break
+
+    const jurosValor = compoundedBase * (jurosPercent / 100)
     const formattedDate = currentPointer.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     
     // VERIFICAÇÃO DE IDEMPOTÊNCIA: Evitar duplicatas para o mesmo mês
@@ -47,7 +59,7 @@ export async function processInterestAccrual(loanId: string) {
     })
 
     if (!existing) {
-      const description = `Juros mensal gerado automaticamente: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(jurosValor)} (Ref. ${formattedDate})`
+      const description = `Juros mensal (Capitalizado): ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(jurosValor)} (Ref. ${formattedDate})`
 
       const entry = await prisma.emprestimoHistorico.create({
         data: {
@@ -59,6 +71,9 @@ export async function processInterestAccrual(loanId: string) {
       })
       entriesGenerated.push(entry)
     }
+    
+    // Na capitalização, o juros gerado aumenta a base para o próximo mês
+    compoundedBase += jurosValor
     
     // Avançar um mês
     currentPointer = new Date(currentPointer)

@@ -47,10 +47,10 @@ interface LoansProps {
 }
 
 const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any; bg: string }> = {
-  ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-950', icon: Info },
-  NEGOCIACAO: { label: 'Em Negociação', color: 'text-amber-600', bg: 'bg-amber-50', icon: Info },
-  QUITADO: { label: 'Quitado', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: Info },
-  CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-950', icon: Info },
+  ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-100/50 dark:bg-white/5', icon: Info },
+  NEGOCIACAO: { label: 'Em Negociação', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-500/10', icon: Info },
+  QUITADO: { label: 'Quitado', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-500/10', icon: Info },
+  CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-100/50 dark:bg-white/5', icon: Info },
 };
 
 export function Loans({ initialLoans, clientes, colaboradores, userRole, analytics }: LoansProps) {
@@ -83,7 +83,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     const endDate = initialSearch?.get('endDate') ?? ''
     const usuarioId = initialSearch?.get('usuarioId') ?? ''
     const cobrancaOnly = initialSearch?.get('cobrancaOnly') === '1'
-    return { status, q, startDate, endDate, usuarioId, cobrancaOnly }
+    const dateFilterMode = (initialSearch?.get('dateFilterMode') as 'created' | 'vencimento') || 'created'
+    return { status, q, startDate, endDate, usuarioId, cobrancaOnly, dateFilterMode }
   })
   const [contactOnly, setContactOnly] = useState(() => (initialSearch?.get('contactOnly') ?? '') === '1')
 
@@ -107,7 +108,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
   };
 
   const generateWhatsAppLink = (loan: Loan) => {
-    const text = `Olá ${loan.cliente.nome}, sou da Mr Cobranças. Gostaria de falar sobre a sua cobrança no valor de ${formatCurrency(loan.valor)}.`;
+    const text = `Olá ${loan.cliente.nome}, sou da Mister Cobrança. Gostaria de falar sobre a sua cobrança no valor de ${formatCurrency(loan.valor)}.`;
     const phone = loan.cliente.whatsapp.replace(/\D/g, '');
     return `https://wa.me/55${phone}?text=${encodeURIComponent(text)}`;
   };
@@ -155,6 +156,9 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     if (filters.cobrancaOnly) next.set('cobrancaOnly', '1')
     else next.delete('cobrancaOnly')
 
+    if (filters.dateFilterMode === 'vencimento') next.set('dateFilterMode', 'vencimento')
+    else next.delete('dateFilterMode')
+
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
     setIsFiltersOpen(false)
@@ -188,7 +192,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
   };
 
   const resetFilters = () => {
-    setFilters({ status: '', q: '', startDate: '', endDate: '', usuarioId: '', cobrancaOnly: false })
+    setFilters({ status: '', q: '', startDate: '', endDate: '', usuarioId: '', cobrancaOnly: false, dateFilterMode: 'created' })
     setContactOnly(false)
     const next = new URLSearchParams(searchParams.toString())
     next.delete('status')
@@ -227,8 +231,10 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     if (filters.startDate && filters.endDate) {
       const start = new Date(filters.startDate)
       const end = new Date(filters.endDate)
-      const created = new Date(loan.createdAt)
-      if (!(created >= start && created <= end)) return false
+      const targetDate = filters.dateFilterMode === 'vencimento' ? (loan.vencimento ? new Date(loan.vencimento) : null) : new Date(loan.createdAt)
+      
+      if (!targetDate) return false
+      if (!(targetDate >= start && targetDate <= end)) return false
     }
     if (contactOnly && !contactFilter(loan)) return false
     if (filters.cobrancaOnly && !loan.cobrancaAtiva) return false
@@ -378,7 +384,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         <div className="w-full lg:w-[780px]">
           <div className="flex flex-col lg:flex-row gap-3">
             <div className="relative flex-1 group">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-gold-500 transition-colors" />
               <input
                 type="text"
                 value={filters.q}
@@ -386,7 +392,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') applyFiltersToUrl()
                 }}
-                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all shadow-sm"
+                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:ring-4 focus:ring-gold-500/5 focus:border-gold-500 outline-none transition-all shadow-sm"
                 placeholder="Buscar por nome, e-mail ou WhatsApp..."
               />
             </div>
@@ -395,16 +401,16 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
               <button
                 type="button"
                 onClick={() => setIsFiltersOpen((v) => !v)}
-                className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-black text-slate-700 hover:bg-slate-950 transition-all shadow-sm"
+                className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-black text-slate-700 dark:text-slate-200 hover:bg-slate-950 transition-all shadow-sm"
               >
-                <Filter className="h-4 w-4 text-slate-500" />
+                <Filter className="h-4 w-4 text-gold-500" />
                 Filtros
               </button>
 
               <button
                 type="button"
                 onClick={() => handleOpenModal()}
-                className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white text-sm font-black rounded-2xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all active:scale-95"
+                className="flex items-center gap-2 px-5 py-3 bg-gold-600 text-white text-sm font-black rounded-2xl hover:bg-gold-700 shadow-lg shadow-gold-600/20 transition-all active:scale-95"
               >
                 <Plus className="h-5 w-5" />
                 <span className="hidden sm:inline">Nova </span>Cobrança
@@ -413,14 +419,28 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
           </div>
 
           {isFiltersOpen && (
-            <div className="mt-3 bg-white border border-slate-200 rounded-3xl p-4 shadow-sm">
+            <div className="mt-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-3xl p-5 shadow-xl">
+              <div className="mb-4 flex gap-2 p-1 bg-slate-950 dark:bg-white/5 rounded-2xl w-fit">
+                <button
+                  onClick={() => setFilters({ ...filters, dateFilterMode: 'created' })}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filters.dateFilterMode === 'created' ? 'bg-white dark:bg-slate-900 shadow-sm text-gold-600' : 'text-slate-500'}`}
+                >
+                  Data Cadastro
+                </button>
+                <button
+                  onClick={() => setFilters({ ...filters, dateFilterMode: 'vencimento' })}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filters.dateFilterMode === 'vencimento' ? 'bg-white dark:bg-slate-900 shadow-sm text-gold-600' : 'text-slate-500'}`}
+                >
+                  Vencimento
+                </button>
+              </div>
               <div className={`grid grid-cols-1 ${userRole === 'ADMIN' ? 'md:grid-cols-6' : 'md:grid-cols-5'} gap-3 items-end`}>
                 <div className="space-y-1.5">
                   <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Status</label>
                   <select
                     value={filters.status}
                     onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-gold-500/5"
                   >
                     <option value="">Todos</option>
                     <option value="ABERTO">Abertos</option>
@@ -436,7 +456,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                     <select
                       value={filters.usuarioId}
                       onChange={(e) => setFilters({ ...filters, usuarioId: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-gold-500/5"
                     >
                       <option value="">Todos</option>
                       <option value="__UNASSIGNED__">Sem atribuição</option>
@@ -455,7 +475,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                     type="date"
                     value={filters.startDate}
                     onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-gold-500/5"
                   />
                 </div>
 
@@ -465,7 +485,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                     type="date"
                     value={filters.endDate}
                     onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-gold-500/5"
                   />
                 </div>
 
@@ -473,7 +493,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                   type="button"
                   onClick={() => setFilters(prev => ({ ...prev, cobrancaOnly: !prev.cobrancaOnly }))}
                   className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all ${
-                    filters.cobrancaOnly ? 'bg-red-600 text-white' : 'bg-slate-950 border border-slate-200 text-slate-700 hover:bg-slate-950'
+                    filters.cobrancaOnly ? 'bg-red-600 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
                   <Download className="h-4 w-4" />
@@ -484,7 +504,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                   type="button"
                   onClick={() => setContactOnly((v) => !v)}
                   className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all ${
-                    contactOnly ? 'bg-emerald-600 text-white' : 'bg-slate-950 border border-slate-200 text-slate-700 hover:bg-slate-950'
+                    contactOnly ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
                   <Send className="h-4 w-4" />
@@ -499,17 +519,18 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
                     resetFilters()
                     setIsFiltersOpen(false)
                   }}
-                  className="flex-1 py-3 px-4 bg-slate-950 text-slate-700 font-black rounded-2xl hover:bg-slate-200 transition-colors"
+                  className="flex-1 py-3 px-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-black rounded-2xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
                 >
                   Limpar
                 </button>
                 <button
                   type="button"
                   onClick={applyFiltersToUrl}
-                  className="flex-[2] py-3 px-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-colors"
+                  className="flex-[2] py-3 px-4 bg-slate-900 dark:bg-gold-600 text-white font-black rounded-2xl hover:bg-slate-800 dark:hover:bg-gold-700 transition-colors"
                 >
                   Aplicar filtros
                 </button>
+              </div>
               </div>
 
               <AnimatePresence>

@@ -80,44 +80,48 @@ export async function getDashboardData(period: DashboardPeriod = 'hoje') {
   const { start, end } = getRange(period)
   const dateWhere = { createdAt: { gte: start, lt: end } }
 
-  const [openCount, negotiationCount, paidCount] = await Promise.all([
-    prisma.emprestimo.count({ where: { ...where, ...dateWhere, status: 'ABERTO' } }),
-    prisma.emprestimo.count({ where: { ...where, ...dateWhere, status: 'NEGOCIACAO' } }),
-    prisma.emprestimo.count({ where: { ...where, ...dateWhere, status: 'QUITADO' } }),
-  ])
-
-  const clientesDistinct = await prisma.emprestimo.findMany({
+  const loans = await prisma.emprestimo.findMany({
     where: { ...where, ...dateWhere },
-    distinct: ['clienteId'],
-    select: { clienteId: true },
+    select: {
+      id: true,
+      valor: true,
+      valorPago: true,
+      jurosPagos: true,
+      status: true,
+      clienteId: true,
+    }
   })
-  const totalClients = clientesDistinct.length
 
-  const [openAmount, negotiationAmount, paidAmount] = await Promise.all([
-    prisma.emprestimo.aggregate({ _sum: { valor: true }, where: { ...where, ...dateWhere, status: 'ABERTO' } }),
-    prisma.emprestimo.aggregate({ _sum: { valor: true }, where: { ...where, ...dateWhere, status: 'NEGOCIACAO' } }),
-    prisma.emprestimo.aggregate({ _sum: { valor: true }, where: { ...where, ...dateWhere, status: 'QUITADO' } }),
-  ])
+  const metrics = loans.reduce((acc, loan) => {
+    const val = Number(loan.valor) || 0
+    const pago = Number(loan.valorPago || 0) || 0
+    const juros = Number(loan.jurosPagos || 0) || 0
 
-  // Get total loans
-  const totalLoans = await prisma.emprestimo.count({ where: { ...where, ...dateWhere } })
-  const taxaRecuperacao = totalLoans > 0 ? (paidCount / totalLoans) * 100 : 0
+    if (loan.status === 'ABERTO' || loan.status === 'NEGOCIACAO') {
+      acc.openCount++
+      acc.principalAtivo += (val - pago)
+    } else if (loan.status === 'QUITADO') {
+      acc.paidCount++
+      acc.totalRecuperado += val
+    }
 
-  // Calculate expected interest (Juros Esperados)
-  const loansWithInterest = await prisma.emprestimo.findMany({
-    where: { ...where, ...dateWhere, status: { notIn: ['QUITADO', 'CANCELADO'] } },
-    select: { valor: true, valorPago: true, jurosMes: true, jurosAtrasoDia: true, vencimento: true, createdAt: true, jurosPagos: true }
-  })
-  
-  const jurosEsperados = loansWithInterest.reduce((acc, loan) => {
-    return acc + calculateLoanInterest(loan).jurosPendente
-  }, 0)
+    acc.rentabilidade += juros
+    acc.clients.add(loan.clienteId)
+    return acc
+  }, { openCount: 0, paidCount: 0, principalAtivo: 0, totalRecuperado: 0, rentabilidade: 0, clients: new Set<string>() })
 
-  // Get status distribution for pie chart
+  const totalClients = metrics.clients.size
+  const principalAtivo = metrics.principalAtivo
+  const totalRecuperado = metrics.totalRecuperado
+  const totalRentabilidade = metrics.rentabilidade
+  const openCount = metrics.openCount
+  const paidCount = metrics.paidCount
+  const totalActive = metrics.openCount
+  const taxaRecuperacao = (paidCount + totalActive) > 0 ? (paidCount / (paidCount + totalActive)) * 100 : 0
+
   const statusDistribution = [
-    { name: 'Aberto', value: openCount, color: '#9CA3AF' }, // Gray-400
-    { name: 'Negociação', value: negotiationCount, color: '#EAB308' }, // Yellow-500
-    { name: 'Quitado', value: paidCount, color: '#22C55E' }, // Green-500
+    { name: 'Ativos', value: totalActive, color: '#D4AF37' }, // Gold
+    { name: 'Quitado', value: paidCount, color: '#22C55E' },
   ].filter(s => s.value > 0)
 
   const todayYMD = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
@@ -155,7 +159,6 @@ export async function getDashboardData(period: DashboardPeriod = 'hoje') {
     evolutionData.push({ name: monthLabel(start), valor: Math.round(byMonth.get(key) ?? 0) })
   }
 
-  // Agent segmentation for Admin
   let agentData: { name: string; value: number; color: string }[] = []
   if (role === 'ADMIN') {
     const agents = await prisma.usuario.findMany({
@@ -174,7 +177,7 @@ export async function getDashboardData(period: DashboardPeriod = 'hoje') {
       if (row.usuarioId) countById.set(row.usuarioId, row._count._all)
     }
     
-    const colors = ['#3B82F6', '#2563EB', '#1D4ED8', '#1E40AF', '#1E3A8A']
+    const colors = ['#D4AF37', '#B8860B', '#996515', '#FFD700']
     agentData = agents
       .map((agent, i) => ({
         name: agent.nome,
@@ -186,12 +189,11 @@ export async function getDashboardData(period: DashboardPeriod = 'hoje') {
 
   return {
     metrics: {
-      open: { count: openCount, amount: openAmount._sum.valor || 0 },
-      negotiation: { count: negotiationCount, amount: negotiationAmount._sum.valor || 0 },
-      paid: { count: paidCount, amount: paidAmount._sum.valor || 0 },
+      open: { count: totalActive, amount: principalAtivo },
+      paid: { count: paidCount, amount: totalRecuperado },
+      rentabilidade: totalRentabilidade,
       totalClients,
       taxaRecuperacao: taxaRecuperacao.toFixed(1),
-      jurosEsperados,
     },
     statusDistribution,
     agentData,

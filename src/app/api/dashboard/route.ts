@@ -12,26 +12,48 @@ export async function GET() {
   const where: any = role === 'OPERADOR' ? { usuarioId: userId } : {}
 
   try {
-    const [openCount, negotiationCount, paidCount] = await Promise.all([
-      prisma.emprestimo.count({ where: { ...where, status: 'ABERTO' } }),
-      prisma.emprestimo.count({ where: { ...where, status: 'NEGOCIACAO' } }),
-      prisma.emprestimo.count({ where: { ...where, status: 'QUITADO' } }),
-    ])
+    const loans = await prisma.emprestimo.findMany({
+      where,
+      select: {
+        valor: true,
+        valorPago: true,
+        jurosPagos: true,
+        status: true,
+        jurosMes: true,
+        vencimento: true,
+        createdAt: true,
+      }
+    })
+
+    const metrics = loans.reduce((acc, loan) => {
+      const principal = Number(loan.valor) || 0
+      const pago = Number(loan.valorPago || 0) || 0
+      const jurosPagos = Number(loan.jurosPagos || 0) || 0
+      const aberto = Math.max(principal - pago, 0)
+
+      if (loan.status === 'ABERTO' || loan.status === 'NEGOCIACAO') {
+        acc.principalAtivo += aberto
+        acc.openCount++
+      } else if (loan.status === 'QUITADO') {
+        acc.totalRecuperado += principal
+        acc.paidCount++
+      }
+      
+      acc.rentabilidade += jurosPagos
+      return acc
+    }, { principalAtivo: 0, totalRecuperado: 0, rentabilidade: 0, openCount: 0, paidCount: 0 })
 
     const totalClients = role === 'OPERADOR' 
       ? await prisma.cliente.count({ where: { loans: { some: { usuarioId: userId } } } })
       : await prisma.cliente.count()
 
-    const [openAmount, negotiationAmount, paidAmount] = await Promise.all([
-      prisma.emprestimo.aggregate({ _sum: { valor: true }, where: { ...where, status: 'ABERTO' } }),
-      prisma.emprestimo.aggregate({ _sum: { valor: true }, where: { ...where, status: 'NEGOCIACAO' } }),
-      prisma.emprestimo.aggregate({ _sum: { valor: true }, where: { ...where, status: 'QUITADO' } }),
-    ])
+    const taxaRecuperacao = metrics.paidCount + metrics.openCount > 0 
+      ? ((metrics.paidCount / (metrics.paidCount + metrics.openCount)) * 100).toFixed(1)
+      : '0'
 
     const statusDistribution = [
-      { name: 'Aberto', value: openCount, color: '#9CA3AF' },
-      { name: 'Negociação', value: negotiationCount, color: '#EAB308' },
-      { name: 'Quitado', value: paidCount, color: '#22C55E' },
+      { name: 'Aberto', value: metrics.openCount, color: '#D4AF37' }, // Gold
+      { name: 'Quitado', value: metrics.paidCount, color: '#22C55E' },
     ].filter(s => s.value > 0)
 
     let agentData: { name: string; value: number; color: string }[] = []
@@ -41,7 +63,7 @@ export async function GET() {
         include: { _count: { select: { emprestimos: true } } }
       })
       
-      const colors = ['#3B82F6', '#2563EB', '#1D4ED8', '#1E40AF', '#1E3A8A']
+      const colors = ['#D4AF37', '#B8860B', '#996515', '#FFD700']
       agentData = agents.map((agent, i) => ({
         name: agent.nome,
         value: agent._count.emprestimos,
@@ -51,10 +73,11 @@ export async function GET() {
 
     return NextResponse.json({
       metrics: {
-        open: { count: openCount, amount: openAmount._sum.valor || 0 },
-        negotiation: { count: negotiationCount, amount: negotiationAmount._sum.valor || 0 },
-        paid: { count: paidCount, amount: paidAmount._sum.valor || 0 },
+        open: { count: metrics.openCount, amount: metrics.principalAtivo },
+        paid: { count: metrics.paidCount, amount: metrics.totalRecuperado },
+        rentabilidade: metrics.rentabilidade,
         totalClients,
+        taxaRecuperacao,
       },
       statusDistribution,
       agentData,

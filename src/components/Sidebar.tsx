@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { LayoutDashboard, Users, CreditCard, LogOut, ShieldCheck, UserCog, BarChart3, Settings } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
@@ -34,10 +35,10 @@ export function Sidebar() {
       }
     }
 
-    window.addEventListener('mrcobrancas:avatar-updated', onUpdated as any)
+    window.addEventListener('mistercobranca:avatar-updated', onUpdated as any)
     window.addEventListener('storage', onUpdated)
     return () => {
-      window.removeEventListener('mrcobrancas:avatar-updated', onUpdated as any)
+      window.removeEventListener('mistercobranca:avatar-updated', onUpdated as any)
       window.removeEventListener('storage', onUpdated)
     }
   }, [])
@@ -72,9 +73,8 @@ export function Sidebar() {
                 key={item.id}
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-2 transition-all ${
-                  isActive ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/5'
-                }`}
+                className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-2 transition-all ${isActive ? 'bg-gold-600 text-white' : 'text-slate-300 hover:bg-white/5'
+                  }`}
               >
                 <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-300'}`} />
                 <span className="text-[10px] font-black leading-none">{item.label}</span>
@@ -91,11 +91,17 @@ export function Sidebar() {
         {/* Brand Header */}
         <div className="p-8">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/40 rotate-3">
-              <ShieldCheck className="text-white w-6 h-6" />
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-gold-600/20 rotate-3 overflow-hidden">
+              <Image
+                src="/logo/logo.jpeg"
+                alt="Logo"
+                width={500}
+                height={500}
+                className="w-full h-full object-cover"
+              />
             </div>
-            <span className="text-3xl font-black tracking-tighter uppercase italic bg-gradient-to-r from-blue-500 via-cyan-400 to-green-600 bg-clip-text text-transparent">
-              Mr Cobranças
+            <span className="text-xl font-black tracking-tighter uppercase italic bg-gradient-to-r from-gold-400 via-gold-500 to-gold-700 bg-clip-text text-transparent">
+              Mr Cobrança
             </span>
           </div>
           <PremiumLine />
@@ -117,14 +123,13 @@ export function Sidebar() {
                 href={item.href}
                 onClick={() => setIsOpen(false)}
                 aria-current={isActive ? 'page' : undefined}
-                className={`group flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-2xl transition-all duration-300 relative overflow-hidden ${
-                  isActive
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
-                }`}
+                className={`group flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-2xl transition-all duration-300 relative overflow-hidden ${isActive
+                  ? "bg-gold-600 text-white shadow-lg shadow-gold-600/20"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+                  }`}
               >
                 <Icon
-                  className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${isActive ? "text-white" : "text-slate-500 group-hover:text-blue-400"}`}
+                  className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${isActive ? "text-white" : "text-slate-500 group-hover:text-gold-400"}`}
                 />
                 {item.label}
                 {isActive && (

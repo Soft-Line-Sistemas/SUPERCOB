@@ -22,7 +22,7 @@ export function SplashScreen() {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.8 }}
-          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-blue-600"
+          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black"
         >
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -36,19 +36,19 @@ export function SplashScreen() {
                 initial={{ y: -50, opacity: 0 }}
                 animate={{ y: [ -50, 0, 50 ], opacity: [0, 1, 0] }}
                 transition={{ repeat: Infinity, duration: 1.8, ease: "linear" }}
-                className="absolute text-green-300"
+                className="absolute text-gold-500/50"
               >
                 <Banknote size={48} />
               </motion.div>
-              <div className="z-10 bg-white p-4 rounded-2xl shadow-xl">
-                <Building2 size={40} className="text-blue-600" />
+              <div className="z-10 bg-white w-20 h-20 rounded-2xl shadow-2xl shadow-gold-600/20 overflow-hidden">
+                <img src="/logo/logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
               </div>
             </div>
 
             <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">
-              Mr Cobranças
+              Mister Cobrança
             </h1>
-            <p className="text-blue-100 text-lg font-medium tracking-wide">
+            <p className="text-gold-500 text-lg font-medium tracking-wide">
               A máquina de recuperar dinheiro
             </p>
           </motion.div>

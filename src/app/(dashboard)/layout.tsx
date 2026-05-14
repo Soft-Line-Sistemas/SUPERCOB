@@ -19,35 +19,30 @@ export default async function DashboardLayout({
   }
 
   const userId = (session.user as any).id
-  const [unreadCount, notifications] = await Promise.all([
-    prisma.mensagemInterna.count({
-      where: {
-        destinatarioId: userId,
-        isLida: false,
-      },
-    }),
-    prisma.mensagemInterna.findMany({
-      where: {
-        OR: [
-          { destinatarioId: userId, isLida: false },
-          { isMassiva: true, destinatarioId: null },
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      include: {
-        remetente: { select: { nome: true, role: true } },
-      },
-    }),
-  ])
+  const notifications = await prisma.mensagemInterna.findMany({
+    where: {
+      OR: [
+        { destinatarioId: userId },
+        { isMassiva: true, destinatarioId: null },
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    include: {
+      remetente: { select: { nome: true, role: true } },
+    },
+  })
+
+  const unreadCount = notifications.filter(n => !n.isLida && n.destinatarioId === userId).length
+  const recentNotifications = notifications.slice(0, 5)
 
   return (
-    <div className="min-h-screen bg-slate-950 dark:bg-slate-950 flex overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header
           user={session.user}
-          notifications={notifications.map((n) => ({
+          notifications={recentNotifications.map((n) => ({
             id: n.id,
             conteudo: n.conteudo,
             createdAt: n.createdAt,
