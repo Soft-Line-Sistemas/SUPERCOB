@@ -48,7 +48,7 @@ describe('calculateLoanInterest', () => {
     expect(result.totalDevido).toBe(1050)
   })
 
-  it('accrues linear monthly interest across calendar months when there is no daily late fee', () => {
+  it('accrues compounded monthly interest across calendar months when there is no daily late fee', () => {
     const result = calculateLoanInterest({
       valor: 1000,
       valorPago: 0,
@@ -60,8 +60,9 @@ describe('calculateLoanInterest', () => {
 
     expect(result.jurosBase).toBe(50)
     expect(result.monthsAccrued).toBe(4)
-    expect(result.jurosPendente).toBe(200)
-    expect(result.totalDevido).toBe(1200)
+    expect(result.jurosPendente).toBeCloseTo(215.50625, 5)
+    expect(result.totalDevido).toBeCloseTo(1215.50625, 5)
+    expect(result.nextMonthInterest).toBeCloseTo(60.7753125, 6)
   })
 
   it('accrues compounded daily late interest over the monthly base', () => {
@@ -79,6 +80,54 @@ describe('calculateLoanInterest', () => {
     expect(result.usesDailyLateInterest).toBe(true)
     expect(result.jurosPendente).toBeCloseTo(53.6067676, 4)
     expect(result.totalDevido).toBeCloseTo(1053.6067676, 4)
+  })
+
+  it('subtracts already-paid interest in daily late mode', () => {
+    const result = calculateLoanInterest({
+      valor: 1000,
+      valorPago: 0,
+      jurosMes: 5,
+      jurosAtrasoDia: 1,
+      jurosPagos: 10,
+      vencimento: new Date('2026-05-01T12:00:00.000Z'),
+      now: new Date('2026-05-08T12:00:00.000Z'),
+    })
+
+    expect(result.usesDailyLateInterest).toBe(true)
+    expect(result.jurosAcumuladoTotal).toBeCloseTo(53.6067676, 4)
+    expect(result.jurosPendente).toBeCloseTo(43.6067676, 4)
+    expect(result.totalDevido).toBeCloseTo(1043.6067676, 4)
+  })
+
+  it('clamps pending interest to zero when paid interest is greater than accrued interest', () => {
+    const result = calculateLoanInterest({
+      valor: 1000,
+      valorPago: 0,
+      jurosMes: 5,
+      jurosAtrasoDia: 0,
+      jurosPagos: 999,
+      vencimento: new Date('2026-05-08T12:00:00.000Z'),
+      now: new Date('2026-05-08T12:00:00.000Z'),
+    })
+
+    expect(result.jurosBase).toBe(50)
+    expect(result.jurosPendente).toBe(0)
+    expect(result.totalDevido).toBe(1000)
+  })
+
+  it('computes daily delay by UTC day boundaries rather than clock hours', () => {
+    const result = calculateLoanInterest({
+      valor: 1000,
+      valorPago: 0,
+      jurosMes: 5,
+      jurosAtrasoDia: 1,
+      vencimento: new Date('2026-05-01T23:59:59.000Z'),
+      now: new Date('2026-05-02T00:00:01.000Z'),
+    })
+
+    expect(result.daysLate).toBe(1)
+    expect(result.jurosPendente).toBeCloseTo(50.5, 4)
+    expect(result.totalDevido).toBeCloseTo(1050.5, 4)
   })
 
   it('supports decimal monthly rates and cent-level payments without drifting the balance', () => {
