@@ -87,6 +87,7 @@ model Cliente {
   numeroEndereco     Int?
   documentos         ClienteDocumento[]
   loans              Emprestimo[]
+  whatsappPrefs      WhatsappAutomationClientPreference[]
 }
 
 model Emprestimo {
@@ -113,12 +114,82 @@ model Emprestimo {
   cliente             Cliente               @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   usuario             Usuario?              @relation(fields: [usuarioId], references: [id])
   historico           EmprestimoHistorico[]
+  whatsappDispatches  WhatsappAutomationDispatch[]
 
   @@index([status])
   @@index([createdAt])
   @@index([usuarioId])
   @@index([clienteId])
   @@index([vencimento])
+}
+
+model WhatsappAutomationConfig {
+  id                   String                    @id @default(cuid())
+  enabled              Boolean                   @default(true)
+  defaultCountryCode   String                    @default("55") @db.VarChar(5)
+  timezone             String                    @default("America/Bahia") @db.VarChar(60)
+  quietHoursStart      String?                   @db.VarChar(5)
+  quietHoursEnd        String?                   @db.VarChar(5)
+  sendOnWeekends       Boolean                   @default(false)
+  minIntervalMinutes   Int                       @default(240)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  rules                WhatsappAutomationRule[]
+}
+
+model WhatsappAutomationRule {
+  id             String                   @id @default(cuid())
+  configId       String
+  key            String                   @unique @db.VarChar(50)
+  title          String                   @db.VarChar(80)
+  enabled        Boolean                  @default(true)
+  priority       Int                      @default(100)
+  triggerType    String                   @db.VarChar(20)
+  offsetDays     Int                      @default(0)
+  recurrenceDays Int?
+  sendTime       String                   @default("09:00") @db.VarChar(5)
+  template       String                   @db.Text
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  config         WhatsappAutomationConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  dispatches     WhatsappAutomationDispatch[]
+
+  @@index([configId])
+  @@index([enabled, priority])
+}
+
+model WhatsappAutomationClientPreference {
+  id              String   @id @default(cuid())
+  clienteId       String   @unique
+  enabled         Boolean  @default(true)
+  pausedAt        DateTime?
+  pauseReason     String?  @db.VarChar(120)
+  allowRecurrence Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  cliente         Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@index([enabled])
+}
+
+model WhatsappAutomationDispatch {
+  id             String                @id @default(cuid())
+  ruleId         String
+  emprestimoId   String
+  status         String                @default("PENDING") @db.VarChar(20)
+  scheduledFor   DateTime?
+  attemptedAt    DateTime?
+  sentAt         DateTime?
+  errorMessage   String?               @db.Text
+  payloadPreview String?               @db.Text
+  providerRef    String?               @db.VarChar(120)
+  createdAt      DateTime              @default(now())
+  rule           WhatsappAutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  emprestimo     Emprestimo            @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId, status])
+  @@index([emprestimoId, createdAt])
+  @@index([scheduledFor])
 }
 
 model EmprestimoHistorico {

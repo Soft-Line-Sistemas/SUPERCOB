@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { LayoutDashboard, Users, CreditCard, LogOut, ShieldCheck, UserCog, BarChart3, Settings } from 'lucide-react'
+import { LayoutDashboard, Users, CreditCard, LogOut, ShieldCheck, UserCog, BarChart3, Settings, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -47,6 +47,7 @@ export function Sidebar() {
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, href: '/dashboard' },
     { id: 'clients', label: 'Clientes', icon: Users, href: '/clientes' },
     { id: 'loans', label: 'Contratos', icon: CreditCard, href: '/emprestimos' },
+    { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, href: '/dashboard/whatsapp' },
   ]
 
   const role = session?.user?.role?.toUpperCase()
@@ -67,7 +68,9 @@ export function Sidebar() {
         <nav className={`mx-auto max-w-[1600px] px-2 py-1.5 grid gap-1`} style={{ gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))` }}>
           {mobileItems.map((item) => {
             const Icon = item.icon
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            const isActive = item.href === '/dashboard'
+              ? pathname === '/dashboard'
+              : pathname === item.href || pathname.startsWith(item.href + '/')
             return (
               <Link
                 key={item.id}
@@ -114,8 +117,9 @@ export function Sidebar() {
           </p>
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive =
-              pathname === item.href || pathname.startsWith(item.href + "/");
+            const isActive = item.href === '/dashboard'
+              ? pathname === '/dashboard'
+              : pathname === item.href || pathname.startsWith(item.href + '/');
 
             return (
               <Link
