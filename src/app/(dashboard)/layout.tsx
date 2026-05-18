@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { Header } from '@/components/Header'
 import { Chat } from '@/components/Chat'
 import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,26 +20,35 @@ export default async function DashboardLayout({
   }
 
   const userId = (session.user as any).id
-  const unreadCount = await prisma.mensagemInterna.count({
-    where: {
-      destinatarioId: userId,
-      isLida: false
-    }
-  })
+  let unreadCount = 0
+  let recentNotificationsRaw: Prisma.MensagemInternaGetPayload<{
+    include: { remetente: { select: { nome: true; role: true } } }
+  }>[] = []
 
-  const recentNotificationsRaw = await prisma.mensagemInterna.findMany({
-    where: {
-      OR: [
-        { destinatarioId: userId },
-        { isMassiva: true, destinatarioId: null },
-      ],
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 10,
-    include: {
-      remetente: { select: { nome: true, role: true } },
-    },
-  })
+  try {
+    unreadCount = await prisma.mensagemInterna.count({
+      where: {
+        destinatarioId: userId,
+        isLida: false
+      }
+    })
+
+    recentNotificationsRaw = await prisma.mensagemInterna.findMany({
+      where: {
+        OR: [
+          { destinatarioId: userId },
+          { isMassiva: true, destinatarioId: null },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: {
+        remetente: { select: { nome: true, role: true } },
+      },
+    })
+  } catch (error) {
+    console.error('[dashboard/layout] failed to load internal messages', error)
+  }
 
   const recentNotifications = recentNotificationsRaw.map((n) => ({
     id: n.id,
