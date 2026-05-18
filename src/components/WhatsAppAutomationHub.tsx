@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Play, Pause, RotateCcw, Send, Settings2, Users, LayoutDashboard, QrCode } from 'lucide-react'
+import { Play, Pause, RotateCcw, Send, Settings2, Users, LayoutDashboard, QrCode, History, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { WhatsAppConnectionPage } from '@/components/WhatsAppConnectionPage'
 
-type Tab = 'overview' | 'clients' | 'config' | 'connection'
+type Tab = 'overview' | 'clients' | 'config' | 'connection' | 'history' | 'failures'
 
 type Situation = {
   id: string
@@ -28,6 +28,7 @@ type OverviewData = {
     todaySent: number
     todayFailed: number
     minIntervalMinutes: number
+    pendingFollowUps: number
   }
   situations: Situation[]
   recent: Array<any>
@@ -47,12 +48,16 @@ export function WhatsAppAutomationHub() {
         <TabBtn current={tab} value="overview" icon={LayoutDashboard} label="Visão Geral" onClick={setTab} />
         <TabBtn current={tab} value="clients" icon={Users} label="Clientes" onClick={setTab} />
         <TabBtn current={tab} value="config" icon={Settings2} label="Configuração" onClick={setTab} />
+        <TabBtn current={tab} value="history" icon={History} label="Histórico" onClick={setTab} />
+        <TabBtn current={tab} value="failures" icon={AlertTriangle} label="Falhas" onClick={setTab} />
         <TabBtn current={tab} value="connection" icon={QrCode} label="Conexão" onClick={setTab} />
       </div>
 
       {tab === 'overview' && <OverviewTab />}
       {tab === 'clients' && <ClientsTab />}
       {tab === 'config' && <ConfigTab />}
+      {tab === 'history' && <HistoryTab />}
+      {tab === 'failures' && <FailuresTab />}
       {tab === 'connection' && <WhatsAppConnectionPage />}
     </div>
   )
@@ -135,6 +140,9 @@ function OverviewTab() {
         <Metric label="Falhas Hoje" value={String(data.summary.todayFailed)} />
         <Metric label="Intervalo Anti-Spam" value={`${data.summary.minIntervalMinutes} min`} />
       </div>
+      <div className="px-3 py-2 rounded-xl border border-red-200 bg-red-50 text-red-800 text-xs font-semibold">
+        Fallback manual pendente: <span className="font-black">{data.summary.pendingFollowUps}</span> cobrança(s) com falha aguardando ação manual.
+      </div>
       <div className="px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-xs font-semibold">
         Proteção anti-spam ativa: o sistema respeita intervalo mínimo entre disparos para o mesmo cliente.
       </div>
@@ -169,6 +177,111 @@ function OverviewTab() {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function HistoryTab() {
+  const [items, setItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const res = await fetch('/api/whatsapp/automation/history', { cache: 'no-store' })
+    const json = await res.json()
+    if (!res.ok) {
+      toast.error(json?.error || 'Erro ao carregar histórico')
+    } else {
+      setItems(json.items || [])
+    }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load()
+  }, [load])
+
+  return (
+    <div className="space-y-3">
+      {loading ? <div className="text-sm text-slate-500">Carregando...</div> : null}
+      {items.map((item) => (
+        <div key={item.id} className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-black text-slate-900 dark:text-slate-100">{item.emprestimo?.cliente?.nome || 'Cliente'} • CTR-{String(item.emprestimoId || '').slice(-6).toUpperCase()}</p>
+            <span className={`text-[10px] px-2 py-1 rounded-md font-black ${item.status === 'SENT' ? 'bg-emerald-100 text-emerald-700' : item.status === 'FAILED' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{item.status}</span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">Origem: <span className="font-black">{item.triggerMode}</span> • Regra: {item.rule?.title || '-'}</p>
+          <p className="text-xs text-slate-500 mt-1">Mensagem: {item.payloadPreview || '-'}</p>
+          {item.errorMessage ? <p className="text-xs text-red-600 mt-1">Erro: {item.errorMessage}</p> : null}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function FailuresTab() {
+  const [items, setItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const res = await fetch('/api/whatsapp/automation/failures?status=PENDING', { cache: 'no-store' })
+    const json = await res.json()
+    if (!res.ok) {
+      toast.error(json?.error || 'Erro ao carregar falhas')
+    } else {
+      setItems(json.items || [])
+    }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const resolve = async (id: string) => {
+    setBusyId(id)
+    try {
+      const res = await fetch('/api/whatsapp/automation/failures', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'RESOLVE', notes: 'Tratado manualmente.' }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Erro ao atualizar falha')
+      toast.success('Falha marcada como resolvida')
+      setItems((prev) => prev.filter((x) => x.id !== id))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao atualizar falha')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {loading ? <div className="text-sm text-slate-500">Carregando...</div> : null}
+      {!loading && items.length === 0 ? (
+        <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" /> Nenhuma falha pendente para cobrança manual.
+        </div>
+      ) : null}
+      {items.map((item) => (
+        <div key={item.id} className="p-4 rounded-2xl border border-red-200 bg-red-50/60">
+          <p className="text-sm font-black text-red-900">{item.emprestimo?.cliente?.nome || 'Cliente'} • CTR-{String(item.emprestimoId || '').slice(-6).toUpperCase()}</p>
+          <p className="text-xs text-red-700 mt-1">Regra: {item.rule?.title || '-'} • Origem: {item.triggerMode}</p>
+          <p className="text-xs text-red-700 mt-1">Motivo da falha: {item.errorMessage || 'Não informado'}</p>
+          <button
+            disabled={busyId === item.id}
+            onClick={() => void resolve(item.id)}
+            className="mt-3 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-black disabled:opacity-60"
+          >
+            {busyId === item.id ? 'Resolvendo...' : 'Marcar como resolvida'}
+          </button>
+        </div>
+      ))}
     </div>
   )
 }

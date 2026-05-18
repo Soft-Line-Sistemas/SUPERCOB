@@ -5,6 +5,7 @@
   "scripts": {
     "predev": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
     "dev": "next dev",
+    "dev:poll": "WATCHPACK_POLLING=true next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

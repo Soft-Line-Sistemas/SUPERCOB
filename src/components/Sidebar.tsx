@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import PremiumLine from './PremiumLine'
+import { isAdminRole } from '@/lib/admin-auth'
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -47,12 +48,12 @@ export function Sidebar() {
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, href: '/dashboard' },
     { id: 'clients', label: 'Clientes', icon: Users, href: '/clientes' },
     { id: 'loans', label: 'Contratos', icon: CreditCard, href: '/emprestimos' },
-    { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, href: '/dashboard/whatsapp' },
   ]
 
-  const role = session?.user?.role?.toUpperCase()
+  const isAdmin = isAdminRole(session?.user?.role)
 
-  if (role === 'ADM' || role === 'ADMIN') {
+  if (isAdmin) {
+    navItems.push({ id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, href: '/dashboard/whatsapp' })
     navItems.push({ id: 'reports', label: 'Relatórios', icon: BarChart3, href: '/reports' })
     navItems.push({ id: 'users', label: 'Equipe', icon: UserCog, href: '/usuarios' })
   }

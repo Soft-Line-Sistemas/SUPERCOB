@@ -31,14 +31,15 @@ export function DossieTimeline({
 }: DossieTimelineProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
-  const [filterType, setFilterType] = useState<'ALL' | 'JUROS' | 'NOTA' | 'PAGAMENTO'>('ALL')
+  const [filterType, setFilterType] = useState<'ALL' | 'JUROS' | 'NOTA' | 'PAGAMENTO' | 'COBRANCA_WPP'>('ALL')
 
   const filteredEventos = useMemo(() => {
     if (filterType === 'ALL') return eventos
     return eventos.filter(ev => {
       if (filterType === 'JUROS') return ev.tipo === 'JUROS'
       if (filterType === 'PAGAMENTO') return ev.tipo === 'PAGAMENTO'
-      return ev.tipo !== 'JUROS' && ev.tipo !== 'PAGAMENTO'
+      if (filterType === 'COBRANCA_WPP') return ev.tipo === 'COBRANCA_WPP'
+      return ev.tipo !== 'JUROS' && ev.tipo !== 'PAGAMENTO' && ev.tipo !== 'COBRANCA_WPP'
     })
   }, [eventos, filterType])
 
@@ -66,7 +67,7 @@ export function DossieTimeline({
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
-          {['ALL', 'NOTA', 'JUROS', 'PAGAMENTO'].map((t) => (
+          {['ALL', 'NOTA', 'JUROS', 'PAGAMENTO', 'COBRANCA_WPP'].map((t) => (
             <button
               key={t}
               onClick={() => { setFilterType(t as any); setCurrentPage(1); }}
@@ -74,7 +75,7 @@ export function DossieTimeline({
                 filterType === t ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 dark:bg-white/5 text-slate-400 hover:bg-slate-950 hover:text-white'
               }`}
             >
-              {t === 'ALL' ? 'Tudo' : t === 'NOTA' ? 'Notas' : t === 'JUROS' ? 'Juros' : 'Pagos'}
+              {t === 'ALL' ? 'Tudo' : t === 'NOTA' ? 'Notas' : t === 'JUROS' ? 'Juros' : t === 'PAGAMENTO' ? 'Pagos' : 'WhatsApp'}
             </button>
           ))}
         </div>

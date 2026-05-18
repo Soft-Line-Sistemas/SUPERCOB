@@ -25,7 +25,12 @@ export default async function EmprestimoDetailsPage({ params }: { params: Promis
         historico: {
           include: { createdBy: { select: { nome: true } } },
           orderBy: { createdAt: 'desc' }
-        }
+        },
+        whatsappDispatches: {
+          include: { rule: { select: { title: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
       }
     }),
     role === 'ADM' ? prisma.usuario.findMany({ 
@@ -41,9 +46,22 @@ export default async function EmprestimoDetailsPage({ params }: { params: Promis
   if (role === 'GERENTE' && loan.usuarioId !== userId) redirect('/emprestimos')
 
   // Mapeamento para o tipo esperado pelo componente de UI
+  const eventosWhatsapp = loan.whatsappDispatches.map((d) => ({
+    id: `wpp-${d.id}`,
+    descricao:
+      d.status === 'SENT'
+        ? `Cobrança WhatsApp enviada (${d.triggerMode}) • Regra: ${d.rule?.title || '-'}`
+        : `Falha no WhatsApp (${d.triggerMode}) • Regra: ${d.rule?.title || '-'} • ${d.errorMessage || 'Erro não informado'}`,
+    createdAt: d.sentAt || d.attemptedAt || d.createdAt,
+    tipo: 'COBRANCA_WPP',
+    createdBy: { nome: d.triggerMode === 'MANUAL' ? 'Operador' : 'Automação' },
+  }))
+
   const emprestimoParaUI = {
     ...loan,
-    historico: loan.historico
+    historico: [...loan.historico, ...eventosWhatsapp].sort(
+      (a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt),
+    ),
   }
 
   return (

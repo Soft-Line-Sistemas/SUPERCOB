@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { ensureWhatsappAutomationSeed } from '@/lib/whatsapp-automation'
+import { isAdminRole } from '@/lib/admin-auth'
 
 export const runtime = 'nodejs'
 
 export async function GET() {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdminRole(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   await ensureWhatsappAutomationSeed()
   const config = await prisma.whatsappAutomationConfig.findFirst({
@@ -20,6 +22,7 @@ export async function GET() {
 export async function PUT(req: Request) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdminRole(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
   await ensureWhatsappAutomationSeed()

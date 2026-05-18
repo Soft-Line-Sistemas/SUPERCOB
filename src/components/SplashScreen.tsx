@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Banknote, Building2 } from 'lucide-react';
+import { Banknote } from 'lucide-react';
 
 export function SplashScreen() {
   const [show, setShow] = useState(true);
@@ -40,8 +41,8 @@ export function SplashScreen() {
               >
                 <Banknote size={48} />
               </motion.div>
-              <div className="z-10 bg-white w-20 h-20 rounded-2xl shadow-2xl shadow-gold-600/20 overflow-hidden">
-                <img src="/logo/logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
+              <div className="relative z-10 bg-white w-20 h-20 rounded-2xl shadow-2xl shadow-gold-600/20 overflow-hidden">
+                <Image src="/logo/logo.jpeg" alt="Logo" fill sizes="80px" className="object-cover" priority />
               </div>
             </div>
 

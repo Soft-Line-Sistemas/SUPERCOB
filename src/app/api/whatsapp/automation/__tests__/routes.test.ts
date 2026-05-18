@@ -28,6 +28,9 @@ const { mockAuth, mockEnsureSeed, mockSendMessage, mockPrisma } = vi.hoisted(() 
       findUnique: vi.fn(),
       findMany: vi.fn(),
     },
+    emprestimoHistorico: {
+      create: vi.fn(),
+    },
     cliente: {
       findMany: vi.fn(),
       count: vi.fn(),
@@ -60,7 +63,7 @@ import * as actionsRoute from '../actions/route'
 import * as runRoute from '../run/route'
 
 function asAuthed() {
-  mockAuth.mockResolvedValue({ user: { id: 'u1' } })
+  mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADM' } })
 }
 
 beforeEach(() => {
@@ -409,7 +412,7 @@ describe('actions route operational scenarios', () => {
       valorPago: 200,
       jurosMes: 5,
       jurosAtrasoDia: 1,
-      vencimento: new Date('2026-05-15T12:00:00.000Z'),
+      vencimento: new Date(),
       status: 'ABERTO',
       cobrancaAtiva: true,
       createdAt: new Date('2026-05-01T12:00:00.000Z'),
@@ -438,7 +441,7 @@ describe('actions route operational scenarios', () => {
       valorPago: 200,
       jurosMes: 5,
       jurosAtrasoDia: 1,
-      vencimento: new Date('2026-05-15T12:00:00.000Z'),
+      vencimento: new Date(),
       status: 'ABERTO',
       cobrancaAtiva: true,
       createdAt: new Date('2026-05-01T12:00:00.000Z'),
@@ -503,7 +506,7 @@ describe('actions route operational scenarios', () => {
       valorPago: 200,
       jurosMes: 5,
       jurosAtrasoDia: 1,
-      vencimento: new Date('2026-05-15T12:00:00.000Z'),
+      vencimento: new Date(),
       status: 'ABERTO',
       cobrancaAtiva: true,
       createdAt: new Date('2026-05-01T12:00:00.000Z'),

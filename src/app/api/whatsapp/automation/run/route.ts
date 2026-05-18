@@ -4,12 +4,13 @@ import { prisma } from '@/lib/prisma'
 import { computeLoanFacts, isRuleMatch, renderTemplate, validateAutomationWindow } from '@/lib/whatsapp-automation'
 import { ensureWhatsappAutomationSeed } from '@/lib/whatsapp-automation'
 import { whatsappService } from '@/lib/whatsapp-client'
+import { isAdminRole } from '@/lib/admin-auth'
 
 export const runtime = 'nodejs'
 
 async function canRunAutomation(req: Request) {
   const session = await auth()
-  if (session?.user) return true
+  if (session?.user && isAdminRole(session.user.role)) return true
 
   const secret = process.env.WHATSAPP_AUTOMATION_SECRET
   if (!secret) return false

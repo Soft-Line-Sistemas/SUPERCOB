@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { ensureWhatsappAutomationSeed } from '@/lib/whatsapp-automation'
+import { isAdminRole } from '@/lib/admin-auth'
 
 export const runtime = 'nodejs'
 
@@ -19,10 +20,11 @@ function nextRuleRun(sendTime: string) {
 export async function GET() {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdminRole(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   await ensureWhatsappAutomationSeed()
 
-  const [config, recent, todayTotal, todaySent, todayFailed, openLoans] = await Promise.all([
+  const [config, recent, todayTotal, todaySent, todayFailed, openLoans, pendingFollowUps] = await Promise.all([
     prisma.whatsappAutomationConfig.findFirst({ include: { rules: { orderBy: { priority: 'asc' } } } }),
     prisma.whatsappAutomationDispatch.findMany({
       orderBy: { createdAt: 'desc' },
@@ -48,6 +50,9 @@ export async function GET() {
       },
     }),
     prisma.emprestimo.count({ where: { status: { in: ['ABERTO', 'NEGOCIACAO'] }, cobrancaAtiva: true } }),
+    prisma.whatsappAutomationDispatch.count({
+      where: { requiresManualFollowUp: true, followUpStatus: 'PENDING' },
+    }),
   ])
 
   if (!config) {
@@ -75,6 +80,7 @@ export async function GET() {
       todaySent,
       todayFailed,
       minIntervalMinutes: Math.max(1, Number(config.minIntervalMinutes || 1)),
+      pendingFollowUps,
     },
     situations,
     recent,

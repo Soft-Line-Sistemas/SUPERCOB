@@ -183,6 +183,11 @@ model WhatsappAutomationDispatch {
   errorMessage   String?               @db.Text
   payloadPreview String?               @db.Text
   providerRef    String?               @db.VarChar(120)
+  triggerMode    String                @default("MANUAL") @db.VarChar(20)
+  requiresManualFollowUp Boolean       @default(false)
+  followUpStatus String                @default("NONE") @db.VarChar(20)
+  followUpResolvedAt DateTime?
+  followUpNotes  String?               @db.Text
   createdAt      DateTime              @default(now())
   rule           WhatsappAutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
   emprestimo     Emprestimo            @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)

@@ -3,6 +3,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { computeLoanFacts, isRuleMatch, renderTemplate, validateAutomationWindow } from '@/lib/whatsapp-automation'
 import { whatsappService } from '@/lib/whatsapp-client'
+import { isAdminRole } from '@/lib/admin-auth'
 
 export const runtime = 'nodejs'
 
@@ -11,6 +12,7 @@ type ActionType = 'PLAY_RULE' | 'PAUSE_RULE' | 'RESET_RULE_LOGS' | 'SEND_NOW'
 export async function POST(req: Request) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdminRole(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
   const action = String(body.action || '') as ActionType
@@ -166,6 +168,9 @@ export async function POST(req: Request) {
       status: 'PENDING',
       attemptedAt: new Date(),
       payloadPreview: payload,
+      triggerMode: 'MANUAL',
+      requiresManualFollowUp: false,
+      followUpStatus: 'NONE',
     },
   })
 
@@ -178,6 +183,18 @@ export async function POST(req: Request) {
         status: 'SENT',
         sentAt: new Date(),
         providerRef: sent.referenceId,
+        requiresManualFollowUp: false,
+        followUpStatus: 'NONE',
+        followUpResolvedAt: null,
+      },
+    })
+
+    await prisma.emprestimoHistorico.create({
+      data: {
+        emprestimoId: loan.id,
+        tipo: 'COBRANCA_WPP',
+        createdById: (session.user as any).id || null,
+        descricao: `Cobrança WhatsApp enviada (${updated.triggerMode}) • Regra: ${rule.title} • Ref: ${sent.referenceId}`,
       },
     })
 
@@ -194,6 +211,17 @@ export async function POST(req: Request) {
       data: {
         status: 'FAILED',
         errorMessage: error instanceof Error ? error.message : 'Falha no envio',
+        requiresManualFollowUp: true,
+        followUpStatus: 'PENDING',
+      },
+    })
+
+    await prisma.emprestimoHistorico.create({
+      data: {
+        emprestimoId: loan.id,
+        tipo: 'COBRANCA_WPP',
+        createdById: (session.user as any).id || null,
+        descricao: `Falha no envio WhatsApp (${updated.triggerMode}) • Regra: ${rule.title} • Motivo: ${updated.errorMessage || 'Falha desconhecida'}`,
       },
     })
 

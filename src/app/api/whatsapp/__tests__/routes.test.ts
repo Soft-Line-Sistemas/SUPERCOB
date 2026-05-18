@@ -23,7 +23,7 @@ beforeEach(() => {
 })
 
 function authed() {
-  mockAuth.mockResolvedValue({ user: { id: 'u1' } })
+  mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'ADM' } })
 }
 
 describe('whatsapp qr route', () => {

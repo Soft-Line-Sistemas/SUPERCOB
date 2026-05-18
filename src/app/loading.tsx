@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Banknote, Building2 } from 'lucide-react';
+import { Banknote } from 'lucide-react';
 
 export default function Loading() {
   return (
@@ -17,8 +18,8 @@ export default function Loading() {
           >
             <Banknote size={18} />
           </motion.div>
-          <div className="z-10 bg-white p-2 rounded-xl shadow-sm border border-gray-100">
-            <Building2 size={18} className="text-blue-600" />
+          <div className="relative z-10 bg-white w-8 h-8 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <Image src="/logo/logo.jpeg" alt="Logo" fill sizes="32px" className="object-cover" />
           </div>
         </div>
         <p className="text-xs font-bold text-gray-500 animate-pulse">Carregando...</p>
