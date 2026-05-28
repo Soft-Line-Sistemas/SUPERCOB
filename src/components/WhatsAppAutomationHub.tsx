@@ -17,6 +17,7 @@ type Situation = {
   recurrenceDays: number | null
   sendTime: string
   nextRunAt: string
+  nextRunAtLabel?: string
 }
 
 type OverviewData = {
@@ -159,7 +160,7 @@ function OverviewTab() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-black text-slate-900 dark:text-slate-100">{s.title}</p>
-                  <p className="text-xs text-slate-500">Próximo disparo previsto: {new Date(s.nextRunAt).toLocaleString('pt-BR')}</p>
+                  <p className="text-xs text-slate-500">Próximo disparo previsto: {s.nextRunAtLabel || new Date(s.nextRunAt).toLocaleString('pt-BR')}</p>
                 </div>
                 <div className="flex gap-2">
                   <button

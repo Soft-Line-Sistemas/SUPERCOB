@@ -6,15 +6,44 @@ import { isAdminRole } from '@/lib/admin-auth'
 
 export const runtime = 'nodejs'
 
-function nextRuleRun(sendTime: string) {
+function getTzParts(date: Date, timezone: string) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date)
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return {
+    year: Number(byType.year || 0),
+    month: Number(byType.month || 1),
+    day: Number(byType.day || 1),
+    hour: Number(byType.hour || 0),
+    minute: Number(byType.minute || 0),
+  }
+}
+
+function nextRuleRun(sendTime: string, timezone: string) {
   const [h, m] = sendTime.split(':').map((v) => Number(v || 0))
   const now = new Date()
-  const next = new Date(now)
-  next.setHours(h, m, 0, 0)
-  if (next.getTime() <= now.getTime()) {
-    next.setDate(next.getDate() + 1)
+  const nowParts = getTzParts(now, timezone)
+  const nowMinutes = nowParts.hour * 60 + nowParts.minute
+  const sendMinutes = h * 60 + m
+  const baseDate = nowMinutes >= sendMinutes ? new Date(now.getTime() + 24 * 60 * 60 * 1000) : now
+  const dateParts = getTzParts(baseDate, timezone)
+  const dd = String(dateParts.day).padStart(2, '0')
+  const mm = String(dateParts.month).padStart(2, '0')
+  const yyyy = String(dateParts.year)
+  const nextRunAtLabel = `${dd}/${mm}/${yyyy}, ${sendTime}:00`
+
+  return {
+    // Mantido por compatibilidade; frontend passa a priorizar nextRunAtLabel.
+    nextRunAt: new Date(baseDate),
+    nextRunAtLabel,
   }
-  return next
 }
 
 export async function GET() {
@@ -59,17 +88,22 @@ export async function GET() {
     return NextResponse.json({ error: 'Configuração não encontrada' }, { status: 404 })
   }
 
-  const situations = config.rules.map((rule) => ({
-    id: rule.id,
-    key: rule.key,
-    title: rule.title,
-    enabled: rule.enabled,
-    triggerType: rule.triggerType,
-    offsetDays: rule.offsetDays,
-    recurrenceDays: rule.recurrenceDays,
-    sendTime: rule.sendTime,
-    nextRunAt: nextRuleRun(rule.sendTime),
-  }))
+  const timezone = config.timezone || 'America/Bahia'
+  const situations = config.rules.map((rule) => {
+    const nextRun = nextRuleRun(rule.sendTime, timezone)
+    return {
+      id: rule.id,
+      key: rule.key,
+      title: rule.title,
+      enabled: rule.enabled,
+      triggerType: rule.triggerType,
+      offsetDays: rule.offsetDays,
+      recurrenceDays: rule.recurrenceDays,
+      sendTime: rule.sendTime,
+      nextRunAt: nextRun.nextRunAt,
+      nextRunAtLabel: nextRun.nextRunAtLabel,
+    }
+  })
 
   return NextResponse.json({
     summary: {
