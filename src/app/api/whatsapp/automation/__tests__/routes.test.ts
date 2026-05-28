@@ -563,4 +563,62 @@ describe('automation run route scenarios', () => {
     expect(body).toMatchObject({ success: true, sent: 0, failed: 0 })
     expect(mockPrisma.emprestimo.findMany).not.toHaveBeenCalled()
   })
+
+  it('marks automatic failures as manual follow-up pending', async () => {
+    asAuthed()
+    mockEnsureSeed.mockResolvedValue(undefined)
+    mockPrisma.whatsappAutomationConfig.findFirst.mockResolvedValue({
+      enabled: true,
+      minIntervalMinutes: 1,
+      rules: [
+        { id: 'r1', enabled: true, triggerType: 'LATE', offsetDays: 0, recurrenceDays: null, sendTime: '00:00', template: 'Oi {cliente_nome}', title: 'R1', priority: 1 },
+      ],
+    })
+    mockPrisma.emprestimo.findMany.mockResolvedValue([
+      {
+        id: 'loan123456',
+        clienteId: 'c1',
+        valor: 1000,
+        valorPago: 200,
+        jurosMes: 5,
+        jurosAtrasoDia: 1,
+        vencimento: new Date(),
+        status: 'ABERTO',
+        cobrancaAtiva: true,
+        createdAt: new Date('2026-05-01T12:00:00.000Z'),
+        cliente: { nome: 'Maria', whatsapp: '71999999999', whatsappPrefs: [] },
+      },
+    ])
+    mockPrisma.whatsappAutomationDispatch.findFirst.mockResolvedValue(null)
+    mockPrisma.whatsappAutomationDispatch.create.mockResolvedValue({ id: 'd1' })
+    mockSendMessage.mockRejectedValue(new Error('network down'))
+    mockPrisma.whatsappAutomationDispatch.update.mockResolvedValue({ id: 'd1', status: 'FAILED', errorMessage: 'network down' })
+
+    const req = new Request('http://localhost/api/whatsapp/automation/run', {
+      method: 'POST',
+      body: JSON.stringify({ limit: 10 }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const res = await runRoute.POST(req)
+    expect(res.status).toBe(200)
+    expect(mockPrisma.whatsappAutomationDispatch.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          triggerMode: 'AUTOMATIC',
+          requiresManualFollowUp: false,
+          followUpStatus: 'NONE',
+        }),
+      }),
+    )
+    expect(mockPrisma.whatsappAutomationDispatch.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'FAILED',
+          requiresManualFollowUp: true,
+          followUpStatus: 'PENDING',
+        }),
+      }),
+    )
+  })
 })

@@ -184,6 +184,8 @@ function OverviewTab() {
 function HistoryTab() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [sendingBatch, setSendingBatch] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -198,24 +200,142 @@ function HistoryTab() {
   }, [])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
   }, [load])
+
+  const sendableItems = useMemo(
+    () => items.filter((item) => item.status === 'FAILED' && item.requiresManualFollowUp && item.followUpStatus === 'PENDING'),
+    [items],
+  )
+
+  const isAllSelected = sendableItems.length > 0 && sendableItems.every((item) => selectedIds.includes(item.id))
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (isAllSelected) return []
+      return sendableItems.map((item) => item.id)
+    })
+  }
+
+  const toggleSelectOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      if (checked) return Array.from(new Set([...prev, id]))
+      return prev.filter((itemId) => itemId !== id)
+    })
+  }
+
+  const sendBatch = async () => {
+    if (selectedIds.length === 0) return
+    const selectedItems = sendableItems.filter((item) => selectedIds.includes(item.id))
+    if (selectedItems.length === 0) {
+      toast.error('Nenhum envio pendente válido selecionado.')
+      return
+    }
+
+    setSendingBatch(true)
+    let success = 0
+    let failed = 0
+
+    for (const item of selectedItems) {
+      try {
+        const sendRes = await fetch('/api/whatsapp/automation/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'SEND_NOW',
+            ruleId: item.ruleId,
+            emprestimoId: item.emprestimoId,
+          }),
+        })
+        const sendJson = await sendRes.json()
+        if (!sendRes.ok) throw new Error(sendJson?.error || 'Falha ao reenviar cobrança')
+
+        const resolveRes = await fetch('/api/whatsapp/automation/failures', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: item.id, action: 'RESOLVE', notes: 'Reenviado em lote pelo histórico.' }),
+        })
+        const resolveJson = await resolveRes.json()
+        if (!resolveRes.ok) throw new Error(resolveJson?.error || 'Falha ao resolver pendência')
+
+        success += 1
+      } catch (error) {
+        failed += 1
+        toast.error(error instanceof Error ? error.message : 'Erro no envio em lote')
+      }
+    }
+
+    if (success > 0) {
+      toast.success(`Envio em lote concluído: ${success} sucesso(s).`)
+      await load()
+      setSelectedIds([])
+    }
+    if (failed > 0) toast.error(`Envio em lote: ${failed} falha(s).`)
+    setSendingBatch(false)
+  }
 
   return (
     <div className="space-y-3">
       {loading ? <div className="text-sm text-slate-500">Carregando...</div> : null}
-      {items.map((item) => (
-        <div key={item.id} className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-black text-slate-900 dark:text-slate-100">{item.emprestimo?.cliente?.nome || 'Cliente'} • CTR-{String(item.emprestimoId || '').slice(-6).toUpperCase()}</p>
-            <span className={`text-[10px] px-2 py-1 rounded-md font-black ${item.status === 'SENT' ? 'bg-emerald-100 text-emerald-700' : item.status === 'FAILED' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{item.status}</span>
+      {items.length > 0 ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="inline-flex items-center gap-2 text-xs font-black text-slate-700 dark:text-slate-200">
+              <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} disabled={sendableItems.length === 0 || sendingBatch} />
+              Selecionar todos pendentes
+            </label>
+            <button
+              onClick={() => void sendBatch()}
+              disabled={selectedIds.length === 0 || sendingBatch}
+              className="px-3 py-2 rounded-lg bg-gold-600 text-white text-xs font-black disabled:opacity-60"
+            >
+              {sendingBatch ? 'Enviando em lote...' : `Enviar em lote (${selectedIds.length})`}
+            </button>
           </div>
-          <p className="text-xs text-slate-500 mt-1">Origem: <span className="font-black">{item.triggerMode}</span> • Regra: {item.rule?.title || '-'}</p>
-          <p className="text-xs text-slate-500 mt-1">Mensagem: {item.payloadPreview || '-'}</p>
-          {item.errorMessage ? <p className="text-xs text-red-600 mt-1">Erro: {item.errorMessage}</p> : null}
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-100 dark:bg-slate-900">
+                <tr>
+                  <th className="px-3 py-2 text-left font-black w-10">Sel</th>
+                  <th className="px-3 py-2 text-left font-black">Cliente</th>
+                  <th className="px-3 py-2 text-left font-black">Contrato</th>
+                  <th className="px-3 py-2 text-left font-black">Status</th>
+                  <th className="px-3 py-2 text-left font-black">Origem</th>
+                  <th className="px-3 py-2 text-left font-black">Regra</th>
+                  <th className="px-3 py-2 text-left font-black">Tentativa</th>
+                  <th className="px-3 py-2 text-left font-black">Erro</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => {
+                  const isSendable = item.status === 'FAILED' && item.requiresManualFollowUp && item.followUpStatus === 'PENDING'
+                  return (
+                    <tr key={item.id} className="border-t border-slate-200 dark:border-white/10">
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(item.id)}
+                          disabled={!isSendable || sendingBatch}
+                          onChange={(e) => toggleSelectOne(item.id, e.target.checked)}
+                        />
+                      </td>
+                      <td className="px-3 py-2 font-semibold text-slate-900 dark:text-slate-100">{item.emprestimo?.cliente?.nome || 'Cliente'}</td>
+                      <td className="px-3 py-2">CTR-{String(item.emprestimoId || '').slice(-6).toUpperCase()}</td>
+                      <td className="px-3 py-2">
+                        <span className={`text-[10px] px-2 py-1 rounded-md font-black ${item.status === 'SENT' ? 'bg-emerald-100 text-emerald-700' : item.status === 'FAILED' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{item.status}</span>
+                      </td>
+                      <td className="px-3 py-2">{item.triggerMode}</td>
+                      <td className="px-3 py-2">{item.rule?.title || '-'}</td>
+                      <td className="px-3 py-2">{item.attemptedAt ? new Date(item.attemptedAt).toLocaleString('pt-BR') : '-'}</td>
+                      <td className="px-3 py-2 text-red-600">{item.errorMessage || '-'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      ))}
+      ) : null}
     </div>
   )
 }
@@ -224,6 +344,8 @@ function FailuresTab() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [sendingBatch, setSendingBatch] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -260,6 +382,79 @@ function FailuresTab() {
     }
   }
 
+  const pendingItems = useMemo(
+    () => items.filter((item) => item.requiresManualFollowUp && item.followUpStatus === 'PENDING'),
+    [items],
+  )
+
+  const isAllSelected = pendingItems.length > 0 && pendingItems.every((item) => selectedIds.includes(item.id))
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (isAllSelected) return []
+      return pendingItems.map((item) => item.id)
+    })
+  }
+
+  const toggleSelectOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      if (checked) return Array.from(new Set([...prev, id]))
+      return prev.filter((itemId) => itemId !== id)
+    })
+  }
+
+  const sendBatch = async () => {
+    if (selectedIds.length === 0) return
+    const selectedItems = pendingItems.filter((item) => selectedIds.includes(item.id))
+    if (selectedItems.length === 0) {
+      toast.error('Nenhuma pendência válida selecionada.')
+      return
+    }
+
+    setSendingBatch(true)
+    let success = 0
+    let failed = 0
+    const resolvedIds: string[] = []
+
+    for (const item of selectedItems) {
+      try {
+        const sendRes = await fetch('/api/whatsapp/automation/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'SEND_NOW',
+            ruleId: item.ruleId,
+            emprestimoId: item.emprestimoId,
+          }),
+        })
+        const sendJson = await sendRes.json()
+        if (!sendRes.ok) throw new Error(sendJson?.error || 'Falha ao reenviar cobrança')
+
+        const resolveRes = await fetch('/api/whatsapp/automation/failures', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: item.id, action: 'RESOLVE', notes: 'Reenviado em lote.' }),
+        })
+        const resolveJson = await resolveRes.json()
+        if (!resolveRes.ok) throw new Error(resolveJson?.error || 'Falha ao marcar pendência como resolvida')
+
+        resolvedIds.push(item.id)
+        success += 1
+      } catch (error) {
+        failed += 1
+        toast.error(error instanceof Error ? error.message : 'Erro no envio em lote')
+      }
+    }
+
+    if (resolvedIds.length > 0) {
+      setItems((prev) => prev.filter((item) => !resolvedIds.includes(item.id)))
+      setSelectedIds((prev) => prev.filter((id) => !resolvedIds.includes(id)))
+    }
+    if (success > 0) toast.success(`Envio em lote concluído: ${success} sucesso(s).`)
+    if (failed > 0) toast.error(`Envio em lote: ${failed} falha(s).`)
+    setSendingBatch(false)
+  }
+
   return (
     <div className="space-y-3">
       {loading ? <div className="text-sm text-slate-500">Carregando...</div> : null}
@@ -268,20 +463,77 @@ function FailuresTab() {
           <CheckCircle2 className="w-4 h-4" /> Nenhuma falha pendente para cobrança manual.
         </div>
       ) : null}
-      {items.map((item) => (
-        <div key={item.id} className="p-4 rounded-2xl border border-red-200 bg-red-50/60">
-          <p className="text-sm font-black text-red-900">{item.emprestimo?.cliente?.nome || 'Cliente'} • CTR-{String(item.emprestimoId || '').slice(-6).toUpperCase()}</p>
-          <p className="text-xs text-red-700 mt-1">Regra: {item.rule?.title || '-'} • Origem: {item.triggerMode}</p>
-          <p className="text-xs text-red-700 mt-1">Motivo da falha: {item.errorMessage || 'Não informado'}</p>
-          <button
-            disabled={busyId === item.id}
-            onClick={() => void resolve(item.id)}
-            className="mt-3 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-black disabled:opacity-60"
-          >
-            {busyId === item.id ? 'Resolvendo...' : 'Marcar como resolvida'}
-          </button>
+      {items.length > 0 ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="inline-flex items-center gap-2 text-xs font-black text-slate-700 dark:text-slate-200">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={toggleSelectAll}
+                disabled={pendingItems.length === 0}
+              />
+              Selecionar todos pendentes
+            </label>
+            <button
+              onClick={() => void sendBatch()}
+              disabled={selectedIds.length === 0 || sendingBatch}
+              className="px-3 py-2 rounded-lg bg-gold-600 text-white text-xs font-black disabled:opacity-60"
+            >
+              {sendingBatch ? 'Enviando em lote...' : `Enviar em lote (${selectedIds.length})`}
+            </button>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-red-200 bg-red-50/50">
+            <table className="min-w-full text-sm">
+              <thead className="bg-red-100/70 text-red-900">
+                <tr>
+                  <th className="px-3 py-2 text-left font-black w-10">Sel</th>
+                  <th className="px-3 py-2 text-left font-black">Cliente</th>
+                  <th className="px-3 py-2 text-left font-black">Contrato</th>
+                  <th className="px-3 py-2 text-left font-black">Regra</th>
+                  <th className="px-3 py-2 text-left font-black">Origem</th>
+                  <th className="px-3 py-2 text-left font-black">Último envio</th>
+                  <th className="px-3 py-2 text-left font-black">Motivo</th>
+                  <th className="px-3 py-2 text-left font-black">Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => {
+                  const isPending = item.requiresManualFollowUp && item.followUpStatus === 'PENDING'
+                  const checked = selectedIds.includes(item.id)
+                  return (
+                    <tr key={item.id} className="border-t border-red-200/70">
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={!isPending || sendingBatch}
+                          onChange={(e) => toggleSelectOne(item.id, e.target.checked)}
+                        />
+                      </td>
+                      <td className="px-3 py-2 font-semibold text-red-900">{item.emprestimo?.cliente?.nome || 'Cliente'}</td>
+                      <td className="px-3 py-2 text-red-800">CTR-{String(item.emprestimoId || '').slice(-6).toUpperCase()}</td>
+                      <td className="px-3 py-2 text-red-800">{item.rule?.title || '-'}</td>
+                      <td className="px-3 py-2 text-red-800">{item.triggerMode}</td>
+                      <td className="px-3 py-2 text-red-800">{item.lastSentAt ? new Date(item.lastSentAt).toLocaleString('pt-BR') : 'Nunca enviado'}</td>
+                      <td className="px-3 py-2 text-red-700">{item.errorMessage || 'Não informado'}</td>
+                      <td className="px-3 py-2">
+                        <button
+                          disabled={busyId === item.id}
+                          onClick={() => void resolve(item.id)}
+                          className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-black disabled:opacity-60"
+                        >
+                          {busyId === item.id ? 'Resolvendo...' : 'Marcar resolvida'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      ))}
+      ) : null}
     </div>
   )
 }

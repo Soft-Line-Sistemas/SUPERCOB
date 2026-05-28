@@ -138,6 +138,9 @@ export async function POST(req: Request) {
           scheduledFor: new Date(),
           attemptedAt: new Date(),
           payloadPreview: payload,
+          triggerMode: 'AUTOMATIC',
+          requiresManualFollowUp: false,
+          followUpStatus: 'NONE',
         },
       })
 
@@ -149,6 +152,9 @@ export async function POST(req: Request) {
             status: 'SENT',
             sentAt: new Date(),
             providerRef: sent.referenceId,
+            requiresManualFollowUp: false,
+            followUpStatus: 'NONE',
+            followUpResolvedAt: null,
           },
         })
         results.push({ ruleId: rule.id, emprestimoId: loan.id, status: 'SENT' })
@@ -159,6 +165,8 @@ export async function POST(req: Request) {
           data: {
             status: 'FAILED',
             errorMessage: message,
+            requiresManualFollowUp: true,
+            followUpStatus: 'PENDING',
           },
         })
         results.push({ ruleId: rule.id, emprestimoId: loan.id, status: 'FAILED', error: message })

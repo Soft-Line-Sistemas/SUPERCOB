@@ -28,7 +28,32 @@ export async function GET(req: Request) {
     },
   })
 
-  return NextResponse.json({ items })
+  const withLastSent = await Promise.all(
+    items.map(async (item) => {
+      const clienteId = item.emprestimo?.cliente?.id
+      if (!clienteId) return { ...item, lastSentAt: null }
+
+      const lastSent = await prisma.whatsappAutomationDispatch.findFirst({
+        where: {
+          status: 'SENT',
+          sentAt: { not: null },
+          emprestimo: { clienteId },
+        },
+        orderBy: { sentAt: 'desc' },
+        select: { sentAt: true },
+      })
+
+      return { ...item, lastSentAt: lastSent?.sentAt ?? null }
+    }),
+  )
+
+  withLastSent.sort((a, b) => {
+    const aTime = a.lastSentAt ? new Date(a.lastSentAt).getTime() : 0
+    const bTime = b.lastSentAt ? new Date(b.lastSentAt).getTime() : 0
+    return aTime - bTime
+  })
+
+  return NextResponse.json({ items: withLastSent })
 }
 
 export async function PATCH(req: Request) {
