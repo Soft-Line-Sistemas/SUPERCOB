@@ -307,15 +307,15 @@ export function Reports({
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Interest Evolution Chart */}
-        <motion.div variants={item} className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
+        <motion.div variants={item} className="min-w-0 bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Evolução de Juros (Mensal)</h3>
             <div className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl">
               <TrendingUp className="w-5 h-5" />
             </div>
           </div>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-80 min-w-0">
+            <ResponsiveContainer width="100%" height={320} minWidth={0}>
               <AreaChart data={report.interestByMonth}>
                 <defs>
                   <linearGradient id="colorJuros" x1="0" y1="0" x2="0" y2="1">
@@ -343,7 +343,7 @@ export function Reports({
         </motion.div>
 
         {/* Volume by Location Chart */}
-        <motion.div variants={item} className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
+        <motion.div variants={item} className="min-w-0 bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Distribuição por Localidade</h3>
             <div className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-3 py-1.5 rounded-full">
@@ -351,8 +351,8 @@ export function Reports({
               Liderança: {leaderCity || '-'}
             </div>
           </div>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-80 min-w-0">
+            <ResponsiveContainer width="100%" height={320} minWidth={0}>
               <BarChart data={report.volumeByLocation} layout="vertical" margin={{ left: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="currentColor" className="text-slate-100 dark:text-white/5" />
                 <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', fontSize: 10, fontWeight: 700 }} className="text-slate-400 dark:text-slate-500" tickFormatter={(value) => `${value / 1000}k`} />

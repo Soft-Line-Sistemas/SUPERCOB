@@ -132,6 +132,7 @@ model WhatsappAutomationConfig {
   quietHoursEnd        String?                   @db.VarChar(5)
   sendOnWeekends       Boolean                   @default(false)
   minIntervalMinutes   Int                       @default(240)
+  queueGapMinutes      Int                       @default(0)
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
   rules                WhatsappAutomationRule[]

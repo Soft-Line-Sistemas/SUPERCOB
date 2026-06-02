@@ -148,7 +148,7 @@ export function Dashboard({ data }: DashboardProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Evolution Chart */}
-        <motion.div variants={item} className="lg:col-span-2 bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
+        <motion.div variants={item} className="min-w-0 lg:col-span-2 bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Evolução de Cobranças</h3>
@@ -159,8 +159,8 @@ export function Dashboard({ data }: DashboardProps) {
               Últimos 6 meses
             </div>
           </div>
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-80 min-w-0 w-full">
+            <ResponsiveContainer width="100%" height={320} minWidth={0}>
               <AreaChart data={evolutionData}>
                 <defs>
                   <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
@@ -202,11 +202,11 @@ export function Dashboard({ data }: DashboardProps) {
         </motion.div>
 
         {/* Distribution Chart */}
-        <motion.div variants={item} className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
+        <motion.div variants={item} className="min-w-0 bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Status da Carteira</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-8">Distribuição total de ativos</p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 min-w-0">
+            <ResponsiveContainer width="100%" height={256} minWidth={0}>
               <PieChart>
                 <Pie
                   data={statusDistribution}

@@ -23,6 +23,7 @@ export async function ensureWhatsappAutomationSeed() {
       timezone: 'America/Bahia',
       sendOnWeekends: false,
       minIntervalMinutes: 240,
+      queueGapMinutes: 0,
       rules: {
         create: DEFAULT_RULES.map((rule) => ({ ...rule, enabled: true })),
       },

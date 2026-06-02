@@ -46,6 +46,7 @@ export async function PUT(req: Request) {
         quietHoursEnd: body.quietHoursEnd ? String(body.quietHoursEnd) : null,
         sendOnWeekends: Boolean(body.sendOnWeekends),
         minIntervalMinutes: Math.max(1, Number(body.minIntervalMinutes ?? 240)),
+        queueGapMinutes: Math.max(0, Number(body.queueGapMinutes ?? 0)),
       },
     })
 

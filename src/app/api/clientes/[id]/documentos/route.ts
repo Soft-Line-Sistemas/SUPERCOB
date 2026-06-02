@@ -6,8 +6,15 @@ import fs from 'fs/promises'
 import crypto from 'crypto'
 import { parseMultipartFileFromRequest } from '@/lib/multipart'
 
-const MAX_SIZE = 5 * 1024 * 1024
-const ALLOWED = new Set(['image/jpeg', 'image/png', 'application/pdf'])
+const MAX_SIZE = 50 * 1024 * 1024
+const ALLOWED = new Set([
+  'image/jpeg',
+  'image/png',
+  'application/pdf',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+])
 
 function safeBaseName(name: string) {
   return name.replace(/[^\w\-\.\u00C0-\u017F]+/g, '_')
@@ -49,7 +56,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: 'Tipo de arquivo não permitido' }, { status: 400 })
     }
     if (file.data.byteLength > MAX_SIZE) {
-      return NextResponse.json({ error: 'Tamanho máximo excedido (5MB)' }, { status: 400 })
+      return NextResponse.json({ error: 'Tamanho máximo excedido (50 MB)' }, { status: 400 })
     }
 
     const dir = uploadsDir(id)

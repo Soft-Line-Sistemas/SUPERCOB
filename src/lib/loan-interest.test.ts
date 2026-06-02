@@ -80,6 +80,7 @@ describe('calculateLoanInterest', () => {
     expect(result.usesDailyLateInterest).toBe(true)
     expect(result.jurosPendente).toBeCloseTo(53.6067676, 4)
     expect(result.totalDevido).toBeCloseTo(1053.6067676, 4)
+    expect(result.nextMonthInterest).toBe(50)
   })
 
   it('subtracts already-paid interest in daily late mode', () => {

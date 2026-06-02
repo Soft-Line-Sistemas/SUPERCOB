@@ -8,7 +8,15 @@ function filePath(clienteId: string, fileName: string) {
   return path.join(process.cwd(), 'uploads', 'clientes', clienteId, fileName)
 }
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string; docId: string }> }) {
+function buildContentDisposition(fileName: string, forceDownload: boolean, mimeType: string) {
+  const safeName = fileName.replace(/"/g, '')
+  const encodedName = encodeURIComponent(fileName)
+  const dispositionType = forceDownload || !/pdf|image\/|video\//.test(mimeType) ? 'attachment' : 'inline'
+
+  return `${dispositionType}; filename="${safeName}"; filename*=UTF-8''${encodedName}`
+}
+
+export async function GET(req: Request, { params }: { params: Promise<{ id: string; docId: string }> }) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id, docId } = await params
@@ -17,10 +25,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     if (!doc) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
     const p = filePath(id, doc.fileName)
     const data = await fs.readFile(p)
+    const { searchParams } = new URL(req.url)
+    const forceDownload = searchParams.get('download') === '1'
+
     return new NextResponse(data, {
       headers: {
         'Content-Type': doc.mimeType,
-        'Content-Disposition': /pdf|image\//.test(doc.mimeType) ? 'inline' : `attachment; filename="${doc.originalName}"`,
+        'Content-Disposition': buildContentDisposition(doc.originalName, forceDownload, doc.mimeType),
         'Cache-Control': 'private, max-age=0, must-revalidate',
       },
     })
@@ -44,4 +55,3 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Erro ao excluir documento' }, { status: 500 })
   }
 }
-

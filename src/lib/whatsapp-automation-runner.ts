@@ -46,8 +46,25 @@ export async function runWhatsappAutomation(limit = 25): Promise<AutomationRunRe
   })
 
   const today = startOfToday()
+  const queueGapMs = Math.max(0, Number(config.queueGapMinutes || 0)) * 60 * 1000
   const results: Array<{ ruleId: string; emprestimoId: string; status: string; error?: string }> = []
   const skipped: Array<{ ruleId?: string; emprestimoId?: string; reason: string }> = []
+  let nextGlobalSendAt = 0
+
+  if (queueGapMs > 0) {
+    const latestGlobalSent = await prisma.whatsappAutomationDispatch.findFirst({
+      where: {
+        status: 'SENT',
+        sentAt: { not: null },
+      },
+      orderBy: { sentAt: 'desc' },
+      select: { sentAt: true },
+    })
+
+    if (latestGlobalSent?.sentAt) {
+      nextGlobalSendAt = latestGlobalSent.sentAt.getTime() + queueGapMs
+    }
+  }
 
   for (const rule of config.rules) {
     if (results.filter((result) => result.status === 'SENT').length >= safeLimit) break
@@ -95,6 +112,11 @@ export async function runWhatsappAutomation(limit = 25): Promise<AutomationRunRe
         continue
       }
 
+      if (queueGapMs > 0 && nextGlobalSendAt > Date.now()) {
+        skipped.push({ ruleId: rule.id, emprestimoId: loan.id, reason: 'Intervalo geral entre disparos ativo' })
+        continue
+      }
+
       const payload = renderTemplate(rule.template, {
         clienteNome: loan.cliente.nome,
         contratoId: loan.id.slice(-6).toUpperCase(),
@@ -123,17 +145,19 @@ export async function runWhatsappAutomation(limit = 25): Promise<AutomationRunRe
 
       try {
         const sent = await whatsappService.sendMessage(String(loan.cliente.whatsapp), payload)
+        const sentAt = new Date()
         await prisma.whatsappAutomationDispatch.update({
           where: { id: dispatch.id },
           data: {
             status: 'SENT',
-            sentAt: new Date(),
+            sentAt,
             providerRef: sent.referenceId,
             requiresManualFollowUp: false,
             followUpStatus: 'NONE',
             followUpResolvedAt: null,
           },
         })
+        nextGlobalSendAt = queueGapMs > 0 ? sentAt.getTime() + queueGapMs : 0
         results.push({ ruleId: rule.id, emprestimoId: loan.id, status: 'SENT' })
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Falha no envio'

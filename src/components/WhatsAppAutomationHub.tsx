@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Play, Pause, RotateCcw, Send, Settings2, Users, LayoutDashboard, QrCode, History, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Play, Pause, RotateCcw, Send, Settings2, Users, LayoutDashboard, QrCode, History, CheckCircle2, Clock3 } from 'lucide-react'
 import { WhatsAppConnectionPage } from '@/components/WhatsAppConnectionPage'
 
-type Tab = 'overview' | 'clients' | 'config' | 'connection' | 'history' | 'failures'
+type Tab = 'overview' | 'clients' | 'config' | 'connection' | 'history' | 'queue'
 
 type Situation = {
   id: string
@@ -35,6 +35,31 @@ type OverviewData = {
   recent: Array<any>
 }
 
+type QueueData = {
+  generatedAtLabel: string
+  summary: {
+    total: number
+    timezone: string
+    minIntervalMinutes: number
+    queueGapMinutes: number
+  }
+  items: Array<{
+    queuePosition: number
+    clienteId: string
+    clienteNome: string
+    whatsapp: string | null
+    emprestimoId: string
+    contratoLabel: string
+    ruleId: string
+    ruleKey: string
+    ruleTitle: string
+    scheduledAtLabel: string
+    expectedAtLabel: string
+    delayedByQueueMinutes: number
+    overdueByMinutes: number
+  }>
+}
+
 export function WhatsAppAutomationHub() {
   const [tab, setTab] = useState<Tab>('overview')
 
@@ -49,16 +74,16 @@ export function WhatsAppAutomationHub() {
         <TabBtn current={tab} value="overview" icon={LayoutDashboard} label="Visão Geral" onClick={setTab} />
         <TabBtn current={tab} value="clients" icon={Users} label="Clientes" onClick={setTab} />
         <TabBtn current={tab} value="config" icon={Settings2} label="Configuração" onClick={setTab} />
+        <TabBtn current={tab} value="queue" icon={Clock3} label="Fila" onClick={setTab} />
         <TabBtn current={tab} value="history" icon={History} label="Histórico" onClick={setTab} />
-        <TabBtn current={tab} value="failures" icon={AlertTriangle} label="Falhas" onClick={setTab} />
         <TabBtn current={tab} value="connection" icon={QrCode} label="Conexão" onClick={setTab} />
       </div>
 
       {tab === 'overview' && <OverviewTab />}
       {tab === 'clients' && <ClientsTab />}
       {tab === 'config' && <ConfigTab />}
+      {tab === 'queue' && <QueueTab />}
       {tab === 'history' && <HistoryTab />}
-      {tab === 'failures' && <FailuresTab />}
       {tab === 'connection' && <WhatsAppConnectionPage />}
     </div>
   )
@@ -187,6 +212,7 @@ function HistoryTab() {
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [sendingBatch, setSendingBatch] = useState(false)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -275,9 +301,33 @@ function HistoryTab() {
     setSendingBatch(false)
   }
 
+  const resolve = async (id: string) => {
+    setBusyId(id)
+    try {
+      const res = await fetch('/api/whatsapp/automation/failures', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'RESOLVE', notes: 'Tratado manualmente pelo histórico.' }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Erro ao atualizar pendência')
+      toast.success('Pendência marcada como resolvida')
+      await load()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao atualizar pendência')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   return (
     <div className="space-y-3">
       {loading ? <div className="text-sm text-slate-500">Carregando...</div> : null}
+      {!loading && items.length === 0 ? (
+        <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" /> Nenhum disparo registrado até o momento.
+        </div>
+      ) : null}
       {items.length > 0 ? (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -304,7 +354,9 @@ function HistoryTab() {
                   <th className="px-3 py-2 text-left font-black">Origem</th>
                   <th className="px-3 py-2 text-left font-black">Regra</th>
                   <th className="px-3 py-2 text-left font-black">Tentativa</th>
+                  <th className="px-3 py-2 text-left font-black">Pendência</th>
                   <th className="px-3 py-2 text-left font-black">Erro</th>
+                  <th className="px-3 py-2 text-left font-black">Ação</th>
                 </tr>
               </thead>
               <tbody>
@@ -328,7 +380,29 @@ function HistoryTab() {
                       <td className="px-3 py-2">{item.triggerMode}</td>
                       <td className="px-3 py-2">{item.rule?.title || '-'}</td>
                       <td className="px-3 py-2">{item.attemptedAt ? new Date(item.attemptedAt).toLocaleString('pt-BR') : '-'}</td>
+                      <td className="px-3 py-2">
+                        {item.requiresManualFollowUp ? (
+                          <span className={`text-[10px] px-2 py-1 rounded-md font-black ${item.followUpStatus === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>
+                            {item.followUpStatus}
+                          </span>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-red-600">{item.errorMessage || '-'}</td>
+                      <td className="px-3 py-2">
+                        {isSendable ? (
+                          <button
+                            disabled={busyId === item.id}
+                            onClick={() => void resolve(item.id)}
+                            className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-black disabled:opacity-60"
+                          >
+                            {busyId === item.id ? 'Resolvendo...' : 'Marcar resolvida'}
+                          </button>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
                     </tr>
                   )
                 })}
@@ -341,198 +415,73 @@ function HistoryTab() {
   )
 }
 
-function FailuresTab() {
-  const [items, setItems] = useState<any[]>([])
+function QueueTab() {
+  const [data, setData] = useState<QueueData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [busyId, setBusyId] = useState<string | null>(null)
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [sendingBatch, setSendingBatch] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/whatsapp/automation/failures?status=PENDING', { cache: 'no-store' })
+    const res = await fetch('/api/whatsapp/automation/queue', { cache: 'no-store' })
     const json = await res.json()
     if (!res.ok) {
-      toast.error(json?.error || 'Erro ao carregar falhas')
+      toast.error(json?.error || 'Erro ao carregar fila')
     } else {
-      setItems(json.items || [])
+      setData(json)
     }
     setLoading(false)
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
   }, [load])
-
-  const resolve = async (id: string) => {
-    setBusyId(id)
-    try {
-      const res = await fetch('/api/whatsapp/automation/failures', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'RESOLVE', notes: 'Tratado manualmente.' }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json?.error || 'Erro ao atualizar falha')
-      toast.success('Falha marcada como resolvida')
-      setItems((prev) => prev.filter((x) => x.id !== id))
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erro ao atualizar falha')
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  const pendingItems = useMemo(
-    () => items.filter((item) => item.requiresManualFollowUp && item.followUpStatus === 'PENDING'),
-    [items],
-  )
-
-  const isAllSelected = pendingItems.length > 0 && pendingItems.every((item) => selectedIds.includes(item.id))
-
-  const toggleSelectAll = () => {
-    setSelectedIds((prev) => {
-      if (isAllSelected) return []
-      return pendingItems.map((item) => item.id)
-    })
-  }
-
-  const toggleSelectOne = (id: string, checked: boolean) => {
-    setSelectedIds((prev) => {
-      if (checked) return Array.from(new Set([...prev, id]))
-      return prev.filter((itemId) => itemId !== id)
-    })
-  }
-
-  const sendBatch = async () => {
-    if (selectedIds.length === 0) return
-    const selectedItems = pendingItems.filter((item) => selectedIds.includes(item.id))
-    if (selectedItems.length === 0) {
-      toast.error('Nenhuma pendência válida selecionada.')
-      return
-    }
-
-    setSendingBatch(true)
-    let success = 0
-    let failed = 0
-    const resolvedIds: string[] = []
-
-    for (const item of selectedItems) {
-      try {
-        const sendRes = await fetch('/api/whatsapp/automation/actions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'SEND_NOW',
-            ruleId: item.ruleId,
-            emprestimoId: item.emprestimoId,
-          }),
-        })
-        const sendJson = await sendRes.json()
-        if (!sendRes.ok) throw new Error(sendJson?.error || 'Falha ao reenviar cobrança')
-
-        const resolveRes = await fetch('/api/whatsapp/automation/failures', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: item.id, action: 'RESOLVE', notes: 'Reenviado em lote.' }),
-        })
-        const resolveJson = await resolveRes.json()
-        if (!resolveRes.ok) throw new Error(resolveJson?.error || 'Falha ao marcar pendência como resolvida')
-
-        resolvedIds.push(item.id)
-        success += 1
-      } catch (error) {
-        failed += 1
-        toast.error(error instanceof Error ? error.message : 'Erro no envio em lote')
-      }
-    }
-
-    if (resolvedIds.length > 0) {
-      setItems((prev) => prev.filter((item) => !resolvedIds.includes(item.id)))
-      setSelectedIds((prev) => prev.filter((id) => !resolvedIds.includes(id)))
-    }
-    if (success > 0) toast.success(`Envio em lote concluído: ${success} sucesso(s).`)
-    if (failed > 0) toast.error(`Envio em lote: ${failed} falha(s).`)
-    setSendingBatch(false)
-  }
 
   return (
     <div className="space-y-3">
       {loading ? <div className="text-sm text-slate-500">Carregando...</div> : null}
-      {!loading && items.length === 0 ? (
-        <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" /> Nenhuma falha pendente para cobrança manual.
+      {data ? (
+        <div className="px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-xs text-slate-600 dark:text-slate-300">
+          {data.summary.total} disparo(s) previstos • intervalo por cliente de {data.summary.minIntervalMinutes} min • intervalo geral de {data.summary.queueGapMinutes} min • atualizado em {data.generatedAtLabel}
         </div>
       ) : null}
-      {items.length > 0 ? (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <label className="inline-flex items-center gap-2 text-xs font-black text-slate-700 dark:text-slate-200">
-              <input
-                type="checkbox"
-                checked={isAllSelected}
-                onChange={toggleSelectAll}
-                disabled={pendingItems.length === 0}
-              />
-              Selecionar todos pendentes
-            </label>
-            <button
-              onClick={() => void sendBatch()}
-              disabled={selectedIds.length === 0 || sendingBatch}
-              className="px-3 py-2 rounded-lg bg-gold-600 text-white text-xs font-black disabled:opacity-60"
-            >
-              {sendingBatch ? 'Enviando em lote...' : `Enviar em lote (${selectedIds.length})`}
-            </button>
-          </div>
-          <div className="overflow-x-auto rounded-2xl border border-red-200 bg-red-50/50">
+      {!loading && data && data.items.length === 0 ? (
+        <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" /> Nenhum cliente com disparo previsto no momento.
+        </div>
+      ) : null}
+      {data && data.items.length > 0 ? (
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950">
             <table className="min-w-full text-sm">
-              <thead className="bg-red-100/70 text-red-900">
+              <thead className="bg-slate-100 dark:bg-slate-900">
                 <tr>
-                  <th className="px-3 py-2 text-left font-black w-10">Sel</th>
+                  <th className="px-3 py-2 text-left font-black">#</th>
                   <th className="px-3 py-2 text-left font-black">Cliente</th>
                   <th className="px-3 py-2 text-left font-black">Contrato</th>
-                  <th className="px-3 py-2 text-left font-black">Regra</th>
-                  <th className="px-3 py-2 text-left font-black">Origem</th>
-                  <th className="px-3 py-2 text-left font-black">Último envio</th>
-                  <th className="px-3 py-2 text-left font-black">Motivo</th>
-                  <th className="px-3 py-2 text-left font-black">Ação</th>
+                  <th className="px-3 py-2 text-left font-black">Disparo esperado</th>
+                  <th className="px-3 py-2 text-left font-black">Janela base</th>
+                  <th className="px-3 py-2 text-left font-black">Previsão na fila</th>
+                  <th className="px-3 py-2 text-left font-black">Atraso fila</th>
+                  <th className="px-3 py-2 text-left font-black">Janela vencida</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => {
-                  const isPending = item.requiresManualFollowUp && item.followUpStatus === 'PENDING'
-                  const checked = selectedIds.includes(item.id)
-                  return (
-                    <tr key={item.id} className="border-t border-red-200/70">
+                {data.items.map((item) => (
+                  <tr key={`${item.ruleId}:${item.emprestimoId}`} className="border-t border-slate-200 dark:border-white/10">
+                      <td className="px-3 py-2 font-black text-slate-700 dark:text-slate-200">{item.queuePosition}</td>
                       <td className="px-3 py-2">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={!isPending || sendingBatch}
-                          onChange={(e) => toggleSelectOne(item.id, e.target.checked)}
-                        />
+                        <div className="font-semibold text-slate-900 dark:text-slate-100">{item.clienteNome}</div>
+                        <div className="text-xs text-slate-500">{item.whatsapp || 'Sem WhatsApp'}</div>
                       </td>
-                      <td className="px-3 py-2 font-semibold text-red-900">{item.emprestimo?.cliente?.nome || 'Cliente'}</td>
-                      <td className="px-3 py-2 text-red-800">CTR-{String(item.emprestimoId || '').slice(-6).toUpperCase()}</td>
-                      <td className="px-3 py-2 text-red-800">{item.rule?.title || '-'}</td>
-                      <td className="px-3 py-2 text-red-800">{item.triggerMode}</td>
-                      <td className="px-3 py-2 text-red-800">{item.lastSentAt ? new Date(item.lastSentAt).toLocaleString('pt-BR') : 'Nunca enviado'}</td>
-                      <td className="px-3 py-2 text-red-700">{item.errorMessage || 'Não informado'}</td>
-                      <td className="px-3 py-2">
-                        <button
-                          disabled={busyId === item.id}
-                          onClick={() => void resolve(item.id)}
-                          className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-black disabled:opacity-60"
-                        >
-                          {busyId === item.id ? 'Resolvendo...' : 'Marcar resolvida'}
-                        </button>
-                      </td>
+                      <td className="px-3 py-2">{item.contratoLabel}</td>
+                      <td className="px-3 py-2 font-semibold text-slate-900 dark:text-slate-100">{item.ruleTitle}</td>
+                      <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{item.scheduledAtLabel}</td>
+                      <td className="px-3 py-2 text-slate-900 dark:text-slate-100 font-semibold">{item.expectedAtLabel}</td>
+                      <td className="px-3 py-2">{item.delayedByQueueMinutes > 0 ? `${item.delayedByQueueMinutes} min` : 'Sem atraso'}</td>
+                      <td className="px-3 py-2">{item.overdueByMinutes > 0 ? `${item.overdueByMinutes} min` : '-'}</td>
                     </tr>
-                  )
-                })}
+                ))}
               </tbody>
             </table>
-          </div>
         </div>
       ) : null}
     </div>
@@ -660,15 +609,20 @@ function ConfigTab() {
 
   return (
     <div className="space-y-4">
-      <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 grid md:grid-cols-3 gap-3">
+      <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 grid md:grid-cols-4 gap-3">
         <label className="text-xs font-black text-slate-600">Automação ligada
           <select value={String(config.enabled)} onChange={(e) => setConfig({ ...config, enabled: e.target.value === 'true' })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent">
             <option value="true">Ativa</option>
             <option value="false">Pausada</option>
           </select>
         </label>
-        <label className="text-xs font-black text-slate-600">Intervalo mínimo (min)
+        <label className="text-xs font-black text-slate-600">Intervalo por cliente (min)
           <input type="number" value={config.minIntervalMinutes} onChange={(e) => setConfig({ ...config, minIntervalMinutes: Number(e.target.value || 240) })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent" />
+          <span className="mt-1 block text-[11px] font-medium text-slate-500">Tempo minimo antes de mandar outra mensagem para o mesmo cliente.</span>
+        </label>
+        <label className="text-xs font-black text-slate-600">Intervalo geral entre disparos (min)
+          <input type="number" value={config.queueGapMinutes ?? 0} onChange={(e) => setConfig({ ...config, queueGapMinutes: Number(e.target.value || 0) })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent" />
+          <span className="mt-1 block text-[11px] font-medium text-slate-500">Espaco entre uma mensagem e outra na fila geral. Use 0 para nao espaciar.</span>
         </label>
         <label className="text-xs font-black text-slate-600">Enviar finais de semana
           <select value={String(config.sendOnWeekends)} onChange={(e) => setConfig({ ...config, sendOnWeekends: e.target.value === 'true' })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent">
@@ -683,7 +637,14 @@ function ConfigTab() {
           <div className="grid md:grid-cols-5 gap-2">
             <input value={rule.title} onChange={(e) => setConfig({ ...config, rules: config.rules.map((r: any) => (r.id === rule.id ? { ...r, title: e.target.value } : r)) })} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-sm font-black md:col-span-2" />
             <input value={rule.sendTime} onChange={(e) => setConfig({ ...config, rules: config.rules.map((r: any) => (r.id === rule.id ? { ...r, sendTime: e.target.value } : r)) })} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-sm" />
-            <input type="number" value={rule.offsetDays} onChange={(e) => setConfig({ ...config, rules: config.rules.map((r: any) => (r.id === rule.id ? { ...r, offsetDays: Number(e.target.value || 0) } : r)) })} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-sm" />
+            <input
+              type="number"
+              value={rule.offsetDays}
+              readOnly
+              disabled
+              title="Valor apenas para visualizacao"
+              className="px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-900 text-sm text-slate-500 cursor-not-allowed"
+            />
             <select value={String(rule.enabled)} onChange={(e) => setConfig({ ...config, rules: config.rules.map((r: any) => (r.id === rule.id ? { ...r, enabled: e.target.value === 'true' } : r)) })} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-sm">
               <option value="true">Ativa</option>
               <option value="false">Pausada</option>

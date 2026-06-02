@@ -55,7 +55,7 @@ export function calculateLoanInterest(input: LoanInterestInput) {
       monthsAccrued: 0,
       daysLate,
       usesDailyLateInterest: true,
-      nextMonthInterest: (principalRestante + jurosPendente) * (jurosAtrasoPercent / 100), // Diário
+      nextMonthInterest: jurosBase,
     }
   }
 

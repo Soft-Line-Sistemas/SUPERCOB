@@ -69,7 +69,7 @@ export function WhatsAppTemplates({ clienteNome, valorPendente, vencimento, cont
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute bottom-full left-0 right-0 mb-4 bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 z-[70] min-w-[300px]"
+              className="absolute top-full left-0 right-0 mt-4 bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 z-[70] min-w-[300px]"
             >
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-black text-slate-900">Escolha um Template</p>
@@ -80,7 +80,10 @@ export function WhatsAppTemplates({ clienteNome, valorPendente, vencimento, cont
 
               <div className="space-y-4">
                 {templates.map((t) => (
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/10 hover:border-emerald-200 dark:hover:border-gold-500/50 transition-colors group">
+                  <div
+                    key={t.id}
+                    className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/10 hover:border-emerald-200 dark:hover:border-gold-500/50 transition-colors group"
+                  >
                     <p className="text-xs font-black text-slate-900 dark:text-slate-100">{t.title}</p>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-3">{t.desc}</p>
                     <div className="flex gap-2">

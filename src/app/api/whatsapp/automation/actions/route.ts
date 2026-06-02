@@ -135,6 +135,8 @@ export async function POST(req: Request) {
 
   const minIntervalMinutes = Math.max(1, Number(config.minIntervalMinutes || 1))
   const intervalMs = minIntervalMinutes * 60 * 1000
+  const queueGapMinutes = Math.max(0, Number(config.queueGapMinutes || 0))
+  const queueGapMs = queueGapMinutes * 60 * 1000
   const latestSent = await prisma.whatsappAutomationDispatch.findFirst({
     where: {
       status: 'SENT',
@@ -158,6 +160,32 @@ export async function POST(req: Request) {
         },
         { status: 429 },
       )
+    }
+  }
+
+  if (queueGapMs > 0) {
+    const latestGlobalSent = await prisma.whatsappAutomationDispatch.findFirst({
+      where: {
+        status: 'SENT',
+        sentAt: { not: null },
+      },
+      orderBy: { sentAt: 'desc' },
+      select: { sentAt: true },
+    })
+
+    if (latestGlobalSent?.sentAt) {
+      const elapsedGlobalMs = Date.now() - latestGlobalSent.sentAt.getTime()
+      if (elapsedGlobalMs < queueGapMs) {
+        const remainingSec = Math.ceil((queueGapMs - elapsedGlobalMs) / 1000)
+        return NextResponse.json(
+          {
+            error: `Intervalo geral ativo. Aguarde ${remainingSec}s para o próximo disparo.`,
+            queueGapMinutes,
+            remainingSeconds: remainingSec,
+          },
+          { status: 429 },
+        )
+      }
     }
   }
 
