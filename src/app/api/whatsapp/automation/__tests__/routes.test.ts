@@ -596,6 +596,52 @@ describe('actions route operational scenarios', () => {
     vi.useRealTimers()
   })
 
+  it('FORCE_SEND bypasses cadence and stores forced dispatch in history', async () => {
+    asAuthed()
+    const loan = {
+      id: 'loan123456',
+      clienteId: 'c1',
+      valor: 1000,
+      valorPago: 200,
+      jurosMes: 5,
+      jurosAtrasoDia: 1,
+      vencimento: new Date('2026-04-10T12:00:00.000Z'),
+      status: 'ABERTO',
+      cobrancaAtiva: true,
+      createdAt: new Date('2026-05-01T12:00:00.000Z'),
+      cliente: { nome: 'Maria', whatsapp: '71999999999', whatsappPrefs: [] },
+    }
+    mockPrisma.whatsappAutomationRule.findUnique.mockResolvedValue({ id: 'r1', enabled: true, triggerType: 'RECURRING', offsetDays: 2, recurrenceDays: 2, sendTime: '23:59', template: 'Olá {cliente_nome}', title: 'R1' })
+    mockPrisma.whatsappAutomationConfig.findFirst.mockResolvedValue({ enabled: true, minIntervalMinutes: 999, queueGapMinutes: 999, sendOnWeekends: false, timezone: 'America/Bahia' })
+    mockPrisma.emprestimo.findUnique.mockResolvedValue(loan)
+    mockPrisma.whatsappAutomationDispatch.create.mockResolvedValue({ id: 'd1' })
+    mockPrisma.whatsappAutomationDispatch.update.mockResolvedValue({ id: 'd1', status: 'SENT', triggerMode: 'FORCED' })
+    mockSendMessage.mockResolvedValue({ referenceId: 'wa-force-1' })
+
+    const req = new Request('http://localhost/api/whatsapp/automation/actions', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'FORCE_SEND', ruleId: 'r1', emprestimoId: loan.id }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await actionsRoute.POST(req)
+    expect(res.status).toBe(200)
+    expect(mockPrisma.whatsappAutomationDispatch.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          triggerMode: 'FORCED',
+        }),
+      }),
+    )
+    expect(mockSendMessage).toHaveBeenCalledTimes(1)
+    expect(mockPrisma.emprestimoHistorico.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          descricao: expect.stringContaining('FORCED'),
+        }),
+      }),
+    )
+  })
+
   it('SEND_NOW marks FAILED when provider send throws', async () => {
     asAuthed()
     const loan = {

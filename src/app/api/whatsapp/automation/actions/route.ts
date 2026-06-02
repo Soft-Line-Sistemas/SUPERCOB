@@ -8,7 +8,7 @@ import { isAdminRole } from '@/lib/admin-auth'
 
 export const runtime = 'nodejs'
 
-type ActionType = 'PLAY_RULE' | 'PAUSE_RULE' | 'RESET_RULE_LOGS' | 'SEND_NOW'
+type ActionType = 'PLAY_RULE' | 'PAUSE_RULE' | 'RESET_RULE_LOGS' | 'SEND_NOW' | 'FORCE_SEND'
 
 function formatNextRecurringMatch(loanDate: Date, daysLate: number, offsetDays: number, recurrenceDays: number | null, sendTime: string | null | undefined, timezone: string | null | undefined) {
   const startDay = Math.max(offsetDays, 0)
@@ -28,6 +28,111 @@ function formatNextRecurringMatch(loanDate: Date, daysLate: number, offsetDays: 
   }).format(nextDate)
 
   return `${dateLabel}, ${String(sendTime || '00:00')}:00`
+}
+
+async function loadLoanWithClient(emprestimoId: string) {
+  return prisma.emprestimo.findUnique({
+    where: { id: emprestimoId },
+    include: {
+      cliente: {
+        include: {
+          whatsappPrefs: true,
+        },
+      },
+    },
+  })
+}
+
+async function createAndSendDispatch(params: {
+  loan: Awaited<ReturnType<typeof loadLoanWithClient>>
+  rule: Awaited<ReturnType<typeof prisma.whatsappAutomationRule.findUnique>>
+  sessionUserId: string | null
+  triggerMode: 'MANUAL' | 'FORCED'
+}) {
+  const { loan, rule, sessionUserId, triggerMode } = params
+  const facts = computeLoanFacts(loan as any)
+  const payload = renderTemplate(String(rule!.template || ''), {
+    clienteNome: String(loan!.cliente.nome || ''),
+    contratoId: String(loan!.id || '').slice(-6).toUpperCase(),
+    valor: Number(loan!.valor || 0),
+    valorPago: Number(loan!.valorPago || 0),
+    saldo: facts.saldo,
+    jurosMes: Number(loan!.jurosMes || 0),
+    jurosAtrasoDia: Number(loan!.jurosAtrasoDia || 0),
+    diasAtraso: facts.daysLate,
+    dataVencimento: loan!.vencimento,
+  })
+
+  const dispatch = await prisma.whatsappAutomationDispatch.create({
+    data: {
+      ruleId: String(rule!.id),
+      emprestimoId: String(loan!.id),
+      status: 'PENDING',
+      attemptedAt: new Date(),
+      payloadPreview: payload,
+      triggerMode,
+      requiresManualFollowUp: false,
+      followUpStatus: 'NONE',
+    },
+  })
+
+  try {
+    const sent = await whatsappService.sendMessage(String(loan!.cliente.whatsapp), payload)
+    const updated = await prisma.whatsappAutomationDispatch.update({
+      where: { id: dispatch.id },
+      data: {
+        status: 'SENT',
+        sentAt: new Date(),
+        providerRef: sent.referenceId,
+        requiresManualFollowUp: false,
+        followUpStatus: 'NONE',
+        followUpResolvedAt: null,
+      },
+    })
+
+    await prisma.emprestimoHistorico.create({
+      data: {
+        emprestimoId: String(loan!.id),
+        tipo: 'COBRANCA_WPP',
+        createdById: sessionUserId,
+        descricao: `Cobrança WhatsApp enviada (${updated.triggerMode}) • Regra: ${rule!.title} • Ref: ${sent.referenceId}`,
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      dispatch: updated,
+      to: loan!.cliente.whatsapp,
+      cliente: loan!.cliente.nome,
+      rule: rule!.title,
+    })
+  } catch (error) {
+    const updated = await prisma.whatsappAutomationDispatch.update({
+      where: { id: dispatch.id },
+      data: {
+        status: 'FAILED',
+        errorMessage: error instanceof Error ? error.message : 'Falha no envio',
+        requiresManualFollowUp: true,
+        followUpStatus: 'PENDING',
+      },
+    })
+
+    await prisma.emprestimoHistorico.create({
+      data: {
+        emprestimoId: String(loan!.id),
+        tipo: 'COBRANCA_WPP',
+        createdById: sessionUserId,
+        descricao: `Falha no envio WhatsApp (${updated.triggerMode}) • Regra: ${rule!.title} • Motivo: ${updated.errorMessage || 'Falha desconhecida'}`,
+      },
+    })
+
+    return NextResponse.json(
+      {
+        error: updated.errorMessage || 'Falha no envio',
+      },
+      { status: 500 },
+    )
+  }
 }
 
 export async function POST(req: Request) {
@@ -61,7 +166,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true })
   }
 
-  if (action !== 'SEND_NOW') {
+  if (action !== 'SEND_NOW' && action !== 'FORCE_SEND') {
     return NextResponse.json({ error: 'Ação inválida' }, { status: 400 })
   }
 
@@ -73,41 +178,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Regra está pausada' }, { status: 400 })
   }
 
-  const windowCheck = validateAutomationWindow(config, rule)
-  if (!windowCheck.ok) {
-    return NextResponse.json({ error: windowCheck.reason || 'Fora da janela de envio' }, { status: 400 })
+  if (action !== 'FORCE_SEND') {
+    const windowCheck = validateAutomationWindow(config, rule)
+    if (!windowCheck.ok) {
+      return NextResponse.json({ error: windowCheck.reason || 'Fora da janela de envio' }, { status: 400 })
+    }
   }
 
   const emprestimoId = body.emprestimoId ? String(body.emprestimoId) : null
 
   let loan = emprestimoId
-    ? await prisma.emprestimo.findUnique({
-        where: { id: emprestimoId },
-        include: {
-          cliente: {
-            include: {
-              whatsappPrefs: true,
-            },
-          },
-        },
-      })
+    ? await loadLoanWithClient(emprestimoId)
     : null
 
-  if (!loan) {
+  if (!loan && action !== 'FORCE_SEND') {
     const queue = await loadWhatsappAutomationQueue()
     const queueCandidate = queue?.items.find((item) => item.ruleId === rule.id && item.expectedAt.getTime() <= Date.now())
 
     if (queueCandidate) {
-      loan = (await prisma.emprestimo.findUnique({
-        where: { id: queueCandidate.emprestimoId },
-        include: {
-          cliente: {
-            include: {
-              whatsappPrefs: true,
-            },
-          },
-        },
-      })) as any
+      loan = (await loadLoanWithClient(queueCandidate.emprestimoId)) as any
     }
   }
 
@@ -119,7 +208,7 @@ export async function POST(req: Request) {
   if (pref && !pref.enabled) {
     return NextResponse.json({ error: 'Cliente está pausado para cobrança automática' }, { status: 400 })
   }
-  if (rule.triggerType === 'RECURRING' && pref && !pref.allowRecurrence) {
+  if (action !== 'FORCE_SEND' && rule.triggerType === 'RECURRING' && pref && !pref.allowRecurrence) {
     return NextResponse.json({ error: 'Cliente não permite recorrência automática' }, { status: 400 })
   }
 
@@ -130,7 +219,7 @@ export async function POST(req: Request) {
   if (!loan.cobrancaAtiva) {
     return NextResponse.json({ error: 'Contrato está fora da cobrança ativa' }, { status: 400 })
   }
-  if (!isRuleMatch(rule, facts)) {
+  if (action !== 'FORCE_SEND' && !isRuleMatch(rule, facts)) {
     if (rule.triggerType === 'RECURRING') {
       const nextMatch = formatNextRecurringMatch(
         loan.vencimento ?? loan.createdAt,
@@ -148,143 +237,68 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Contrato não corresponde à regra selecionada' }, { status: 400 })
   }
 
-  const payload = renderTemplate(rule.template, {
-    clienteNome: loan.cliente.nome,
-    contratoId: loan.id.slice(-6).toUpperCase(),
-    valor: Number(loan.valor || 0),
-    valorPago: Number(loan.valorPago || 0),
-    saldo: facts.saldo,
-    jurosMes: Number(loan.jurosMes || 0),
-    jurosAtrasoDia: Number(loan.jurosAtrasoDia || 0),
-    diasAtraso: facts.daysLate,
-    dataVencimento: loan.vencimento,
-  })
-
-  const minIntervalMinutes = Math.max(1, Number(config.minIntervalMinutes || 1))
-  const intervalMs = minIntervalMinutes * 60 * 1000
-  const queueGapMinutes = Math.max(0, Number(config.queueGapMinutes || 0))
-  const queueGapMs = queueGapMinutes * 60 * 1000
-  const latestSent = await prisma.whatsappAutomationDispatch.findFirst({
-    where: {
-      status: 'SENT',
-      sentAt: { not: null },
-      emprestimo: { clienteId: loan.clienteId },
-    },
-    orderBy: { sentAt: 'desc' },
-    select: { sentAt: true },
-  })
-
-  if (latestSent?.sentAt) {
-    const elapsedMs = Date.now() - latestSent.sentAt.getTime()
-    if (elapsedMs < intervalMs) {
-      const remainingMs = intervalMs - elapsedMs
-      const remainingSec = Math.ceil(remainingMs / 1000)
-      return NextResponse.json(
-        {
-          error: `Anti-spam ativo. Aguarde ${remainingSec}s para novo disparo deste cliente.`,
-          minIntervalMinutes,
-          remainingSeconds: remainingSec,
-        },
-        { status: 429 },
-      )
-    }
-  }
-
-  if (queueGapMs > 0) {
-    const latestGlobalSent = await prisma.whatsappAutomationDispatch.findFirst({
+  if (action !== 'FORCE_SEND') {
+    const minIntervalMinutes = Math.max(1, Number(config.minIntervalMinutes || 1))
+    const intervalMs = minIntervalMinutes * 60 * 1000
+    const queueGapMinutes = Math.max(0, Number(config.queueGapMinutes || 0))
+    const queueGapMs = queueGapMinutes * 60 * 1000
+    const latestSent = await prisma.whatsappAutomationDispatch.findFirst({
       where: {
         status: 'SENT',
         sentAt: { not: null },
+        emprestimo: { clienteId: loan.clienteId },
       },
       orderBy: { sentAt: 'desc' },
       select: { sentAt: true },
     })
 
-    if (latestGlobalSent?.sentAt) {
-      const elapsedGlobalMs = Date.now() - latestGlobalSent.sentAt.getTime()
-      if (elapsedGlobalMs < queueGapMs) {
-        const remainingSec = Math.ceil((queueGapMs - elapsedGlobalMs) / 1000)
+    if (latestSent?.sentAt) {
+      const elapsedMs = Date.now() - latestSent.sentAt.getTime()
+      if (elapsedMs < intervalMs) {
+        const remainingMs = intervalMs - elapsedMs
+        const remainingSec = Math.ceil(remainingMs / 1000)
         return NextResponse.json(
           {
-            error: `Intervalo geral ativo. Aguarde ${remainingSec}s para o próximo disparo.`,
-            queueGapMinutes,
+            error: `Anti-spam ativo. Aguarde ${remainingSec}s para novo disparo deste cliente.`,
+            minIntervalMinutes,
             remainingSeconds: remainingSec,
           },
           { status: 429 },
         )
       }
     }
+
+    if (queueGapMs > 0) {
+      const latestGlobalSent = await prisma.whatsappAutomationDispatch.findFirst({
+        where: {
+          status: 'SENT',
+          sentAt: { not: null },
+        },
+        orderBy: { sentAt: 'desc' },
+        select: { sentAt: true },
+      })
+
+      if (latestGlobalSent?.sentAt) {
+        const elapsedGlobalMs = Date.now() - latestGlobalSent.sentAt.getTime()
+        if (elapsedGlobalMs < queueGapMs) {
+          const remainingSec = Math.ceil((queueGapMs - elapsedGlobalMs) / 1000)
+          return NextResponse.json(
+            {
+              error: `Intervalo geral ativo. Aguarde ${remainingSec}s para o próximo disparo.`,
+              queueGapMinutes,
+              remainingSeconds: remainingSec,
+            },
+            { status: 429 },
+          )
+        }
+      }
+    }
   }
 
-  const dispatch = await prisma.whatsappAutomationDispatch.create({
-    data: {
-      ruleId: rule.id,
-      emprestimoId: loan.id,
-      status: 'PENDING',
-      attemptedAt: new Date(),
-      payloadPreview: payload,
-      triggerMode: 'MANUAL',
-      requiresManualFollowUp: false,
-      followUpStatus: 'NONE',
-    },
+  return createAndSendDispatch({
+    loan,
+    rule,
+    sessionUserId: (session.user as any).id || null,
+    triggerMode: action === 'FORCE_SEND' ? 'FORCED' : 'MANUAL',
   })
-
-  try {
-    const sent = await whatsappService.sendMessage(String(loan.cliente.whatsapp), payload)
-
-    const updated = await prisma.whatsappAutomationDispatch.update({
-      where: { id: dispatch.id },
-      data: {
-        status: 'SENT',
-        sentAt: new Date(),
-        providerRef: sent.referenceId,
-        requiresManualFollowUp: false,
-        followUpStatus: 'NONE',
-        followUpResolvedAt: null,
-      },
-    })
-
-    await prisma.emprestimoHistorico.create({
-      data: {
-        emprestimoId: loan.id,
-        tipo: 'COBRANCA_WPP',
-        createdById: (session.user as any).id || null,
-        descricao: `Cobrança WhatsApp enviada (${updated.triggerMode}) • Regra: ${rule.title} • Ref: ${sent.referenceId}`,
-      },
-    })
-
-    return NextResponse.json({
-      success: true,
-      dispatch: updated,
-      to: loan.cliente.whatsapp,
-      cliente: loan.cliente.nome,
-      rule: rule.title,
-    })
-  } catch (error) {
-    const updated = await prisma.whatsappAutomationDispatch.update({
-      where: { id: dispatch.id },
-      data: {
-        status: 'FAILED',
-        errorMessage: error instanceof Error ? error.message : 'Falha no envio',
-        requiresManualFollowUp: true,
-        followUpStatus: 'PENDING',
-      },
-    })
-
-    await prisma.emprestimoHistorico.create({
-      data: {
-        emprestimoId: loan.id,
-        tipo: 'COBRANCA_WPP',
-        createdById: (session.user as any).id || null,
-        descricao: `Falha no envio WhatsApp (${updated.triggerMode}) • Regra: ${rule.title} • Motivo: ${updated.errorMessage || 'Falha desconhecida'}`,
-      },
-    })
-
-    return NextResponse.json(
-      {
-        error: updated.errorMessage || 'Falha no envio',
-      },
-      { status: 500 },
-    )
-  }
 }

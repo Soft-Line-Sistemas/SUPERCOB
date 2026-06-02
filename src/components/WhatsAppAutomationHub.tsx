@@ -418,6 +418,9 @@ function HistoryTab() {
 function QueueTab() {
   const [data, setData] = useState<QueueData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [advanceCount, setAdvanceCount] = useState(100)
+  const [sendingBatch, setSendingBatch] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -427,14 +430,79 @@ function QueueTab() {
       toast.error(json?.error || 'Erro ao carregar fila')
     } else {
       setData(json)
+      setSelectedIds((prev) => prev.filter((id) => json.items.some((item: QueueData['items'][number]) => `${item.ruleId}:${item.emprestimoId}` === id)))
     }
     setLoading(false)
   }, [])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
   }, [load])
+
+  const visibleItems = data?.items || []
+  const isAllSelected = visibleItems.length > 0 && visibleItems.every((item) => selectedIds.includes(`${item.ruleId}:${item.emprestimoId}`))
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (isAllSelected) return []
+      return visibleItems.map((item) => `${item.ruleId}:${item.emprestimoId}`)
+    })
+  }
+
+  const toggleSelectOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      if (checked) return Array.from(new Set([...prev, id]))
+      return prev.filter((itemId) => itemId !== id)
+    })
+  }
+
+  const selectNextCount = () => {
+    const safeCount = Math.max(1, Math.min(visibleItems.length, Number(advanceCount || 0)))
+    setSelectedIds(visibleItems.slice(0, safeCount).map((item) => `${item.ruleId}:${item.emprestimoId}`))
+  }
+
+  const forceBatch = async () => {
+    if (!data || selectedIds.length === 0) return
+    const selectedItems = data.items.filter((item) => selectedIds.includes(`${item.ruleId}:${item.emprestimoId}`))
+    if (selectedItems.length === 0) {
+      toast.error('Nenhum contrato válido selecionado para antecipação.')
+      return
+    }
+
+    setSendingBatch(true)
+    let success = 0
+    let failed = 0
+
+    for (const item of selectedItems) {
+      try {
+        const res = await fetch('/api/whatsapp/automation/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'FORCE_SEND',
+            ruleId: item.ruleId,
+            emprestimoId: item.emprestimoId,
+          }),
+        })
+        const json = await res.json()
+        if (!res.ok) throw new Error(json?.error || 'Falha ao antecipar envio')
+        success += 1
+      } catch (error) {
+        failed += 1
+        toast.error(error instanceof Error ? error.message : 'Falha ao antecipar envio')
+      }
+    }
+
+    if (success > 0) {
+      toast.success(`Antecipação concluída: ${success} envio(s).`)
+      setSelectedIds([])
+      await load()
+    }
+    if (failed > 0) {
+      toast.error(`Antecipação em lote: ${failed} falha(s).`)
+    }
+    setSendingBatch(false)
+  }
 
   return (
     <div className="space-y-3">
@@ -450,10 +518,42 @@ function QueueTab() {
         </div>
       ) : null}
       {data && data.items.length > 0 ? (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <label className="inline-flex items-center gap-2 font-black">
+              <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} disabled={sendingBatch} />
+              Selecionar todos da fila
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={data.items.length}
+                value={advanceCount}
+                onChange={(e) => setAdvanceCount(Number(e.target.value || 1))}
+                className="w-24 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-black text-slate-900"
+              />
+              <button
+                onClick={selectNextCount}
+                disabled={sendingBatch}
+                className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-black text-white disabled:opacity-60"
+              >
+                Marcar próximos {Math.max(1, Number(advanceCount || 0))}
+              </button>
+              <button
+                onClick={() => void forceBatch()}
+                disabled={selectedIds.length === 0 || sendingBatch}
+                className="rounded-lg bg-gold-600 px-3 py-2 text-xs font-black text-white disabled:opacity-60"
+              >
+                {sendingBatch ? 'Antecipando...' : `Antecipar envio (${selectedIds.length})`}
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-100 dark:bg-slate-900">
                 <tr>
+                  <th className="px-3 py-2 text-left font-black w-10">Sel</th>
                   <th className="px-3 py-2 text-left font-black">#</th>
                   <th className="px-3 py-2 text-left font-black">Cliente</th>
                   <th className="px-3 py-2 text-left font-black">Contrato</th>
@@ -467,6 +567,14 @@ function QueueTab() {
               <tbody>
                 {data.items.map((item) => (
                   <tr key={`${item.ruleId}:${item.emprestimoId}`} className="border-t border-slate-200 dark:border-white/10">
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(`${item.ruleId}:${item.emprestimoId}`)}
+                          disabled={sendingBatch}
+                          onChange={(e) => toggleSelectOne(`${item.ruleId}:${item.emprestimoId}`, e.target.checked)}
+                        />
+                      </td>
                       <td className="px-3 py-2 font-black text-slate-700 dark:text-slate-200">{item.queuePosition}</td>
                       <td className="px-3 py-2">
                         <div className="font-semibold text-slate-900 dark:text-slate-100">{item.clienteNome}</div>
@@ -482,6 +590,7 @@ function QueueTab() {
                 ))}
               </tbody>
             </table>
+          </div>
         </div>
       ) : null}
     </div>
