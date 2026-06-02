@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { computeLoanFacts, isRuleMatch, renderTemplate, validateAutomationWindow } from '@/lib/whatsapp-automation'
+import { loadWhatsappAutomationQueue } from '@/lib/whatsapp-automation-queue'
 import { whatsappService } from '@/lib/whatsapp-client'
 import { isAdminRole } from '@/lib/admin-auth'
 
@@ -73,29 +74,21 @@ export async function POST(req: Request) {
     : null
 
   if (!loan) {
-    const candidates = await prisma.emprestimo.findMany({
-      where: {
-        status: { in: ['ABERTO', 'NEGOCIACAO'] },
-        cobrancaAtiva: true,
-      },
-      include: {
-        cliente: {
-          include: {
-            whatsappPrefs: true,
+    const queue = await loadWhatsappAutomationQueue()
+    const queueCandidate = queue?.items.find((item) => item.ruleId === rule.id && item.expectedAt.getTime() <= Date.now())
+
+    if (queueCandidate) {
+      loan = (await prisma.emprestimo.findUnique({
+        where: { id: queueCandidate.emprestimoId },
+        include: {
+          cliente: {
+            include: {
+              whatsappPrefs: true,
+            },
           },
         },
-      },
-      orderBy: [{ vencimento: 'asc' }, { createdAt: 'asc' }],
-      take: 100,
-    })
-
-    loan = candidates.find((item) => {
-      const pref = item.cliente.whatsappPrefs[0]
-      if (pref && !pref.enabled) return false
-      if (rule.triggerType === 'RECURRING' && pref && !pref.allowRecurrence) return false
-      const facts = computeLoanFacts(item as any)
-      return isRuleMatch(rule, facts)
-    }) as any
+      })) as any
+    }
   }
 
   if (!loan) {

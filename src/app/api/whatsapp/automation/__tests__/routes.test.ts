@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockAuth, mockEnsureSeed, mockSendMessage, mockPrisma } = vi.hoisted(() => ({
+const { mockAuth, mockEnsureSeed, mockSendMessage, mockLoadQueue, mockPrisma } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockEnsureSeed: vi.fn(),
   mockSendMessage: vi.fn(),
+  mockLoadQueue: vi.fn(),
   mockPrisma: {
     $transaction: vi.fn(),
     whatsappAutomationConfig: {
@@ -54,6 +55,9 @@ vi.mock('@/lib/whatsapp-client', () => ({
   whatsappService: {
     sendMessage: mockSendMessage,
   },
+}))
+vi.mock('@/lib/whatsapp-automation-queue', () => ({
+  loadWhatsappAutomationQueue: mockLoadQueue,
 }))
 
 import * as configRoute from '../config/route'
@@ -392,7 +396,7 @@ describe('actions route operational scenarios', () => {
     asAuthed()
     mockPrisma.whatsappAutomationRule.findUnique.mockResolvedValue({ id: 'r1', enabled: true, triggerType: 'LATE', offsetDays: 1, recurrenceDays: null, template: 'x', title: 'R1' })
     mockPrisma.whatsappAutomationConfig.findFirst.mockResolvedValue({ enabled: true, minIntervalMinutes: 1 })
-    mockPrisma.emprestimo.findMany.mockResolvedValue([])
+    mockLoadQueue.mockResolvedValue({ items: [] })
 
     const req = new Request('http://localhost/api/whatsapp/automation/actions', {
       method: 'POST',
@@ -401,6 +405,67 @@ describe('actions route operational scenarios', () => {
     })
     const res = await actionsRoute.POST(req)
     expect(res.status).toBe(404)
+  })
+
+  it('SEND_NOW selects overdue contract from queue for the chosen rule', async () => {
+    asAuthed()
+    const loan = {
+      id: 'loan123456',
+      clienteId: 'c1',
+      valor: 1000,
+      valorPago: 200,
+      jurosMes: 5,
+      jurosAtrasoDia: 1,
+      vencimento: new Date('2026-05-25T12:00:00.000Z'),
+      status: 'ABERTO',
+      cobrancaAtiva: true,
+      createdAt: new Date('2026-05-01T12:00:00.000Z'),
+      cliente: { nome: 'Maria', whatsapp: '71999999999', whatsappPrefs: [] },
+    }
+
+    mockPrisma.whatsappAutomationRule.findUnique.mockResolvedValue({
+      id: 'r1',
+      enabled: true,
+      triggerType: 'RECURRING',
+      offsetDays: 2,
+      recurrenceDays: 2,
+      sendTime: '16:40',
+      template: 'Olá {cliente_nome}',
+      title: 'Recorrência',
+    })
+    mockPrisma.whatsappAutomationConfig.findFirst.mockResolvedValue({
+      enabled: true,
+      minIntervalMinutes: 1,
+      queueGapMinutes: 1,
+      timezone: 'America/Bahia',
+      sendOnWeekends: true,
+    })
+    mockLoadQueue.mockResolvedValue({
+      items: [
+        {
+          ruleId: 'r1',
+          emprestimoId: loan.id,
+          expectedAt: new Date(Date.now() - 5 * 60 * 1000),
+        },
+      ],
+    })
+    mockPrisma.emprestimo.findUnique.mockResolvedValue(loan)
+    mockPrisma.whatsappAutomationDispatch.findFirst.mockResolvedValue(null)
+    mockPrisma.whatsappAutomationDispatch.create.mockResolvedValue({ id: 'd1' })
+    mockSendMessage.mockResolvedValue({ referenceId: 'wa-1' })
+    mockPrisma.whatsappAutomationDispatch.update.mockResolvedValue({ id: 'd1', status: 'SENT' })
+
+    const req = new Request('http://localhost/api/whatsapp/automation/actions', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'SEND_NOW', ruleId: 'r1' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await actionsRoute.POST(req)
+    expect(res.status).toBe(200)
+    expect(mockPrisma.emprestimo.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: loan.id } }),
+    )
+    expect(mockSendMessage).toHaveBeenCalledTimes(1)
   })
 
   it('SEND_NOW returns 429 when anti-spam interval is active', async () => {
