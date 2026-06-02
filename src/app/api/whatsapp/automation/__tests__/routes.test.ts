@@ -562,6 +562,40 @@ describe('actions route operational scenarios', () => {
     expect(mockSendMessage).not.toHaveBeenCalled()
   })
 
+  it('SEND_NOW explains next recurring cycle when loan is outside today cadence', async () => {
+    asAuthed()
+    const loan = {
+      id: 'loan123456',
+      clienteId: 'c1',
+      valor: 1000,
+      valorPago: 200,
+      jurosMes: 5,
+      jurosAtrasoDia: 1,
+      vencimento: new Date('2026-04-10T12:00:00.000Z'),
+      status: 'ABERTO',
+      cobrancaAtiva: true,
+      createdAt: new Date('2026-05-01T12:00:00.000Z'),
+      cliente: { nome: 'Maria', whatsapp: '71999999999', whatsappPrefs: [] },
+    }
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-02T20:00:00.000Z'))
+    mockPrisma.whatsappAutomationRule.findUnique.mockResolvedValue({ id: 'r1', enabled: true, triggerType: 'RECURRING', offsetDays: 2, recurrenceDays: 2, sendTime: '16:57', template: 'Olá {cliente_nome}', title: 'R1' })
+    mockPrisma.whatsappAutomationConfig.findFirst.mockResolvedValue({ enabled: true, minIntervalMinutes: 1, sendOnWeekends: true, timezone: 'America/Bahia' })
+    mockPrisma.emprestimo.findUnique.mockResolvedValue(loan)
+
+    const req = new Request('http://localhost/api/whatsapp/automation/actions', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'SEND_NOW', ruleId: 'r1', emprestimoId: loan.id }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await actionsRoute.POST(req)
+    const body = await res.json()
+    expect(res.status).toBe(400)
+    expect(body.error).toContain('Próximo ciclo elegível')
+    expect(body.error).toContain('03/06/2026, 16:57:00')
+    vi.useRealTimers()
+  })
+
   it('SEND_NOW marks FAILED when provider send throws', async () => {
     asAuthed()
     const loan = {

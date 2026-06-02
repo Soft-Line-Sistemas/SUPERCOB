@@ -10,6 +10,26 @@ export const runtime = 'nodejs'
 
 type ActionType = 'PLAY_RULE' | 'PAUSE_RULE' | 'RESET_RULE_LOGS' | 'SEND_NOW'
 
+function formatNextRecurringMatch(loanDate: Date, daysLate: number, offsetDays: number, recurrenceDays: number | null, sendTime: string | null | undefined, timezone: string | null | undefined) {
+  const startDay = Math.max(offsetDays, 0)
+  const cadence = Math.max(recurrenceDays || 1, 1)
+  const nextLateDay = daysLate < startDay
+    ? startDay
+    : startDay + (Math.floor((daysLate - startDay) / cadence) + 1) * cadence
+
+  const nextDate = new Date(loanDate)
+  nextDate.setUTCDate(nextDate.getUTCDate() + nextLateDay)
+  const tz = timezone || 'America/Bahia'
+  const dateLabel = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tz,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(nextDate)
+
+  return `${dateLabel}, ${String(sendTime || '00:00')}:00`
+}
+
 export async function POST(req: Request) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -111,6 +131,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Contrato está fora da cobrança ativa' }, { status: 400 })
   }
   if (!isRuleMatch(rule, facts)) {
+    if (rule.triggerType === 'RECURRING') {
+      const nextMatch = formatNextRecurringMatch(
+        loan.vencimento ?? loan.createdAt,
+        facts.daysLate,
+        rule.offsetDays,
+        rule.recurrenceDays,
+        rule.sendTime,
+        config.timezone,
+      )
+      return NextResponse.json(
+        { error: `Contrato não corresponde à regra selecionada hoje. Próximo ciclo elegível: ${nextMatch}.` },
+        { status: 400 },
+      )
+    }
     return NextResponse.json({ error: 'Contrato não corresponde à regra selecionada' }, { status: 400 })
   }
 

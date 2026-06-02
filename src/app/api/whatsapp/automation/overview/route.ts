@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { ensureWhatsappAutomationSeed } from '@/lib/whatsapp-automation'
+import { loadWhatsappAutomationQueue } from '@/lib/whatsapp-automation-queue'
 import { isAdminRole } from '@/lib/admin-auth'
 
 export const runtime = 'nodejs'
@@ -53,7 +54,7 @@ export async function GET() {
 
   await ensureWhatsappAutomationSeed()
 
-  const [config, recent, todayTotal, todaySent, todayFailed, openLoans, pendingFollowUps] = await Promise.all([
+  const [config, recent, todayTotal, todaySent, todayFailed, openLoans, pendingFollowUps, queue] = await Promise.all([
     prisma.whatsappAutomationConfig.findFirst({ include: { rules: { orderBy: { priority: 'asc' } } } }),
     prisma.whatsappAutomationDispatch.findMany({
       orderBy: { createdAt: 'desc' },
@@ -82,6 +83,7 @@ export async function GET() {
     prisma.whatsappAutomationDispatch.count({
       where: { requiresManualFollowUp: true, followUpStatus: 'PENDING' },
     }),
+    loadWhatsappAutomationQueue(),
   ])
 
   if (!config) {
@@ -90,7 +92,14 @@ export async function GET() {
 
   const timezone = config.timezone || 'America/Bahia'
   const situations = config.rules.map((rule) => {
-    const nextRun = nextRuleRun(rule.sendTime, timezone)
+    const queuedForRule = queue?.items.find((item) => item.ruleId === rule.id)
+    const nextRun = queuedForRule
+      ? {
+          nextRunAt: queuedForRule.expectedAt,
+          nextRunAtLabel: queuedForRule.expectedAtLabel,
+        }
+      : nextRuleRun(rule.sendTime, timezone)
+
     return {
       id: rule.id,
       key: rule.key,

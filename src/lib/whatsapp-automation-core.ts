@@ -161,9 +161,10 @@ export function isRuleMatch(
   }
 
   if (rule.triggerType === 'RECURRING') {
-    if (facts.daysLate < Math.max(rule.offsetDays, 0)) return false
+    const startDay = Math.max(rule.offsetDays, 0)
+    if (facts.daysLate < startDay) return false
     const rec = Math.max(rule.recurrenceDays || 1, 1)
-    return facts.daysLate % rec === 0
+    return (facts.daysLate - startDay) % rec === 0
   }
 
   return false

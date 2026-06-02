@@ -135,6 +135,15 @@ describe('whatsapp-automation situational', () => {
     expect(isRuleMatch({ triggerType: 'RECURRING', offsetDays: 2, recurrenceDays: null }, facts)).toBe(true)
   })
 
+  it('rule RECURRING respects the initial offset before applying cadence', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-18T12:00:00.000Z'))
+
+    const facts = computeLoanFacts(buildLoan())
+    expect(facts.daysLate).toBe(3)
+    expect(isRuleMatch({ triggerType: 'RECURRING', offsetDays: 3, recurrenceDays: 2 }, facts)).toBe(true)
+  })
+
   it('rule unknown trigger never matches', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-18T12:00:00.000Z'))
