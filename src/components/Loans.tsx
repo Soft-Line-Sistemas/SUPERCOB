@@ -13,8 +13,17 @@ import { LoanCard } from './LoanCard';
 import { LoanHeader } from './loans/LoanHeader'
 import { LoanFilters } from './loans/LoanFilters'
 import { ColaboradorAnalytics } from './loans/ColaboradorAnalytics'
+import { BatchDossieModal } from './loans/BatchDossieModal'
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
+
+interface BatchLoanItem {
+  id: string
+  clienteNome: string
+  status: LoanStatus
+  vencimento?: string | null
+  valor: number
+}
 
 interface Loan {
   id: string;
@@ -78,6 +87,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [loading, setLoading] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
+  const [isBatchDossieOpen, setIsBatchDossieOpen] = useState(false)
+  const [isBatchExporting, setIsBatchExporting] = useState(false)
   
   const [filters, setFilters] = useState(() => {
     const status = initialSearch?.get('status') ?? ''
@@ -298,6 +309,14 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
   };
 
   const loansToRender = draftLoan ? [draftLoan, ...sortedLoans] : sortedLoans
+  const exportableLoans = loansToRender.filter((loan) => !loan.id.startsWith('draft-'))
+  const batchLoanItems: BatchLoanItem[] = exportableLoans.map((loan) => ({
+    id: loan.id,
+    clienteNome: loan.cliente.nome,
+    status: loan.status,
+    vencimento: loan.vencimento ? new Date(loan.vencimento).toISOString() : null,
+    valor: loan.valor,
+  }))
 
   const handleExportDossie = async (loanId: string) => {
     try {
@@ -334,6 +353,53 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
       })
     } catch (e) {
       toast.error('Erro ao gerar dossiê.', { id: 'dossie' })
+    }
+  }
+
+  const handleBatchExportDossie = async (loanIds: string[], password?: string) => {
+    if (loanIds.length === 0) {
+      toast.error('Nenhum contrato elegível para exportação em lote.')
+      return
+    }
+
+    try {
+      setIsBatchExporting(true)
+      toast.loading('Preparando pacote completo de dossiês...', { id: 'batch-dossie' })
+
+      const response = await fetch('/api/export/zip-dossies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loanIds,
+          password,
+        }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || 'Erro ao gerar pacote em lote')
+      }
+
+      const blob = await response.blob()
+      const fileUrl = URL.createObjectURL(blob)
+      const disposition = response.headers.get('Content-Disposition') || ''
+      const filenameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/)
+      const filename = decodeURIComponent(filenameMatch?.[1] || filenameMatch?.[2] || 'dossies-lote.zip')
+
+      const anchor = document.createElement('a')
+      anchor.href = fileUrl
+      anchor.download = filename
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      setTimeout(() => URL.revokeObjectURL(fileUrl), 1000)
+
+      setIsBatchDossieOpen(false)
+      toast.success(`Pacote com ${loanIds.length} contrato(s) gerado com sucesso.`, { id: 'batch-dossie' })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao gerar pacote em lote.', { id: 'batch-dossie' })
+    } finally {
+      setIsBatchExporting(false)
     }
   }
 
@@ -401,6 +467,8 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
         colaboradores={colaboradores}
         contactOnly={contactOnly}
         setContactOnly={setContactOnly}
+        exportableCount={exportableLoans.length}
+        onOpenBatchDossie={() => setIsBatchDossieOpen(true)}
       />
 
       <ColaboradorAnalytics 
@@ -446,6 +514,16 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
       />
 
       {/* Modal Detalhes */}
+      <BatchDossieModal
+        key={isBatchDossieOpen ? `batch-dossie-open-${batchLoanItems.map((loan) => loan.id).join('-')}` : 'batch-dossie-closed'}
+        open={isBatchDossieOpen}
+        loading={isBatchExporting}
+        loans={batchLoanItems}
+        onClose={() => {
+          if (!isBatchExporting) setIsBatchDossieOpen(false)
+        }}
+        onConfirm={handleBatchExportDossie}
+      />
 
     </div>
   );

@@ -26,6 +26,8 @@ interface LoanFiltersProps {
   colaboradores: { id: string; nome: string }[]
   contactOnly: boolean
   setContactOnly: React.Dispatch<React.SetStateAction<boolean>>
+  exportableCount: number
+  onOpenBatchDossie: () => void
 }
 
 export function LoanFilters({
@@ -38,7 +40,9 @@ export function LoanFilters({
   userRole,
   colaboradores,
   contactOnly,
-  setContactOnly
+  setContactOnly,
+  exportableCount,
+  onOpenBatchDossie
 }: LoanFiltersProps) {
   return (
     <div className="w-full">
@@ -68,6 +72,19 @@ export function LoanFilters({
         >
           <Filter className={`h-4 w-4 ${isFiltersOpen ? 'text-white' : 'text-gold-500'}`} />
           Filtros
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenBatchDossie}
+          disabled={exportableCount === 0}
+          className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-black transition-all shadow-sm border bg-slate-900 text-white border-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gold-600 dark:border-gold-600 dark:hover:bg-gold-700"
+        >
+          <Download className="h-4 w-4" />
+          Dossiê
+          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] tracking-widest">
+            {exportableCount}
+          </span>
         </button>
       </div>
 
