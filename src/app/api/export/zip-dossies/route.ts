@@ -12,15 +12,14 @@ import {
   buildLoanSummaryText,
   sanitizeForFileName,
 } from '@/lib/loan-dossier'
-import { unwrapCommonJsDefault } from '@/lib/module-interop'
 
 export const runtime = 'nodejs'
 
 const archiverModule = require('archiver')
-const archiver = unwrapCommonJsDefault(archiverModule)
+const archiver = archiverModule
 
 const zipEncryptedModule = require('archiver-zip-encrypted')
-const zipEncrypted = unwrapCommonJsDefault(zipEncryptedModule)
+const zipEncrypted = zipEncryptedModule
 
 let zipEncryptedRegistered = false
 

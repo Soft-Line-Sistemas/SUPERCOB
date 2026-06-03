@@ -194,7 +194,7 @@ export function BatchDossieModal({
             </div>
 
             <div className="min-h-0 flex-1 overflow-hidden px-4 py-4 sm:px-6">
-              <div className="grid min-h-full gap-4 lg:grid-cols-[minmax(0,1fr)_21rem]">
+              <div className="grid min-h-full gap-4 lg:h-full lg:grid-cols-[minmax(0,1fr)_21rem]">
                 <div className="min-w-0 space-y-4 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden">
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
@@ -320,7 +320,7 @@ export function BatchDossieModal({
                   </div>
                 </div>
 
-                <aside className="min-h-[16rem] max-h-[45dvh] space-y-4 overflow-y-auto overscroll-contain pr-1 touch-pan-y lg:min-h-0 lg:max-h-[calc(100dvh-26rem)]">
+                <aside className="min-h-[16rem] max-h-[45dvh] space-y-4 overflow-y-auto overscroll-contain pr-1 touch-pan-y lg:h-full lg:min-h-0 lg:max-h-none">
                   <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
                     <div className="flex items-start gap-3">
                       <div className="rounded-2xl bg-slate-900 p-3 text-white dark:bg-gold-600">
