@@ -320,7 +320,7 @@ export function BatchDossieModal({
                   </div>
                 </div>
 
-                <aside className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+                <aside className="min-h-[16rem] max-h-[45dvh] space-y-4 overflow-y-auto overscroll-contain pr-1 touch-pan-y lg:min-h-0 lg:max-h-[calc(100dvh-26rem)]">
                   <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
                     <div className="flex items-start gap-3">
                       <div className="rounded-2xl bg-slate-900 p-3 text-white dark:bg-gold-600">

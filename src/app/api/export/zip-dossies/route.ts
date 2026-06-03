@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma'
 import fs from 'fs/promises'
 import path from 'path'
 import { PassThrough } from 'stream'
-import archiver from 'archiver'
 import {
   buildBatchExportFileName,
   buildLoanDossierFileName,
@@ -13,10 +12,15 @@ import {
   buildLoanSummaryText,
   sanitizeForFileName,
 } from '@/lib/loan-dossier'
+import { unwrapCommonJsDefault } from '@/lib/module-interop'
 
 export const runtime = 'nodejs'
 
-const zipEncrypted = require('archiver-zip-encrypted')
+const archiverModule = require('archiver')
+const archiver = unwrapCommonJsDefault(archiverModule)
+
+const zipEncryptedModule = require('archiver-zip-encrypted')
+const zipEncrypted = unwrapCommonJsDefault(zipEncryptedModule)
 
 let zipEncryptedRegistered = false
 
