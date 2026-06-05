@@ -175,9 +175,6 @@ export function BatchDossieModal({
                     <h3 id="batch-dossie-title" className="text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">
                       Pacote de Dossiês
                     </h3>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-                      Filtre os tipos que quer baixar, revise contrato por contrato e gere um zip com dossiê, anexos e acervo digital já organizados por pasta.
-                    </p>
                   </div>
                 </div>
 
@@ -193,8 +190,8 @@ export function BatchDossieModal({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-hidden px-4 py-4 sm:px-6">
-              <div className="grid min-h-full gap-4 lg:h-full lg:grid-cols-[minmax(0,1fr)_21rem]">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+              <div className="grid min-h-full gap-4 lg:h-full lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_21rem]">
                 <div className="min-w-0 space-y-4 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden">
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
@@ -320,109 +317,111 @@ export function BatchDossieModal({
                   </div>
                 </div>
 
-                <aside className="min-h-[16rem] max-h-[45dvh] space-y-4 overflow-y-auto overscroll-contain pr-1 touch-pan-y lg:h-full lg:min-h-0 lg:max-h-none">
-                  <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                    <div className="flex items-start gap-3">
-                      <div className="rounded-2xl bg-slate-900 p-3 text-white dark:bg-gold-600">
-                        <FolderDown className="h-5 w-5" />
+                <aside className="min-h-[16rem] max-h-[calc(100dvh-14rem)] self-start overflow-hidden">
+                  <div className="h-full space-y-4 overflow-y-auto overscroll-contain pr-1 touch-pan-y">
+                    <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-2xl bg-slate-900 p-3 text-white dark:bg-gold-600">
+                          <FolderDown className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black uppercase tracking-[0.25em] text-slate-900 dark:text-white">Resumo</h4>
+                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            O zip será separado por contrato, com dossiê PDF e anexos.
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-black uppercase tracking-[0.25em] text-slate-900 dark:text-white">Resumo</h4>
-                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                          O zip será separado por contrato, com dossiê PDF e anexos.
-                        </p>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                        <div className="rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
+                          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Vai baixar</p>
+                          <p className="mt-1 text-2xl font-black text-slate-900 dark:text-white">{totalSelected} contrato(s)</p>
+                        </div>
+                        <div className="rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
+                          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Filtro ativo</p>
+                          <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">
+                            {FILTER_OPTIONS.find((option) => option.id === activeFilter)?.label}
+                          </p>
+                        </div>
+                        <div className="rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
+                          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Valor</p>
+                          <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{formatCurrency(totalSelectedValue)}</p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                      <div className="rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
-                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Vai baixar</p>
-                        <p className="mt-1 text-2xl font-black text-slate-900 dark:text-white">{totalSelected} contrato(s)</p>
-                      </div>
-                      <div className="rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
-                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Filtro ativo</p>
-                        <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">
-                          {FILTER_OPTIONS.find((option) => option.id === activeFilter)?.label}
-                        </p>
-                      </div>
-                      <div className="rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
-                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Valor</p>
-                        <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{formatCurrency(totalSelectedValue)}</p>
-                      </div>
-                    </div>
-                  </div>
+                    <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                      <h4 className="text-sm font-black uppercase tracking-[0.25em] text-slate-900 dark:text-white">Proteção Opcional</h4>
+                      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                        Ative uma senha para o zip quando o pacote for circular fora do time.
+                      </p>
 
-                  <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                    <h4 className="text-sm font-black uppercase tracking-[0.25em] text-slate-900 dark:text-white">Proteção Opcional</h4>
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                      Ative uma senha para o zip quando o pacote for circular fora do time.
-                    </p>
+                      <div className="mt-4 flex items-center justify-between gap-4 rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
+                        <div>
+                          <p className="text-sm font-bold text-slate-900 dark:text-white">Criptografar zip</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Proteção AES-256 opcional</p>
+                        </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-4 rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
-                      <div>
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">Criptografar zip</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Proteção AES-256 opcional</p>
-                      </div>
-
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={protectZip}
-                        onClick={() => setProtectZip((value) => !value)}
-                        disabled={loading}
-                        className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${
-                          protectZip ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-white/10'
-                        } disabled:cursor-not-allowed disabled:opacity-60`}
-                      >
-                        <span
-                          className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform ${
-                            protectZip ? 'translate-x-9' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-3 rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
-                      <ShieldCheck className={`h-5 w-5 ${protectZip ? 'text-emerald-500' : 'text-slate-400'}`} />
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">
-                          {protectZip ? 'Zip protegido com AES-256.' : 'Zip sem senha.'}
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {protectZip ? 'Use no mínimo 4 caracteres.' : 'Ative a proteção se precisar compartilhar externamente.'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <AnimatePresence initial={false}>
-                      {protectZip ? (
-                        <motion.div
-                          className="mt-4 overflow-hidden"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={protectZip}
+                          onClick={() => setProtectZip((value) => !value)}
+                          disabled={loading}
+                          className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${
+                            protectZip ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-white/10'
+                          } disabled:cursor-not-allowed disabled:opacity-60`}
                         >
-                          <label className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">
-                            <KeyRound className="h-3.5 w-3.5" />
-                            Senha do Zip
-                          </label>
-                          <div className="relative">
-                            <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                            <input
-                              type="text"
-                              value={password}
-                              onChange={(event) => setPassword(event.target.value)}
-                              placeholder="Ex.: contrato2026"
-                              disabled={loading}
-                              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm font-bold text-slate-900 outline-none transition-all focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-slate-900 dark:text-white"
-                            />
-                          </div>
-                          {password.trim().length > 0 && password.trim().length < 4 ? (
-                            <p className="mt-2 text-xs font-bold text-rose-600 dark:text-rose-300">Use pelo menos 4 caracteres.</p>
-                          ) : null}
-                        </motion.div>
-                      ) : null}
-                    </AnimatePresence>
+                          <span
+                            className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform ${
+                              protectZip ? 'translate-x-9' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="mt-4 flex items-center gap-3 rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
+                        <ShieldCheck className={`h-5 w-5 ${protectZip ? 'text-emerald-500' : 'text-slate-400'}`} />
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-slate-900 dark:text-white">
+                            {protectZip ? 'Zip protegido com AES-256.' : 'Zip sem senha.'}
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {protectZip ? 'Use no mínimo 4 caracteres.' : 'Ative a proteção se precisar compartilhar externamente.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <AnimatePresence initial={false}>
+                        {protectZip ? (
+                          <motion.div
+                            className="mt-4 overflow-hidden"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                          >
+                            <label className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">
+                              <KeyRound className="h-3.5 w-3.5" />
+                              Senha do Zip
+                            </label>
+                            <div className="relative">
+                              <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                              <input
+                                type="text"
+                                value={password}
+                                onChange={(event) => setPassword(event.target.value)}
+                                placeholder="Ex.: contrato2026"
+                                disabled={loading}
+                                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm font-bold text-slate-900 outline-none transition-all focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                              />
+                            </div>
+                            {password.trim().length > 0 && password.trim().length < 4 ? (
+                              <p className="mt-2 text-xs font-bold text-rose-600 dark:text-rose-300">Use pelo menos 4 caracteres.</p>
+                            ) : null}
+                          </motion.div>
+                        ) : null}
+                      </AnimatePresence>
+                    </div>
                   </div>
                 </aside>
               </div>

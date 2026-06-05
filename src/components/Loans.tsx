@@ -309,7 +309,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
   };
 
   const loansToRender = draftLoan ? [draftLoan, ...sortedLoans] : sortedLoans
-  const exportableLoans = loansToRender.filter((loan) => !loan.id.startsWith('draft-'))
+  const exportableLoans = loansToRender.filter((loan) => !loan.id.startsWith('draft-') && loan.cobrancaAtiva)
   const batchLoanItems: BatchLoanItem[] = exportableLoans.map((loan) => ({
     id: loan.id,
     clienteNome: loan.cliente.nome,

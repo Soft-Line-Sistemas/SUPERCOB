@@ -198,7 +198,10 @@ export async function POST(req: Request) {
   }
 
   const loans = await prisma.emprestimo.findMany({
-    where: { id: { in: loanIds } },
+    where: {
+      id: { in: loanIds },
+      cobrancaAtiva: true,
+    },
     include: {
       cliente: {
         include: {
@@ -222,6 +225,13 @@ export async function POST(req: Request) {
 
   if (loans.length === 0) {
     return NextResponse.json({ error: 'Nenhum contrato encontrado para exportação.' }, { status: 404 })
+  }
+
+  if (loans.length !== loanIds.length) {
+    return NextResponse.json(
+      { error: 'O pacote de dossiês só pode incluir contratos com "Enviar para Cobrança" ativo.' },
+      { status: 400 }
+    )
   }
 
   const archive = createArchive(typeof password === 'string' && password.trim() ? password.trim() : undefined)

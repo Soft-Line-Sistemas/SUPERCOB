@@ -26,6 +26,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Empréstimo não encontrado' }, { status: 404 })
   }
 
+  if (!loan.cobrancaAtiva) {
+    return NextResponse.json(
+      { error: 'O dossiê só pode ser gerado para contratos com "Enviar para Cobrança" ativo.' },
+      { status: 400 }
+    )
+  }
+
   const pdfBytes = await buildLoanDossierPdf(loan)
   const fileName = buildLoanDossierFileName(loan)
   return new NextResponse(Buffer.from(pdfBytes), {
