@@ -8,3 +8,4 @@ coverage/
 backup/
 scripts/
 exemplo-whatsapp/
+.wwebjs_auth/
