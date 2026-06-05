@@ -14,6 +14,7 @@ import { LoanHeader } from './loans/LoanHeader'
 import { LoanFilters } from './loans/LoanFilters'
 import { ColaboradorAnalytics } from './loans/ColaboradorAnalytics'
 import { BatchDossieModal } from './loans/BatchDossieModal'
+import { ChargeDeliveryModal } from './loans/ChargeDeliveryModal'
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
 
@@ -89,6 +90,9 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [isBatchDossieOpen, setIsBatchDossieOpen] = useState(false)
   const [isBatchExporting, setIsBatchExporting] = useState(false)
+  const [chargeDeliveryLoanId, setChargeDeliveryLoanId] = useState<string | null>(null)
+  const [isSingleChargeDownloading, setIsSingleChargeDownloading] = useState(false)
+  const [isSendingChargeWhatsapp, setIsSendingChargeWhatsapp] = useState(false)
   
   const [filters, setFilters] = useState(() => {
     const status = initialSearch?.get('status') ?? ''
@@ -317,42 +321,72 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     vencimento: loan.vencimento ? new Date(loan.vencimento).toISOString() : null,
     valor: loan.valor,
   }))
+  const chargeDeliveryLoan = loansToRender.find((loan) => loan.id === chargeDeliveryLoanId) ?? null
+
+  const handleOpenChargeDelivery = (loanId: string) => {
+    setChargeDeliveryLoanId(loanId)
+  }
 
   const handleExportDossie = async (loanId: string) => {
     try {
-      toast.loading('Gerando dossiê de cobrança...', { id: 'dossie' })
-      const res = await fetch(`/api/export/pdf-dossie`, {
+      setIsSingleChargeDownloading(true)
+      toast.loading('Preparando pacote do contrato...', { id: 'dossie' })
+      const res = await fetch('/api/export/zip-dossies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emprestimoId: loanId }),
+        body: JSON.stringify({ loanIds: [loanId] }),
       })
 
-      if (!res.ok) throw new Error('Erro ao gerar dossiê')
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        throw new Error(payload?.error || 'Erro ao gerar pacote do contrato')
+      }
+
       const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      
-      const a = document.createElement('a')
-      a.href = url
-      const loan = loansToRender.find(l => l.id === loanId)
-      const filename = `dossie-cobranca-${loan?.cliente.nome.toLowerCase().replace(/\s+/g, '-')}.pdf`
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      
-      toast.success('Dossiê gerado com sucesso!', { id: 'dossie' })
-      
-      toast.info('Deseja enviar por WhatsApp?', {
-        action: {
-          label: 'Enviar',
-          onClick: () => {
-            const text = `Seguem os dados para cobrança do cliente ${loan?.cliente.nome}.`
-            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-          }
-        }
-      })
+      const fileUrl = URL.createObjectURL(blob)
+      const disposition = res.headers.get('Content-Disposition') || ''
+      const filenameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/)
+      const filename = decodeURIComponent(filenameMatch?.[1] || filenameMatch?.[2] || 'dossie-contrato.zip')
+
+      const anchor = document.createElement('a')
+      anchor.href = fileUrl
+      anchor.download = filename
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      setTimeout(() => URL.revokeObjectURL(fileUrl), 1000)
+
+      setChargeDeliveryLoanId(null)
+      toast.success('Pacote do contrato gerado com sucesso!', { id: 'dossie' })
     } catch (e) {
-      toast.error('Erro ao gerar dossiê.', { id: 'dossie' })
+      toast.error(e instanceof Error ? e.message : 'Erro ao gerar pacote do contrato.', { id: 'dossie' })
+    } finally {
+      setIsSingleChargeDownloading(false)
+    }
+  }
+
+  const handleSendChargeWhatsapp = async (loanId: string, phone: string) => {
+    try {
+      setIsSendingChargeWhatsapp(true)
+      toast.loading('Gerando pacote e enviando no WhatsApp...', { id: 'charge-whatsapp' })
+
+      const response = await fetch('/api/export/zip-dossies/send-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loanId, phone }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || 'Erro ao enviar pacote por WhatsApp')
+      }
+
+      setChargeDeliveryLoanId(null)
+      toast.success('Pacote enviado por WhatsApp com sucesso!', { id: 'charge-whatsapp' })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao enviar pacote por WhatsApp.', { id: 'charge-whatsapp' })
+    } finally {
+      setIsSendingChargeWhatsapp(false)
     }
   }
 
@@ -488,7 +522,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
               onDelete={handleDelete}
               onDetail={handleOpenDetail}
               onToggleCobranca={handleToggleCobranca}
-              onExportDossie={handleExportDossie}
+              onExportDossie={handleOpenChargeDelivery}
               formatCurrency={formatCurrency}
               formatDate={formatDate}
               generateWhatsAppLink={generateWhatsAppLink}
@@ -523,6 +557,19 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
           if (!isBatchExporting) setIsBatchDossieOpen(false)
         }}
         onConfirm={handleBatchExportDossie}
+      />
+
+      <ChargeDeliveryModal
+        key={chargeDeliveryLoan ? chargeDeliveryLoan.id : 'charge-delivery-closed'}
+        open={Boolean(chargeDeliveryLoan)}
+        loan={chargeDeliveryLoan}
+        downloading={isSingleChargeDownloading}
+        sendingWhatsapp={isSendingChargeWhatsapp}
+        onClose={() => {
+          if (!isSingleChargeDownloading && !isSendingChargeWhatsapp) setChargeDeliveryLoanId(null)
+        }}
+        onDownload={handleExportDossie}
+        onSendWhatsapp={handleSendChargeWhatsapp}
       />
 
     </div>

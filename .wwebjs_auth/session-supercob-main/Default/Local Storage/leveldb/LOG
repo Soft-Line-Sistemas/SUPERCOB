@@ -1,2 +1,3 @@
-2026/05/15-16:55:46.588 15360 Creating DB /home/programador1/projects/SUPERCOB/.wwebjs_auth/session-supercob-main/Default/Local Storage/leveldb since it was missing.
-2026/05/15-16:55:46.634 15360 Reusing MANIFEST /home/programador1/projects/SUPERCOB/.wwebjs_auth/session-supercob-main/Default/Local Storage/leveldb/MANIFEST-000001
+2026/06/05-14:49:10.752 36377 Reusing MANIFEST /home/programador1/projects/SUPERCOB/.wwebjs_auth/session-supercob-main/Default/Local Storage/leveldb/MANIFEST-000001
+2026/06/05-14:49:10.755 36377 Recovering log #3
+2026/06/05-14:49:10.755 36377 Reusing old log /home/programador1/projects/SUPERCOB/.wwebjs_auth/session-supercob-main/Default/Local Storage/leveldb/000003.log 

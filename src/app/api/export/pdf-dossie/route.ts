@@ -17,7 +17,21 @@ export async function POST(req: Request) {
   const loan = await prisma.emprestimo.findUnique({
     where: { id: emprestimoId },
     include: {
-      cliente: true,
+      cliente: {
+        include: {
+          documentos: {
+            select: {
+              id: true,
+              originalName: true,
+              fileName: true,
+              mimeType: true,
+              size: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      },
       usuario: { select: { nome: true } }
     }
   })

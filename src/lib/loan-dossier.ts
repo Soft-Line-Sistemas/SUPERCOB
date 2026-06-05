@@ -26,6 +26,14 @@ export interface LoanDossierCliente {
   contatoEmergencia1?: string | null
   contatoEmergencia2?: string | null
   contatoEmergencia3?: string | null
+  documentos?: Array<{
+    id: string
+    originalName: string
+    fileName?: string | null
+    mimeType?: string | null
+    size?: number | null
+    createdAt?: Date | string
+  }>
 }
 
 export interface LoanDossierPayload {
@@ -70,7 +78,10 @@ export function buildLoanDossierFileName(loan: { cliente: { nome: string } }) {
   return `dossie-${sanitizeForFileName(loan.cliente.nome || 'cliente')}.pdf`
 }
 
-export function buildBatchExportFileName(date = new Date()) {
+export function buildBatchExportFileName(
+  date = new Date(),
+  loan?: { id: string; cliente: { nome: string } }
+) {
   const stamp = [
     date.getFullYear(),
     String(date.getMonth() + 1).padStart(2, '0'),
@@ -79,6 +90,12 @@ export function buildBatchExportFileName(date = new Date()) {
     String(date.getHours()).padStart(2, '0'),
     String(date.getMinutes()).padStart(2, '0'),
   ].join('')
+
+  if (loan) {
+    const contractCode = loan.id.slice(0, 8).toUpperCase()
+    const clientName = sanitizeForFileName(loan.cliente.nome || 'cliente')
+    return `dossie-${contractCode}-${clientName}-${stamp}.zip`
+  }
 
   return `dossies-lote-${stamp}.zip`
 }
@@ -117,6 +134,14 @@ export function buildLoanSummaryText(input: {
 
 function formatCurrency(val: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+}
+
+function sanitizePdfText(value: string | null | undefined) {
+  return String(value ?? '-')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7E]/g, '')
+    .trim() || '-'
 }
 
 function formatDate(date: Date | string | null | undefined) {
@@ -273,11 +298,17 @@ export async function buildLoanDossierPdf(loan: LoanDossierPayload) {
   y -= 45
   checkNewPage(100)
   drawSectionTitle('Documentação e Anexos')
-  const anexos = [loan.arquivo1, loan.arquivo2, loan.arquivo3, loan.arquivo4, loan.arquivo5].filter(Boolean)
-  drawField('Total de Anexos Registrados', String(anexos.length), 50, 200)
-  if (anexos.length > 0) {
+  const anexosLegados = [loan.arquivo1, loan.arquivo2, loan.arquivo3, loan.arquivo4, loan.arquivo5].filter(Boolean)
+  const documentosCliente = loan.cliente.documentos ?? []
+  const totalDocumentos = anexosLegados.length + documentosCliente.length
+
+  drawField('Anexos do Contrato', String(anexosLegados.length), 50, 140)
+  drawField('Documentos do Cliente', String(documentosCliente.length), 210, 140)
+  drawField('Total de Arquivos', String(totalDocumentos), 370, 140)
+
+  if (totalDocumentos > 0) {
     y -= 35
-    anexos.forEach((_, index) => {
+    anexosLegados.forEach((_, index) => {
       page.drawText(`[X] Documento Digitalizado Anexo ${index + 1} verificado`, {
         x: 50,
         y,
@@ -286,6 +317,27 @@ export async function buildLoanDossierPdf(loan: LoanDossierPayload) {
         color: rgb(0.4, 0.4, 0.4),
       })
       y -= 15
+    })
+
+    documentosCliente.forEach((documento, index) => {
+      page.drawText(`[X] Documento do Cliente ${index + 1}: ${sanitizePdfText(documento.originalName)}`, {
+        x: 50,
+        y,
+        size: 8,
+        font,
+        color: rgb(0.4, 0.4, 0.4),
+        maxWidth: width - 100,
+      })
+      y -= 15
+    })
+  } else {
+    y -= 35
+    page.drawText('Nenhum arquivo vinculado ao contrato ou ao cadastro do cliente.', {
+      x: 50,
+      y,
+      size: 8,
+      font,
+      color: rgb(0.4, 0.4, 0.4),
     })
   }
 
