@@ -30,6 +30,16 @@ const validData = {
   contatoEmergencia1: '',
   contatoEmergencia2: '',
   contatoEmergencia3: '',
+  telefone2: '',
+  observacoes: '',
+  cep2: '',
+  endereco2: '',
+  numeroEndereco2: '',
+  complemento2: '',
+  bairro2: '',
+  cidade2: '',
+  estado2: '',
+  pontoReferencia2: '',
 }
 
 describe('client form schema', () => {

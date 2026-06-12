@@ -20,6 +20,7 @@ export function ClientStepAnexos({
   setPreviewUrl,
   formatSize,
   handleDeleteDoc,
+  isAdmin = false,
 }: {
   editingClient: boolean
   docs: DocItem[]
@@ -193,4 +194,3 @@ export function ClientStepAnexos({
     </div>
   )
 }
-
