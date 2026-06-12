@@ -20,6 +20,7 @@ export function ClientStepAnexos({
   setPreviewUrl,
   formatSize,
   handleDeleteDoc,
+  isAdmin,
 }: {
   editingClient: boolean
   docs: DocItem[]
