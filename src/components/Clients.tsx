@@ -19,6 +19,8 @@ import { ClientStepRevisao } from './client-modal/StepRevisao'
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { isAdminRole } from '@/lib/admin-auth';
 
 interface Cliente {
   id: string;
@@ -50,6 +52,16 @@ interface Cliente {
   contatoEmergencia1?: string | null;
   contatoEmergencia2?: string | null;
   contatoEmergencia3?: string | null;
+  telefone2?: string | null;
+  observacoes?: string | null;
+  cep2?: string | null;
+  endereco2?: string | null;
+  numeroEndereco2?: number | null;
+  complemento2?: string | null;
+  bairro2?: string | null;
+  cidade2?: string | null;
+  estado2?: string | null;
+  pontoReferencia2?: string | null;
   createdAt: string | Date;
 }
 
@@ -61,6 +73,8 @@ export function Clients({ initialClients }: ClientsProps) {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const { data: session } = useSession();
+  const isAdmin = isAdminRole(session?.user?.role);
 
   // Sincronizar termo de busca da URL (para busca global)
   useEffect(() => {
@@ -212,6 +226,16 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
         contatoEmergencia1: client.contatoEmergencia1 ?? '',
         contatoEmergencia2: client.contatoEmergencia2 ?? '',
         contatoEmergencia3: client.contatoEmergencia3 ?? '',
+        telefone2: client.telefone2 ? formatPhoneBR(client.telefone2) : '',
+        observacoes: client.observacoes ?? '',
+        cep2: client.cep2 ? formatCEP(client.cep2) : '',
+        endereco2: client.endereco2 ?? '',
+        numeroEndereco2: client.numeroEndereco2 == null ? '' : String(client.numeroEndereco2),
+        complemento2: client.complemento2 ?? '',
+        bairro2: client.bairro2 ?? '',
+        cidade2: client.cidade2 ?? '',
+        estado2: client.estado2 ?? '',
+        pontoReferencia2: client.pontoReferencia2 ?? '',
       });
       setChargeData({ enabled: false, valor: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
     } else {
@@ -245,6 +269,16 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
         contatoEmergencia1: '',
         contatoEmergencia2: '',
         contatoEmergencia3: '',
+        telefone2: '',
+        observacoes: '',
+        cep2: '',
+        endereco2: '',
+        numeroEndereco2: '',
+        complemento2: '',
+        bairro2: '',
+        cidade2: '',
+        estado2: '',
+        pontoReferencia2: '',
       });
       setChargeData({ enabled: false, valor: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
     }
@@ -565,12 +599,17 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
       ['Nome', formData.nome],
       ['CPF', formData.cpf],
       ['WhatsApp', formData.whatsapp],
+      formData.telefone2 ? ['WhatsApp/Tel 2', formData.telefone2] : null,
       ['Email', formData.email],
       ['Nascimento', [formData.diaNasc, formData.mesNasc, formData.anoNasc].filter(Boolean).join('/')],
       ['Endereço', [formData.endereco, formData.numeroEndereco, formData.bairro, formData.cidade, formData.estado].filter((x) => x != null && String(x).trim() !== '').join(' • ')],
+      [formData.endereco2, formData.numeroEndereco2, formData.bairro2, formData.cidade2, formData.estado2].some(x => x != null && String(x).trim() !== '')
+        ? ['Endereço Secundário', [formData.endereco2, formData.numeroEndereco2, formData.bairro2, formData.cidade2, formData.estado2].filter((x) => x != null && String(x).trim() !== '').join(' • ')]
+        : null,
+      formData.observacoes ? ['Observações', formData.observacoes] : null,
       ['Empresa', formData.empresa],
       ['Contatos Emergência', [emergencia1.nome, emergencia2.nome, emergencia3.nome].filter((x) => (x ?? '').trim() !== '').join(' | ')],
-    ]
+    ].filter(Boolean) as Array<[string, string]>
     const html = `
       <html>
         <head>
@@ -667,12 +706,14 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
                   >
                     <Edit2 className="h-4 w-4" />
                   </button>
-                  <button 
-                    onClick={() => handleDelete(client.id)}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {isAdmin && (
+                    <button 
+                      onClick={() => handleDelete(client.id)}
+                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -834,6 +875,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
                       setPreviewUrl={setPreviewUrl}
                       formatSize={formatSize}
                       handleDeleteDoc={handleDeleteDoc}
+                      isAdmin={isAdmin}
                     />
                   )}
 

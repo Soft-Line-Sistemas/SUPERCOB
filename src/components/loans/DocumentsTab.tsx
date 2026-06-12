@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { FileIcon, ImageIcon, VideoIcon, FileTextIcon, Download, Trash2, Plus, Loader2, Eye } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSession } from 'next-auth/react'
+import { isAdminRole } from '@/lib/admin-auth'
 
 interface Documento {
   id: string
@@ -35,6 +37,8 @@ const ACCEPTED_UPLOAD_TYPES = '.jpg,.jpeg,.png,.pdf,.mp4,.webm,.mov'
 const MAX_UPLOAD_SIZE_LABEL = '50 MB por arquivo'
 
 export function DocumentsTab({ clienteId, loanFiles }: DocumentsTabProps) {
+  const { data: session } = useSession()
+  const isAdmin = isAdminRole(session?.user?.role)
   const [docs, setDocs] = useState<Documento[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -242,9 +246,11 @@ export function DocumentsTab({ clienteId, loanFiles }: DocumentsTabProps) {
                 >
                   {downloadingId === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                 </button>
-                <button onClick={() => handleDelete(doc.id)} className="p-2 bg-red-50 dark:bg-red-500/10 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600" title="Excluir">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {isAdmin && (
+                  <button onClick={() => handleDelete(doc.id)} className="p-2 bg-red-50 dark:bg-red-500/10 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600" title="Excluir">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
             <p className="text-sm font-black text-slate-900 dark:text-slate-100 truncate mb-1" title={doc.nome}>{doc.nome}</p>

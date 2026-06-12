@@ -105,6 +105,16 @@ export default async function ClienteHistoricoPage({
       contatoEmergencia1: true,
       contatoEmergencia2: true,
       contatoEmergencia3: true,
+      telefone2: true,
+      observacoes: true,
+      cep2: true,
+      endereco2: true,
+      numeroEndereco2: true,
+      complemento2: true,
+      bairro2: true,
+      cidade2: true,
+      estado2: true,
+      pontoReferencia2: true,
       createdAt: true,
       documentos: { select: { id: true, originalName: true, mimeType: true, size: true, createdAt: true } },
     },
@@ -258,8 +268,15 @@ export default async function ClienteHistoricoPage({
               <div className="mt-3 space-y-2 text-sm text-slate-700">
                 <p><span className="font-black">CPF:</span> {cliente.cpf ?? '-'}</p>
                 <p><span className="font-black">WhatsApp:</span> {cliente.whatsapp ?? '-'}</p>
+                {cliente.telefone2 ? <p><span className="font-black">WhatsApp/Tel 2:</span> {cliente.telefone2}</p> : null}
                 <p><span className="font-black">Email:</span> {cliente.email ?? '-'}</p>
                 <p><span className="font-black">Endereço:</span> {[cliente.endereco, cliente.numeroEndereco, cliente.bairro, cliente.cidade, cliente.estado].filter((x) => x != null && String(x).trim() !== '').join(' • ') || '-'}</p>
+                {[cliente.endereco2, cliente.numeroEndereco2, cliente.bairro2, cliente.cidade2, cliente.estado2].some(x => x != null && String(x).trim() !== '') ? (
+                  <p><span className="font-black">Endereço 2:</span> {[cliente.endereco2, cliente.numeroEndereco2, cliente.bairro2, cliente.cidade2, cliente.estado2].filter((x) => x != null && String(x).trim() !== '').join(' • ')}</p>
+                ) : null}
+                {cliente.observacoes ? (
+                  <p className="whitespace-pre-wrap"><span className="font-black">Observações:</span> {cliente.observacoes}</p>
+                ) : null}
               </div>
             </div>
 

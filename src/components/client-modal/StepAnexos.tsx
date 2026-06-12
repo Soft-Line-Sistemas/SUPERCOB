@@ -35,6 +35,7 @@ export function ClientStepAnexos({
   setPreviewUrl: (url: string | null) => void
   formatSize: (n: number) => string
   handleDeleteDoc: (id: string) => Promise<void>
+  isAdmin?: boolean
 }) {
   return (
     <div className="space-y-4">
@@ -173,13 +174,15 @@ export function ClientStepAnexos({
                     >
                       <Eye className="w-3.5 h-3.5" /> Ver
                     </a>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteDoc(d.id)}
-                      className="px-3 py-2 bg-red-600 text-white text-xs font-black rounded-xl flex items-center gap-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> Excluir
-                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDoc(d.id)}
+                        className="px-3 py-2 bg-red-600 text-white text-xs font-black rounded-xl flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Excluir
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

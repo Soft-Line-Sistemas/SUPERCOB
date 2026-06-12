@@ -1,11 +1,62 @@
+# Dependency directories
 node_modules/
+/jspm_packages/
+/web_modules/
+
+# Next.js build output
 .next/
-coverage/
-.DS_Store
-*.log
-.env*
+out/
+dist/
+build/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Environment variables (do NOT commit sensitive keys)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
 !.env.example
+
 backup/
 scripts/
 exemplo-whatsapp/
+
+# WhatsApp Web.js session storage and session files
 .wwebjs_auth/
+.wwebjs_cache/
+
+# Python Virtual Environments
+.venv*/
+venv/
+env/
+
+# Editor / IDE configuration
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Test reports & caches
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+*.log
+
+# Dynamic uploads / temporary files
+uploads/*
+!uploads/.gitkeep
+temp/
+tmp/

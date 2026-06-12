@@ -5,6 +5,7 @@ import { Plus, Search, X, User, Mail, Edit2, Trash2, Shield, Lock, MoreHorizonta
 import { createUsuario, updateUsuario, deleteUsuario } from '@/app/(dashboard)/usuarios/actions';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isAdminRole } from '@/lib/admin-auth';
 
 interface Usuario {
   id: string;
@@ -183,13 +184,15 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                   >
                     <Edit2 className="h-4 w-4" />
                   </button>
-                  <button 
-                    onClick={() => handleDelete(user.id)}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                    title="Revogar Acesso"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {isAdminRole(myRole) && (
+                    <button 
+                      onClick={() => handleDelete(user.id)}
+                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                      title="Revogar Acesso"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>

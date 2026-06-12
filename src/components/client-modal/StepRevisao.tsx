@@ -55,9 +55,19 @@ export function ClientStepRevisao({
             <p>
               <span className="font-black">WhatsApp:</span> {formData.whatsapp || '-'}
             </p>
+            {formData.telefone2 ? (
+              <p>
+                <span className="font-black">WhatsApp/Tel 2:</span> {formData.telefone2}
+              </p>
+            ) : null}
             <p>
               <span className="font-black">Email:</span> {formData.email || '-'}
             </p>
+            {formData.observacoes ? (
+              <p className="whitespace-pre-wrap">
+                <span className="font-black">Observações:</span> {formData.observacoes}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -98,6 +108,20 @@ export function ClientStepRevisao({
             <p>
               <span className="font-black">Cidade/UF:</span> {[formData.cidade, formData.estado].filter(Boolean).join(' / ') || '-'}
             </p>
+            {[formData.endereco2, formData.numeroEndereco2, formData.bairro2, formData.cidade2, formData.estado2].some(x => x != null && String(x).trim() !== '') ? (
+              <div className="border-t border-slate-200 pt-2 mt-2 space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase">Endereço Secundário</p>
+                <p>
+                  <span className="font-black">CEP 2:</span> {formData.cep2 || '-'}
+                </p>
+                <p>
+                  <span className="font-black">Endereço 2:</span> {[formData.endereco2, formData.numeroEndereco2].filter(Boolean).join(', ') || '-'}
+                </p>
+                <p>
+                  <span className="font-black">Cidade/UF 2:</span> {[formData.cidade2, formData.estado2].filter(Boolean).join(' / ') || '-'}
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
 

@@ -4,6 +4,7 @@ onlyBuiltDependencies:
   - '@tailwindcss/oxide'
   - prisma
   - protobufjs
+  - puppeteer
   - re2
   - sharp
   - unrs-resolver

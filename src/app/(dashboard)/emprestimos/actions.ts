@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import { logSystemAction } from '@/lib/audit'
+import { isAdminRole } from '@/lib/admin-auth'
 
 export async function getEmprestimos(filters?: {
   status?: string;
@@ -193,6 +194,9 @@ export async function updateEmprestimo(id: string, data: {
 export async function deleteEmprestimo(id: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
+
+  const role = (session.user as any).role
+  if (!isAdminRole(role)) throw new Error('Apenas administradores podem excluir contratos.')
 
   await prisma.emprestimo.delete({
     where: { id },

@@ -527,6 +527,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
               formatDate={formatDate}
               generateWhatsAppLink={generateWhatsAppLink}
               contactFilter={contactFilter}
+              isAdmin={userRole === 'ADMIN'}
             />
           ))}
         </AnimatePresence>

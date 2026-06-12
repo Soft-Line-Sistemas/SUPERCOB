@@ -31,6 +31,16 @@ export const clientFormDefaults: ClientFormData = {
   contatoEmergencia1: '',
   contatoEmergencia2: '',
   contatoEmergencia3: '',
+  telefone2: '',
+  observacoes: '',
+  cep2: '',
+  endereco2: '',
+  numeroEndereco2: '',
+  complemento2: '',
+  bairro2: '',
+  cidade2: '',
+  estado2: '',
+  pontoReferencia2: '',
 }
 
 export const normalizeDigits = (value: string) => value.replace(/\D/g, '')
@@ -106,6 +116,16 @@ export const clientSchema = z.object({
   contatoEmergencia1: z.string(),
   contatoEmergencia2: z.string(),
   contatoEmergencia3: z.string(),
+  telefone2: z.string(),
+  observacoes: z.string(),
+  cep2: z.string(),
+  endereco2: z.string(),
+  numeroEndereco2: z.string(),
+  complemento2: z.string(),
+  bairro2: z.string(),
+  cidade2: z.string(),
+  estado2: z.string(),
+  pontoReferencia2: z.string(),
 }).superRefine((data, ctx) => {
   const birthCheck = validateBirthDateParts(data.diaNasc, data.mesNasc, data.anoNasc)
   if (birthCheck.dia) ctx.addIssue({ code: 'custom', path: ['diaNasc'], message: birthCheck.dia })
@@ -165,5 +185,15 @@ export const normalizeClientPayload = (formData: ClientFormData) => {
     contatoEmergencia1: normalizeOptional(formData.contatoEmergencia1),
     contatoEmergencia2: normalizeOptional(formData.contatoEmergencia2),
     contatoEmergencia3: normalizeOptional(formData.contatoEmergencia3),
+    telefone2: normalizeOptional(formData.telefone2),
+    observacoes: normalizeOptional(formData.observacoes),
+    cep2: normalizeOptional(normalizeDigits(formData.cep2)),
+    endereco2: normalizeOptional(formData.endereco2),
+    numeroEndereco2: parseIntOrNull(formData.numeroEndereco2),
+    complemento2: normalizeOptional(formData.complemento2),
+    bairro2: normalizeOptional(formData.bairro2),
+    cidade2: normalizeOptional(formData.cidade2),
+    estado2: normalizeOptional(formData.estado2),
+    pontoReferencia2: normalizeOptional(formData.pontoReferencia2),
   }
 }
