@@ -72,4 +72,33 @@ describe('client form schema', () => {
     expect(payload.cep).toBe('01001000')
     expect(payload.cepEmpresa).toBe('22222222')
   })
+
+  it('valida cep secundario quando informado', () => {
+    const result = clientSchema.safeParse({ ...validData, cep2: '123' })
+    expect(result.success).toBe(true)
+
+    const payload = normalizeClientPayload({ ...validData, cep2: '12.345-678' })
+    expect(payload.cep2).toBe('12345678')
+  })
+
+  it('normaliza campos secundarios opcionais', () => {
+    const payload = normalizeClientPayload({
+      ...validData,
+      telefone2: '(71) 99999-8888',
+      observacoes: '  Cliente com observacao  ',
+      endereco2: ' Rua B ',
+      numeroEndereco2: '45',
+      bairro2: ' Centro ',
+      cidade2: 'Salvador',
+      estado2: 'BA',
+      pontoReferencia2: ' Proximo a praca ',
+    })
+
+    expect(payload.telefone2).toBe('(71) 99999-8888')
+    expect(payload.observacoes).toBe('Cliente com observacao')
+    expect(payload.endereco2).toBe('Rua B')
+    expect(payload.numeroEndereco2).toBe(45)
+    expect(payload.bairro2).toBe('Centro')
+    expect(payload.pontoReferencia2).toBe('Proximo a praca')
+  })
 })
