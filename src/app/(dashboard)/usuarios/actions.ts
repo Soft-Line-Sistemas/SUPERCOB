@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { logSystemAction } from '@/lib/audit'
 import bcrypt from 'bcryptjs'
 import { auth } from '@/auth'
+import { isAdminRole } from '@/lib/admin-auth'
 
 async function checkPermission() {
   const session = await auth()
@@ -101,16 +102,16 @@ export async function updateUsuario(id: string, data: { nome: string; email: str
 }
 
 export async function deleteUsuario(id: string) {
-  const session = await checkPermission()
-  const myRole = session?.user?.role
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
 
-  if (session?.user?.id === id) {
-    throw new Error('Você não pode excluir seu próprio usuário.')
+  const myRole = (session.user as any).role
+  if (!isAdminRole(myRole)) {
+    throw new Error('Apenas administradores podem excluir usuários.')
   }
 
-  const target = await prisma.usuario.findUnique({ where: { id }, select: { role: true } })
-  if (myRole === 'ESCRITORIO' && target?.role === 'ADM') {
-    throw new Error('Escritório não pode excluir usuários ADM.')
+  if (session.user.id === id) {
+    throw new Error('Você não pode excluir seu próprio usuário.')
   }
   
   await prisma.usuario.delete({

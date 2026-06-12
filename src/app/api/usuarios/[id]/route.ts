@@ -2,10 +2,11 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { isAdminRole } from '@/lib/admin-auth'
 
 async function checkAdmin() {
   const session = await auth()
-  if (session?.user?.role !== 'ADMIN') {
+  if (!isAdminRole(session?.user?.role)) {
     throw new Error('Unauthorized')
   }
 }
@@ -45,7 +46,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth()
-    if (session?.user?.role !== 'ADMIN') throw new Error('Unauthorized')
+    if (!session?.user || !isAdminRole(session.user.role)) throw new Error('Unauthorized')
     const { id } = await params
     
     if (session.user.id === id) {

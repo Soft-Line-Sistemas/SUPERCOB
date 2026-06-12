@@ -77,8 +77,36 @@ export function ClientStepBasic({
       </div>
 
       <div className="space-y-1.5">
+        <label className="text-sm font-bold text-slate-700 ml-1">WhatsApp / Telefone 2 (Opcional)</label>
+        <div className="relative group">
+          <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+          <input
+            type="text"
+            inputMode="tel"
+            value={formData.telefone2 || ''}
+            onChange={(e) => setFormData({ ...formData, telefone2: formatPhoneBR(e.target.value) })}
+            className={`${fieldClass(!!errors?.telefone2)} pl-11 pr-10`}
+            placeholder="(00) 00000-0000"
+          />
+          {errors?.telefone2 ? <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" /> : null}
+        </div>
+        {errors?.telefone2 ? <p className="text-xs font-black text-red-600">{errors.telefone2}</p> : null}
+      </div>
+
+      <div className="space-y-1.5">
         <label className="text-sm font-bold text-slate-700 ml-1">Instagram</label>
         <input type="text" value={formData.instagram} onChange={(e) => setFormData({ ...formData, instagram: e.target.value })} className={fieldClass(false)} placeholder="@perfil" />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-bold text-slate-700 ml-1">Observações (Opcional)</label>
+        <textarea
+          value={formData.observacoes || ''}
+          onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+          className={`${fieldClass(!!errors?.observacoes)} resize-y h-24`}
+          placeholder="Observações importantes sobre o cliente..."
+        />
+        {errors?.observacoes ? <p className="text-xs font-black text-red-600">{errors.observacoes}</p> : null}
       </div>
     </div>
   )

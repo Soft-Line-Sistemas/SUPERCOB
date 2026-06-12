@@ -50,6 +50,7 @@ interface LoanCardProps {
   formatDate: (date: Date | null | undefined) => string;
   generateWhatsAppLink: (loan: Loan) => string;
   contactFilter: (loan: Loan) => boolean;
+  isAdmin?: boolean;
 }
 
 export function LoanCard({
@@ -63,7 +64,8 @@ export function LoanCard({
   formatCurrency,
   formatDate,
   generateWhatsAppLink,
-  contactFilter
+  contactFilter,
+  isAdmin
 }: LoanCardProps) {
   const config = statusConfig[loan.status];
   const StatusIcon = config.icon;
@@ -117,15 +119,17 @@ export function LoanCard({
             >
               <Edit2 className="h-4 w-4" />
             </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(loan.id);
-              }}
-              className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg transition-all"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            {isAdmin && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(loan.id);
+                }}
+                className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg transition-all"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         )}
       </div>

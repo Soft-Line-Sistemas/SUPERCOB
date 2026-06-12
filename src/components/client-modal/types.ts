@@ -44,6 +44,16 @@ export type ClientFormData = {
   contatoEmergencia1: string
   contatoEmergencia2: string
   contatoEmergencia3: string
+  telefone2: string
+  observacoes: string
+  cep2: string
+  endereco2: string
+  numeroEndereco2: string
+  complemento2: string
+  bairro2: string
+  cidade2: string
+  estado2: string
+  pontoReferencia2: string
 }
 
 export type SetState<T> = React.Dispatch<React.SetStateAction<T>>

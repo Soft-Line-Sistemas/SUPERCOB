@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react'
 import { FileIcon, ImageIcon, VideoIcon, FileTextIcon, Download, Trash2, Plus, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSession } from 'next-auth/react'
+import { isAdminRole } from '@/lib/admin-auth'
 
 interface Documento {
   id: string
@@ -20,6 +22,8 @@ interface DocumentsTabProps {
 }
 
 export function DocumentsTab({ clienteId, emprestimoId, loanFiles }: DocumentsTabProps) {
+  const { data: session } = useSession()
+  const isAdmin = isAdminRole(session?.user?.role)
   const [docs, setDocs] = useState<Documento[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -141,9 +145,11 @@ export function DocumentsTab({ clienteId, emprestimoId, loanFiles }: DocumentsTa
                 <a href={doc.url} target="_blank" rel="noreferrer" className="p-2 bg-slate-100 dark:bg-white/10 rounded-xl hover:bg-slate-200 dark:hover:bg-white/20 text-slate-600 dark:text-slate-400" title="Download">
                   <Download className="w-4 h-4" />
                 </a>
-                <button onClick={() => handleDelete(doc.id)} className="p-2 bg-red-50 dark:bg-red-500/10 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600" title="Excluir">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {isAdmin && (
+                  <button onClick={() => handleDelete(doc.id)} className="p-2 bg-red-50 dark:bg-red-500/10 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600" title="Excluir">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
             <p className="text-sm font-black text-slate-900 dark:text-slate-100 truncate mb-1" title={doc.nome}>{doc.nome}</p>

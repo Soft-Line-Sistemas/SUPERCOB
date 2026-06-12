@@ -3,6 +3,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import path from 'path'
 import fs from 'fs/promises'
+import { isAdminRole } from '@/lib/admin-auth'
 
 function filePath(clienteId: string, fileName: string) {
   return path.join(process.cwd(), 'uploads', 'clientes', clienteId, fileName)
@@ -32,6 +33,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string; docId: string }> }) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (!isAdminRole(session.user.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const { id, docId } = await params
   try {
     const doc = await prisma.clienteDocumento.findFirst({ where: { id: docId, clienteId: id } })

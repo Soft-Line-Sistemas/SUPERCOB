@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
+import { isAdminRole } from '@/lib/admin-auth'
 
 type ClienteInput = {
   nome: string
@@ -34,6 +35,16 @@ type ClienteInput = {
   contatoEmergencia1?: string | null
   contatoEmergencia2?: string | null
   contatoEmergencia3?: string | null
+  telefone2?: string | null
+  observacoes?: string | null
+  cep2?: string | null
+  endereco2?: string | null
+  numeroEndereco2?: number | null
+  complemento2?: string | null
+  bairro2?: string | null
+  cidade2?: string | null
+  estado2?: string | null
+  pontoReferencia2?: string | null
 }
 
 function validateClienteInput(data: ClienteInput) {
@@ -66,6 +77,11 @@ function validateClienteInput(data: ClienteInput) {
   if (!data.bairro || data.bairro.trim() === '') throw new Error('Bairro é obrigatório')
   if (!data.cidade || data.cidade.trim() === '') throw new Error('Cidade é obrigatória')
   if (!data.estado || data.estado.trim() === '') throw new Error('Estado é obrigatório')
+
+  if (data.cep2) {
+    const cep2 = data.cep2.replace(/\D/g, '')
+    if (cep2.length !== 8) throw new Error('CEP secundário inválido')
+  }
 }
 
 export async function getClientes(options?: { includeIds?: string[] }) {
@@ -129,6 +145,9 @@ export async function updateCliente(id: string, data: ClienteInput) {
 export async function deleteCliente(id: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
+
+  const role = (session.user as any).role
+  if (!isAdminRole(role)) throw new Error('Apenas administradores podem excluir clientes.')
 
   await prisma.cliente.delete({
     where: { id },

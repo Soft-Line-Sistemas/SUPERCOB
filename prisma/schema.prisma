@@ -83,6 +83,16 @@ model Cliente {
   contatoEmergencia1 String?
   contatoEmergencia2 String?
   contatoEmergencia3 String?
+  telefone2          String?
+  observacoes        String?            @db.Text
+  cep2               String?
+  endereco2          String?
+  numeroEndereco2    Int?
+  complemento2       String?
+  bairro2            String?
+  cidade2            String?
+  estado2            String?
+  pontoReferencia2   String?
   createdAt          DateTime           @default(now())
   numeroEndereco     Int?
   documentos         ClienteDocumento[]
