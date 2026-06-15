@@ -1,8 +1,19 @@
 import { Clients } from '@/components/Clients'
-import { getClientes } from './actions'
+import { getClientesPage } from './actions'
 
-export default async function ClientesPage() {
-  const clientes = await getClientes()
+function getSingleParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+export default async function ClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const params = await searchParams
+  const page = Math.max(1, Number(getSingleParam(params.page) ?? '1') || 1)
+  const perPage = Math.max(1, Number(getSingleParam(params.per_page) ?? '15') || 15)
+  const clientesPage = await getClientesPage({ page, perPage })
 
   return (
     <div className="space-y-6">
@@ -12,7 +23,15 @@ export default async function ClientesPage() {
           <p className="text-gray-500">Cadastre e organize as informações de contato dos seus clientes.</p>
         </div>
       </div> */}
-      <Clients initialClients={clientes} />
+      <Clients
+        initialClients={clientesPage.items}
+        pagination={{
+          page: clientesPage.page,
+          perPage: clientesPage.perPage,
+          total: clientesPage.total,
+          totalPages: clientesPage.totalPages,
+        }}
+      />
     </div>
   )
 }

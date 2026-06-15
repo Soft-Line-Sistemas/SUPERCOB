@@ -115,6 +115,50 @@ export async function getClientes(options?: { includeIds?: string[] }) {
   })
 }
 
+export async function getClientesPage(options?: { includeIds?: string[]; page?: number; perPage?: number }) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const role = (session.user as any).role
+  const userId = (session.user as any).id
+  const includeIds = (options?.includeIds ?? []).filter((id) => typeof id === 'string' && id.trim() !== '')
+  const page = Math.max(1, options?.page ?? 1)
+  const perPage = Math.min(100, Math.max(1, options?.perPage ?? 15))
+  const skip = (page - 1) * perPage
+
+  let where: Prisma.ClienteWhereInput | undefined
+
+  if (role === 'GERENTE') {
+    const orConditions: Prisma.ClienteWhereInput[] = [{ loans: { some: { usuarioId: userId } } }]
+
+    if (includeIds.length > 0) {
+      orConditions.push({ id: { in: includeIds } })
+    }
+
+    where = { OR: orConditions }
+  } else if (includeIds.length > 0) {
+    where = { id: { in: includeIds } }
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.cliente.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: perPage,
+    }),
+    prisma.cliente.count({ where }),
+  ])
+
+  return {
+    items,
+    total,
+    page,
+    perPage,
+    totalPages: Math.max(1, Math.ceil(total / perPage)),
+  }
+}
+
 export async function createCliente(data: ClienteInput) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')

@@ -18,7 +18,7 @@ import { ClientStepProfissao } from './client-modal/StepProfissao'
 import { ClientStepRevisao } from './client-modal/StepRevisao'
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { isAdminRole } from '@/lib/admin-auth';
 
@@ -67,10 +67,18 @@ interface Cliente {
 
 interface ClientsProps {
   initialClients: Cliente[];
+  pagination: {
+    page: number;
+    perPage: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
-export function Clients({ initialClients }: ClientsProps) {
+export function Clients({ initialClients, pagination }: ClientsProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const { data: session } = useSession();
@@ -193,6 +201,13 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
 
     return searchOk && emailOk && whatsappOk && cidadeOk && estadoOk && cpfOk;
   });
+
+  const setPaginationParams = (nextPage: number, nextPerPage = pagination.perPage) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', String(nextPage))
+    params.set('per_page', String(nextPerPage))
+    router.push(`${pathname}?${params.toString()}`)
+  }
 
   const handleOpenModal = (client?: Cliente) => {
     if (client) {
@@ -754,6 +769,56 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
           </div>
         )}
       </div>
+
+      {pagination.totalPages > 1 && (
+        <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white px-6 py-4 shadow-sm md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-slate-500">
+            Mostrando {(pagination.page - 1) * pagination.perPage + 1}
+            {' '}a{' '}
+            {(pagination.page - 1) * pagination.perPage + initialClients.length}
+            {' '}de {pagination.total} clientes
+          </p>
+
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-slate-500">
+              <span>Por página</span>
+              <select
+                value={pagination.perPage}
+                onChange={(e) => setPaginationParams(1, Number(e.target.value))}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none"
+              >
+                {[15, 30, 50].map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setPaginationParams(Math.max(1, pagination.page - 1))}
+              disabled={pagination.page === 1}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+            >
+              Anterior
+            </button>
+
+            <span className="text-sm font-bold text-slate-700">
+              Página {pagination.page} de {pagination.totalPages}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setPaginationParams(Math.min(pagination.totalPages, pagination.page + 1))}
+              disabled={pagination.page === pagination.totalPages}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal Modernizado */}
       <AnimatePresence>

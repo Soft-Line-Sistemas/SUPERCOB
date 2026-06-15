@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\""
+    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
+    "import:payments-bkp": "node scripts/import-payments-bkp-clients.cjs"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
