@@ -115,7 +115,17 @@ export async function getClientes(options?: { includeIds?: string[] }) {
   })
 }
 
-export async function getClientesPage(options?: { includeIds?: string[]; page?: number; perPage?: number }) {
+export async function getClientesPage(options?: {
+  includeIds?: string[]
+  page?: number
+  perPage?: number
+  search?: string
+  email?: string
+  whatsapp?: string
+  cidade?: string
+  estado?: string
+  cpf?: string
+}) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -125,6 +135,12 @@ export async function getClientesPage(options?: { includeIds?: string[]; page?: 
   const page = Math.max(1, options?.page ?? 1)
   const perPage = Math.min(100, Math.max(1, options?.perPage ?? 15))
   const skip = (page - 1) * perPage
+  const search = (options?.search ?? '').trim()
+  const email = (options?.email ?? '').trim()
+  const whatsapp = (options?.whatsapp ?? '').replace(/\D/g, '')
+  const cidade = (options?.cidade ?? '').trim()
+  const estado = (options?.estado ?? '').trim()
+  const cpf = (options?.cpf ?? '').replace(/\D/g, '')
 
   let where: Prisma.ClienteWhereInput | undefined
 
@@ -138,6 +154,50 @@ export async function getClientesPage(options?: { includeIds?: string[]; page?: 
     where = { OR: orConditions }
   } else if (includeIds.length > 0) {
     where = { id: { in: includeIds } }
+  }
+
+  const andConditions: Prisma.ClienteWhereInput[] = []
+
+  if (search !== '') {
+    const searchDigits = search.replace(/\D/g, '')
+    andConditions.push({
+      OR: [
+        { nome: { contains: search } },
+        { email: { contains: search } },
+        { cidade: { contains: search } },
+        { estado: { contains: search } },
+        ...(searchDigits
+          ? [
+              { whatsapp: { contains: searchDigits } },
+              { cpf: { contains: searchDigits } },
+            ]
+          : []),
+      ],
+    })
+  }
+
+  if (email !== '') {
+    andConditions.push({ email: { contains: email } })
+  }
+
+  if (whatsapp !== '') {
+    andConditions.push({ whatsapp: { contains: whatsapp } })
+  }
+
+  if (cidade !== '') {
+    andConditions.push({ cidade: { contains: cidade } })
+  }
+
+  if (estado !== '') {
+    andConditions.push({ estado: { contains: estado } })
+  }
+
+  if (cpf !== '') {
+    andConditions.push({ cpf: { contains: cpf } })
+  }
+
+  if (andConditions.length > 0) {
+    where = where ? { AND: [where, ...andConditions] } : { AND: andConditions }
   }
 
   const [items, total] = await Promise.all([

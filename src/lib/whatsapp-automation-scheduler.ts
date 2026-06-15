@@ -1,8 +1,9 @@
+import { loadWhatsappAutomationQueue } from '@/lib/whatsapp-automation-queue'
+
 declare global {
-  // eslint-disable-next-line no-var
   var __whatsappAutomationSchedulerStarted__: boolean | undefined
-  // eslint-disable-next-line no-var
   var __whatsappAutomationSchedulerRunning__: boolean | undefined
+  var __whatsappAutomationHeartbeatRunning__: boolean | undefined
 }
 
 function parseIntervalMs() {
@@ -15,6 +16,38 @@ function parseLimit() {
   const raw = Number(process.env.WHATSAPP_AUTOMATION_CRON_LIMIT || 25)
   if (!Number.isFinite(raw)) return 25
   return Math.max(1, Math.min(100, raw))
+}
+
+function parseHeartbeatMs() {
+  const raw = Number(process.env.WHATSAPP_AUTOMATION_HEARTBEAT_MS || 60000)
+  if (!Number.isFinite(raw)) return 60000
+  return Math.max(60000, raw)
+}
+
+async function heartbeat() {
+  if (globalThis.__whatsappAutomationHeartbeatRunning__) return
+  globalThis.__whatsappAutomationHeartbeatRunning__ = true
+  try {
+    const queue = await loadWhatsappAutomationQueue()
+    if (!queue) {
+      console.info('[automation-scheduler] heartbeat: configuracao da automacao ainda nao foi criada')
+      return
+    }
+
+    const nextItem = queue.items[0]
+    const overdueItems = queue.items.filter((item) => item.overdueByMinutes > 0).length
+    const nextInfo = nextItem
+      ? `proximo=${nextItem.expectedAtLabel} cliente="${nextItem.clienteNome}" regra="${nextItem.ruleTitle}"`
+      : 'proximo=nenhum'
+
+    console.info(
+      `[automation-scheduler] heartbeat ${queue.generatedAtLabel} fila=${queue.summary.total} atrasados=${overdueItems} minIntervalo=${queue.summary.minIntervalMinutes}m gapFila=${queue.summary.queueGapMinutes}m ${nextInfo}`,
+    )
+  } catch (error) {
+    console.error('[automation-scheduler] heartbeat failed', error)
+  } finally {
+    globalThis.__whatsappAutomationHeartbeatRunning__ = false
+  }
 }
 
 async function tick() {
@@ -55,10 +88,16 @@ export function startWhatsappAutomationScheduler() {
   globalThis.__whatsappAutomationSchedulerStarted__ = true
 
   const intervalMs = parseIntervalMs()
+  const heartbeatMs = parseHeartbeatMs()
+  void heartbeat()
   void tick()
+  setInterval(() => {
+    void heartbeat()
+  }, heartbeatMs)
   setInterval(() => {
     void tick()
   }, intervalMs)
 
   console.info(`[automation-scheduler] started with interval ${intervalMs}ms`)
+  console.info(`[automation-scheduler] heartbeat enabled every ${heartbeatMs}ms`)
 }

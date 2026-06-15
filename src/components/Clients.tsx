@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter, Download, UserPlus } from 'lucide-react';
@@ -80,24 +80,17 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const { data: session } = useSession();
   const isAdmin = isAdminRole(session?.user?.role);
-
-  // Sincronizar termo de busca da URL (para busca global)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const s = params.get('search')
-    if (s) setSearchTerm(s)
-  }, [])
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [filters, setFilters] = useState({
-    email: '',
-    whatsapp: '',
-    cidade: '',
-    estado: '',
-    cpf: '',
-  });
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '');
+  const [filters, setFilters] = useState(() => ({
+    email: searchParams.get('email') ?? '',
+    whatsapp: searchParams.get('whatsapp') ?? '',
+    cidade: searchParams.get('cidade') ?? '',
+    estado: searchParams.get('estado') ?? '',
+    cpf: searchParams.get('cpf') ?? '',
+  }));
   const [editingClient, setEditingClient] = useState<Cliente | null>(null);
   const [activeTab, setActiveTab] = useState<'basico' | 'identificacao' | 'endereco' | 'profissao' | 'emergencia' | 'cobranca' | 'anexos' | 'revisao'>('basico');
   const form = useForm({
@@ -139,8 +132,6 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
     Object.entries(fieldErrors).map(([key, value]) => [key, value?.message ? String(value.message) : undefined]),
   ) as Partial<Record<keyof typeof formData, string>>
 
-const normalizeText = (value: string) => value.trim().toLowerCase();
-
   const parseEmergency = (value: string) => {
     const raw = (value ?? '').trim()
     if (raw === '') return { nome: '', telefone: '' }
@@ -180,34 +171,46 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
     }
   }
 
-  const filteredClients = initialClients.filter((client) => {
-    const q = normalizeText(searchTerm);
-    const searchOk =
-      q === '' ||
-      normalizeText(client.nome).includes(q) ||
-      (client.email ? normalizeText(client.email).includes(q) : false) ||
-      (client.whatsapp ? normalizeDigits(client.whatsapp).includes(normalizeDigits(q)) : false) ||
-      (client.cpf ? normalizeDigits(client.cpf).includes(normalizeDigits(q)) : false) ||
-      (client.cidade ? normalizeText(client.cidade).includes(q) : false) ||
-      (client.estado ? normalizeText(client.estado).includes(q) : false);
-
-    const emailOk = filters.email === '' || (client.email ? normalizeText(client.email).includes(normalizeText(filters.email)) : false);
-    const whatsappOk =
-      filters.whatsapp === '' ||
-      (client.whatsapp ? normalizeDigits(client.whatsapp).includes(normalizeDigits(filters.whatsapp)) : false);
-    const cidadeOk = filters.cidade === '' || (client.cidade ? normalizeText(client.cidade).includes(normalizeText(filters.cidade)) : false);
-    const estadoOk = filters.estado === '' || (client.estado ? normalizeText(client.estado).includes(normalizeText(filters.estado)) : false);
-    const cpfOk = filters.cpf === '' || (client.cpf ? normalizeDigits(client.cpf).includes(normalizeDigits(filters.cpf)) : false);
-
-    return searchOk && emailOk && whatsappOk && cidadeOk && estadoOk && cpfOk;
-  });
-
   const setPaginationParams = (nextPage: number, nextPerPage = pagination.perPage) => {
     const params = new URLSearchParams(searchParams.toString())
     params.set('page', String(nextPage))
     params.set('per_page', String(nextPerPage))
     router.push(`${pathname}?${params.toString()}`)
   }
+
+  const updateQueryParams = useCallback((updates: Record<string, string | null>, resetPage = true) => {
+    const params = new URLSearchParams(searchParams.toString())
+
+    for (const [key, value] of Object.entries(updates)) {
+      const trimmed = value?.trim() ?? ''
+      if (trimmed === '') params.delete(key)
+      else params.set(key, trimmed)
+    }
+
+    if (resetPage) params.set('page', '1')
+
+    router.push(`${pathname}?${params.toString()}`)
+  }, [pathname, router, searchParams])
+
+  useEffect(() => {
+    setSearchTerm(searchParams.get('search') ?? '')
+    setFilters({
+      email: searchParams.get('email') ?? '',
+      whatsapp: searchParams.get('whatsapp') ?? '',
+      cidade: searchParams.get('cidade') ?? '',
+      estado: searchParams.get('estado') ?? '',
+      cpf: searchParams.get('cpf') ?? '',
+    })
+  }, [searchParams])
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      if (searchTerm === (searchParams.get('search') ?? '')) return
+      updateQueryParams({ search: searchTerm })
+    }, 350)
+
+    return () => window.clearTimeout(timeout)
+  }, [searchParams, searchTerm, updateQueryParams])
 
   const handleOpenModal = (client?: Cliente) => {
     if (client) {
@@ -700,7 +703,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
       {/* Grid of Clients (Modern approach instead of just table) */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         <AnimatePresence mode='popLayout'>
-          {filteredClients.map((client, idx) => (
+          {initialClients.map((client, idx) => (
             <motion.div
               layout
               initial={{ opacity: 0, y: 20 }}
@@ -760,7 +763,7 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
           ))}
         </AnimatePresence>
 
-        {filteredClients.length === 0 && (
+        {initialClients.length === 0 && (
           <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-300">
             <div className="w-16 h-16 bg-slate-950 rounded-full flex items-center justify-center mx-auto mb-4">
               <User className="h-8 w-8 text-slate-300" />
@@ -1130,14 +1133,33 @@ const normalizeText = (value: string) => value.trim().toLowerCase();
                 <div className="pt-6 flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setFilters({ email: '', whatsapp: '', cidade: '', estado: '', cpf: '' })}
+                    onClick={() => {
+                      const cleared = { email: '', whatsapp: '', cidade: '', estado: '', cpf: '' }
+                      setFilters(cleared)
+                      updateQueryParams({
+                        email: null,
+                        whatsapp: null,
+                        cidade: null,
+                        estado: null,
+                        cpf: null,
+                      })
+                    }}
                     className="flex-1 py-3.5 px-4 bg-slate-950 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
                   >
                     Limpar
                   </button>
                   <button
                     type="button"
-                    onClick={() => setIsFiltersOpen(false)}
+                    onClick={() => {
+                      updateQueryParams({
+                        email: filters.email,
+                        whatsapp: filters.whatsapp,
+                        cidade: filters.cidade,
+                        estado: filters.estado,
+                        cpf: filters.cpf,
+                      })
+                      setIsFiltersOpen(false)
+                    }}
                     className="flex-[2] py-3.5 px-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
                   >
                     Aplicar
