@@ -89,7 +89,7 @@ export async function runWhatsappAutomation(limit = 25): Promise<AutomationRunRe
         where: {
           ruleId: rule.id,
           emprestimoId: loan.id,
-          status: { in: ['PENDING', 'SENT'] },
+          status: { in: ['PENDING', 'SENT', 'FAILED'] },
           createdAt: { gte: today },
         },
         select: { id: true },

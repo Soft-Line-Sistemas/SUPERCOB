@@ -13,6 +13,8 @@ export default async function EmprestimosPage({
 }) {
   const session = await auth()
   const params = await searchParams
+  const pageSize = 50
+  const page = Math.max(1, Number(params.page) || 1)
   const filters = {
     status: params.status as string,
     q: params.q as string,
@@ -22,6 +24,8 @@ export default async function EmprestimosPage({
     cobrancaOnly: params.cobrancaOnly === '1',
     dateFilterMode: (params.dateFilterMode as 'created' | 'vencimento') || 'created',
     vencimentoDay: params.vencimentoDay as string,
+    page,
+    pageSize,
   }
   const clienteId = params.clienteId as string
   const role = (session?.user as any)?.role as 'ADMIN' | 'OPERADOR'
@@ -29,7 +33,7 @@ export default async function EmprestimosPage({
 
   const includeIds = clienteId ? [clienteId] : []
 
-  const [emprestimos, clientes, colaboradores] = await Promise.all([
+  const [emprestimosResult, clientes, colaboradores] = await Promise.all([
     getEmprestimos(filters),
     prisma.cliente.findMany({
       where:
@@ -113,9 +117,12 @@ export default async function EmprestimosPage({
           </CardDescription>
         </CardHeader>
       </Card> */}
-      <Loans 
-        initialLoans={emprestimos as any} 
-        clientes={clientes.map(c => ({ id: c.id, nome: c.nome, email: c.email, whatsapp: c.whatsapp }))} 
+      <Loans
+        initialLoans={emprestimosResult.items as any}
+        total={emprestimosResult.total}
+        page={emprestimosResult.page}
+        pageSize={emprestimosResult.pageSize}
+        clientes={clientes.map(c => ({ id: c.id, nome: c.nome, email: c.email, whatsapp: c.whatsapp }))}
         colaboradores={colaboradores}
         userRole={(session?.user as any)?.role}
         analytics={analytics}

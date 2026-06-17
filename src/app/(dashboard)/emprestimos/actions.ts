@@ -15,6 +15,8 @@ export async function getEmprestimos(filters?: {
   cobrancaOnly?: boolean;
   dateFilterMode?: 'created' | 'vencimento';
   vencimentoDay?: string;
+  page?: number;
+  pageSize?: number;
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -74,33 +76,45 @@ export async function getEmprestimos(filters?: {
     where.cobrancaAtiva = true
   }
 
-  return await prisma.emprestimo.findMany({
-    where,
-    select: {
-      id: true,
-      clienteId: true,
-      usuarioId: true,
-      valor: true,
-      valorPago: true,
-      jurosMes: true,
-      jurosAtrasoDia: true,
-      vencimento: true,
-      quitadoEm: true,
-      status: true,
-      observacao: true,
-      createdAt: true,
-      cobrancaAtiva: true,
-      jurosPagos: true,
-      cliente: {
-        select: { nome: true, email: true, whatsapp: true },
-      },
-      usuario: {
-        select: { nome: true },
-      },
+  const pageSize = filters?.pageSize ?? 50
+  const page = filters?.page ?? 1
+  const skip = (page - 1) * pageSize
+
+  const selectFields = {
+    id: true,
+    clienteId: true,
+    usuarioId: true,
+    valor: true,
+    valorPago: true,
+    jurosMes: true,
+    jurosAtrasoDia: true,
+    vencimento: true,
+    quitadoEm: true,
+    status: true,
+    observacao: true,
+    createdAt: true,
+    cobrancaAtiva: true,
+    jurosPagos: true,
+    cliente: {
+      select: { nome: true, email: true, whatsapp: true },
     },
-    orderBy: { createdAt: 'desc' },
-    take: filters?.vencimentoDay ? undefined : 200,
-  })
+    usuario: {
+      select: { nome: true },
+    },
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.emprestimo.findMany({
+      where,
+      select: selectFields,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: pageSize,
+    }),
+    prisma.emprestimo.count({ where }),
+  ])
+
+  return { items, total, page, pageSize }
 }
 
 export async function createEmprestimo(data: {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download } from 'lucide-react';
+import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createEmprestimo, updateEmprestimo, deleteEmprestimo, toggleCobrancaAtiva } from '@/app/(dashboard)/emprestimos/actions';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -53,6 +53,9 @@ interface Loan {
 
 interface LoansProps {
   initialLoans: Loan[];
+  total: number;
+  page: number;
+  pageSize: number;
   clientes: { id: string; nome: string; email?: string | null; whatsapp?: string | null }[];
   colaboradores: { id: string; nome: string }[];
   userRole: 'ADMIN' | 'OPERADOR';
@@ -66,7 +69,7 @@ const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any
   CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-100/50 dark:bg-white/5', icon: Info },
 };
 
-export function Loans({ initialLoans, clientes, colaboradores, userRole, analytics }: LoansProps) {
+export function Loans({ initialLoans, total, page, pageSize, clientes, colaboradores, userRole, analytics }: LoansProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams();
@@ -181,6 +184,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     if (filters.vencimentoDay) next.set('vencimentoDay', filters.vencimentoDay)
     else next.delete('vencimentoDay')
 
+    next.delete('page')
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
     setIsFiltersOpen(false)
@@ -225,6 +229,7 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     next.delete('contactOnly')
     next.delete('cobrancaOnly')
     next.delete('vencimentoDay')
+    next.delete('page')
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
   }
@@ -275,6 +280,14 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
     const dateB = new Date(b.createdAt);
     return dateB.getTime() - dateA.getTime();
   });
+
+  const totalPages = Math.ceil(total / pageSize)
+
+  const goToPage = (p: number) => {
+    const next = new URLSearchParams(searchParams.toString())
+    next.set('page', String(p))
+    router.push(`${pathname}?${next.toString()}`)
+  }
 
   const draftClient = shouldAutoOpenNew ? clientes.find((c) => c.id === initialClienteId) : undefined
   const draftLoan: Loan | null = draftClient
@@ -532,6 +545,57 @@ export function Loans({ initialLoans, clientes, colaboradores, userRole, analyti
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Paginação */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-sm text-muted-foreground">
+            {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} de {total} contratos
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+              className="p-2 rounded-md border border-border bg-background hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Página anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+              .reduce<(number | 'ellipsis')[]>((acc, p, i, arr) => {
+                if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('ellipsis')
+                acc.push(p)
+                return acc
+              }, [])
+              .map((p, i) =>
+                p === 'ellipsis' ? (
+                  <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground text-sm">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p as number)}
+                    className={`min-w-[36px] h-9 px-3 rounded-md border text-sm font-medium transition-colors ${
+                      p === page
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'border-border bg-background hover:bg-accent'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+              className="p-2 rounded-md border border-border bg-background hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Próxima página"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal Novo/Editar Cobrança */}
       <ChargeModal
