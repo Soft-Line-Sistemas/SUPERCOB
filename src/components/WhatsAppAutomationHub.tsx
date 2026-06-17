@@ -375,14 +375,14 @@ function HistoryTab() {
                       <td className="px-3 py-2 font-semibold text-slate-900 dark:text-slate-100">{item.emprestimo?.cliente?.nome || 'Cliente'}</td>
                       <td className="px-3 py-2">CTR-{String(item.emprestimoId || '').slice(-6).toUpperCase()}</td>
                       <td className="px-3 py-2">
-                        <span className={`text-[10px] px-2 py-1 rounded-md font-black ${item.status === 'SENT' ? 'bg-emerald-100 text-emerald-700' : item.status === 'FAILED' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{item.status}</span>
+                        <span className={`text-[10px] px-2 py-1 rounded-md font-black ${item.status === 'SENT' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : item.status === 'FAILED' ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'}`}>{item.status}</span>
                       </td>
                       <td className="px-3 py-2">{item.triggerMode}</td>
                       <td className="px-3 py-2">{item.rule?.title || '-'}</td>
                       <td className="px-3 py-2">{item.attemptedAt ? new Date(item.attemptedAt).toLocaleString('pt-BR') : '-'}</td>
                       <td className="px-3 py-2">
                         {item.requiresManualFollowUp ? (
-                          <span className={`text-[10px] px-2 py-1 rounded-md font-black ${item.followUpStatus === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>
+                          <span className={`text-[10px] px-2 py-1 rounded-md font-black ${item.followUpStatus === 'PENDING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'}`}>
                             {item.followUpStatus}
                           </span>
                         ) : (
@@ -681,7 +681,7 @@ function ClientsTab() {
                   </div>
                   <button
                     onClick={() => void toggle(item.id, !item.enabled)}
-                    className={`w-full py-1.5 rounded-lg text-xs font-bold transition-colors ${item.enabled ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+                    className={`w-full py-1.5 rounded-lg text-xs font-bold transition-colors ${item.enabled ? 'bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-100' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
                   >
                     {item.enabled ? 'Desativar Messageria' : 'Ativar Messageria'}
                   </button>
@@ -694,7 +694,7 @@ function ClientsTab() {
               <button
                 onClick={() => void load(page + 1, true)}
                 disabled={loadingMore}
-                className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50 transition-colors"
               >
                 {loadingMore ? 'Carregando...' : 'Carregar mais'}
               </button>

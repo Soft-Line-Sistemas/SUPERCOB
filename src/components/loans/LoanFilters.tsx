@@ -94,13 +94,13 @@ export function LoanFilters({
             <div className="mb-6 flex gap-2 p-1 bg-slate-100 dark:bg-white/5 rounded-2xl w-fit">
               <button
                 onClick={() => setFilters({ ...filters, dateFilterMode: 'created' })}
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filters.dateFilterMode === 'created' ? 'bg-white dark:bg-slate-900 shadow-sm text-gold-600' : 'text-slate-500'}`}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filters.dateFilterMode === 'created' ? 'bg-white dark:bg-slate-900 shadow-sm text-gold-600' : 'text-slate-500 dark:text-slate-400'}`}
               >
                 Data Cadastro
               </button>
               <button
                 onClick={() => setFilters({ ...filters, dateFilterMode: 'vencimento' })}
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filters.dateFilterMode === 'vencimento' ? 'bg-white dark:bg-slate-900 shadow-sm text-gold-600' : 'text-slate-500'}`}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${filters.dateFilterMode === 'vencimento' ? 'bg-white dark:bg-slate-900 shadow-sm text-gold-600' : 'text-slate-500 dark:text-slate-400'}`}
               >
                 Vencimento
               </button>
@@ -236,8 +236,8 @@ export function LoanFilters({
               >
                 <div className="flex items-center justify-between mb-8">
                   <h3 className="text-xl font-black text-slate-900 dark:text-white">Filtros Avançados</h3>
-                  <button onClick={() => setIsFiltersOpen(false)} className="p-2 bg-slate-100 dark:bg-white/5 rounded-full">
-                    <X className="w-5 h-5 text-slate-500" />
+                  <button onClick={() => setIsFiltersOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full">
+                    <X className="w-5 h-5 text-slate-500 dark:text-slate-300" />
                   </button>
                 </div>
                 

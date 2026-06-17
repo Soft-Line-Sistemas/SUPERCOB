@@ -29,7 +29,7 @@ export function ColaboradorAnalytics({ analytics, visible }: ColaboradorAnalytic
           <div key={a.id} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 hover:border-gold-500/30 transition-all group">
             <div className="flex items-center justify-between mb-5">
               <p className="text-sm font-black text-slate-900 dark:text-slate-100 group-hover:text-gold-600 transition-colors">{a.nome}</p>
-              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2.5 py-1.5 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-black text-slate-500 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-full uppercase tracking-wider">
                 {a.total} contratos
               </span>
             </div>

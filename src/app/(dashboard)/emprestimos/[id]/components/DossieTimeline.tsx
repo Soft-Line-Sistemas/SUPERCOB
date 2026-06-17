@@ -72,7 +72,7 @@ export function DossieTimeline({
               key={t}
               onClick={() => { setFilterType(t as any); setCurrentPage(1); }}
               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
-                filterType === t ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 dark:bg-white/5 text-slate-400 hover:bg-slate-950 hover:text-white'
+                filterType === t ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-white'
               }`}
             >
               {t === 'ALL' ? 'Tudo' : t === 'NOTA' ? 'Notas' : t === 'JUROS' ? 'Juros' : t === 'PAGAMENTO' ? 'Pagos' : 'WhatsApp'}
@@ -87,7 +87,7 @@ export function DossieTimeline({
           <button
             onClick={() => setAbaAtiva('historico')}
             className={`px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${
-              abaAtiva === 'historico' ? 'bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none text-gold-600' : 'text-slate-500'
+              abaAtiva === 'historico' ? 'bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none text-gold-600' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             Linha do Tempo
@@ -95,7 +95,7 @@ export function DossieTimeline({
           <button
             onClick={() => setAbaAtiva('documentos')}
             className={`px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${
-              abaAtiva === 'documentos' ? 'bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none text-gold-600' : 'text-slate-500'
+              abaAtiva === 'documentos' ? 'bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none text-gold-600' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             Acervo Digital

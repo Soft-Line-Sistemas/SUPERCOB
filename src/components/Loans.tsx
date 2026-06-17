@@ -63,10 +63,10 @@ interface LoansProps {
 }
 
 const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any; bg: string }> = {
-  ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-100/50 dark:bg-white/5', icon: Info },
+  ABERTO: { label: 'Aberto', color: 'text-slate-600 dark:text-slate-300', bg: 'bg-slate-100/50 dark:bg-slate-800', icon: Info },
   NEGOCIACAO: { label: 'Em Negociação', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-500/10', icon: Info },
   QUITADO: { label: 'Quitado', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-500/10', icon: Info },
-  CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-100/50 dark:bg-white/5', icon: Info },
+  CANCELADO: { label: 'Cancelado', color: 'text-slate-500 dark:text-slate-400', bg: 'bg-slate-100/50 dark:bg-slate-800', icon: Info },
 };
 
 export function Loans({ initialLoans, total, page, pageSize, clientes, colaboradores, userRole, analytics }: LoansProps) {

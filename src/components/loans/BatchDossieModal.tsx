@@ -226,7 +226,7 @@ export function BatchDossieModal({
                             className={`rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
                               activeFilter === option.id
                                 ? 'bg-slate-900 text-white dark:bg-gold-600'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
                             }`}
                           >
                             {option.label}

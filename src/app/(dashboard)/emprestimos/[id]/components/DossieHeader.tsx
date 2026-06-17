@@ -51,7 +51,7 @@ export function DossieHeader({
               {status === 'QUITADO' ? <CheckCircle2 className="h-3 w-3" /> : status === 'CANCELADO' ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
               {statusLabel}
             </span>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-full">
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-300 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
               Início: {createdAt}
             </span>
           </div>
@@ -74,7 +74,7 @@ export function DossieHeader({
           disabled={!canCancel || isPending}
           onClick={() => handleSetStatus('CANCELADO')}
           className={`flex-1 md:flex-none px-5 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
-            !canCancel || isPending ? 'bg-slate-100 dark:bg-white/5 text-slate-400' : 'bg-white dark:bg-slate-900 border border-red-200 dark:border-red-500/30 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 active:scale-95'
+            !canCancel || isPending ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' : 'bg-white dark:bg-slate-900 border border-red-200 dark:border-red-500/30 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 active:scale-95'
           }`}
         >
           Cancelar Contrato
@@ -84,7 +84,7 @@ export function DossieHeader({
           disabled={!canFinish || isPending}
           onClick={() => handleSetStatus('QUITADO')}
           className={`flex-1 md:flex-none px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
-            !canFinish || isPending ? 'bg-slate-100 dark:bg-white/5 text-slate-400' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 active:scale-95'
+            !canFinish || isPending ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 active:scale-95'
           }`}
         >
           Concluir Cobrança
