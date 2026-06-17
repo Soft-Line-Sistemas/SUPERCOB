@@ -610,21 +610,30 @@ function ClientsTab() {
   const [q, setQ] = useState('')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [total, setTotal] = useState(0)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const res = await fetch(`/api/whatsapp/automation/clients?q=${encodeURIComponent(q)}`, { cache: 'no-store' })
+  const load = useCallback(async (pageNum: number, append: boolean) => {
+    if (pageNum === 1) setLoading(true)
+    else setLoadingMore(true)
+    const res = await fetch(`/api/whatsapp/automation/clients?q=${encodeURIComponent(q)}&page=${pageNum}&limit=20`, { cache: 'no-store' })
     const json = await res.json()
     if (!res.ok) {
       toast.error(json?.error || 'Erro ao carregar clientes')
     } else {
-      setItems(json.items || [])
+      setItems((prev) => append ? [...prev, ...(json.items || [])] : (json.items || []))
+      setHasMore(json.hasMore || false)
+      setTotal(json.total || 0)
+      setPage(pageNum)
     }
-    setLoading(false)
+    if (pageNum === 1) setLoading(false)
+    else setLoadingMore(false)
   }, [q])
 
   useEffect(() => {
-    const id = setTimeout(() => void load(), 250)
+    const id = setTimeout(() => void load(1, false), 250)
     return () => clearTimeout(id)
   }, [load])
 
@@ -643,22 +652,59 @@ function ClientsTab() {
   }
 
   return (
-    <div className="space-y-3">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome ou WhatsApp" className="w-full md:w-96 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950" />
-      <div className="space-y-2">
-        {loading ? <div className="text-sm text-slate-500">Carregando...</div> : null}
-        {items.map((item) => (
-          <div key={item.id} className="p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{item.nome}</p>
-              <p className="text-xs text-slate-500">{item.whatsapp || 'Sem WhatsApp'} • Contratos ativos: {item.activeLoans}</p>
-            </div>
-            <button onClick={() => void toggle(item.id, !item.enabled)} className={`px-3 py-2 rounded-lg text-xs font-black ${item.enabled ? 'bg-emerald-600 text-white' : 'bg-slate-600 text-white'}`}>
-              {item.enabled ? 'Enviando' : 'Pausado'}
-            </button>
-          </div>
-        ))}
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome ou WhatsApp" className="w-full md:w-96 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950" />
+        {!loading && <span className="text-xs text-slate-500">{total} cliente{total !== 1 ? 's' : ''}</span>}
       </div>
+      {loading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="h-28 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {items.map((item) => (
+              <div key={item.id} className={`relative flex flex-col justify-between p-3 rounded-2xl border bg-white dark:bg-slate-950 transition-colors ${item.enabled ? 'border-emerald-400/50 dark:border-emerald-500/30' : 'border-slate-200 dark:border-white/10'}`}>
+                <div className="mb-2">
+                  <p className="text-sm font-black text-slate-900 dark:text-slate-100 leading-tight line-clamp-2">{item.nome}</p>
+                  <p className="text-xs text-slate-400 mt-0.5 truncate">{item.whatsapp || 'Sem WhatsApp'}</p>
+                </div>
+                <div className="flex flex-col gap-2 mt-auto">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500">{item.activeLoans} contrato{item.activeLoans !== 1 ? 's' : ''}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.enabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}>
+                      {item.enabled ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => void toggle(item.id, !item.enabled)}
+                    className={`w-full py-1.5 rounded-lg text-xs font-bold transition-colors ${item.enabled ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+                  >
+                    {item.enabled ? 'Desativar Messageria' : 'Ativar Messageria'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <button
+                onClick={() => void load(page + 1, true)}
+                disabled={loadingMore}
+                className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+              >
+                {loadingMore ? 'Carregando...' : 'Carregar mais'}
+              </button>
+            </div>
+          )}
+          {!loading && items.length === 0 && (
+            <p className="text-sm text-slate-500 text-center py-8">Nenhum cliente encontrado.</p>
+          )}
+        </>
+      )}
     </div>
   )
 }

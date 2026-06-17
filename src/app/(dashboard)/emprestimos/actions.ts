@@ -13,6 +13,8 @@ export async function getEmprestimos(filters?: {
   endDate?: string;
   usuarioId?: string;
   cobrancaOnly?: boolean;
+  dateFilterMode?: 'created' | 'vencimento';
+  vencimentoDay?: string;
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -45,9 +47,26 @@ export async function getEmprestimos(filters?: {
   }
 
   if (filters?.startDate && filters?.endDate) {
-    where.createdAt = {
+    const dateRange = {
       gte: new Date(filters.startDate),
       lte: new Date(filters.endDate),
+    }
+    if (filters.dateFilterMode === 'vencimento') {
+      where.vencimento = dateRange
+    } else {
+      where.createdAt = dateRange
+    }
+  }
+
+  if (filters?.vencimentoDay) {
+    const day = Number(filters.vencimentoDay)
+    if (!isNaN(day) && day >= 1 && day <= 31) {
+      // Prisma does not support filtering by day-of-month directly.
+      // We guarantee vencimento is not null so the client-side day filter in Loans.tsx has data to work with.
+      // If a date-range filter on vencimento is already set, we keep it; otherwise just require non-null.
+      if (!where.vencimento) {
+        where.vencimento = { not: null }
+      }
     }
   }
 
@@ -80,7 +99,7 @@ export async function getEmprestimos(filters?: {
       },
     },
     orderBy: { createdAt: 'desc' },
-    take: 200,
+    take: filters?.vencimentoDay ? undefined : 200,
   })
 }
 

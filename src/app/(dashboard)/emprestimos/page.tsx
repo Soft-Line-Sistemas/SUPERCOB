@@ -19,6 +19,9 @@ export default async function EmprestimosPage({
     startDate: params.startDate as string,
     endDate: params.endDate as string,
     usuarioId: params.usuarioId as string,
+    cobrancaOnly: params.cobrancaOnly === '1',
+    dateFilterMode: (params.dateFilterMode as 'created' | 'vencimento') || 'created',
+    vencimentoDay: params.vencimentoDay as string,
   }
   const clienteId = params.clienteId as string
   const role = (session?.user as any)?.role as 'ADMIN' | 'OPERADOR'
@@ -56,9 +59,14 @@ export default async function EmprestimosPage({
     const analyticsWhere: any = {}
     if (filters.status) analyticsWhere.status = filters.status
     if (filters.startDate && filters.endDate) {
-      analyticsWhere.createdAt = {
+      const dateRange = {
         gte: new Date(filters.startDate),
         lte: new Date(filters.endDate),
+      }
+      if (filters.dateFilterMode === 'vencimento') {
+        analyticsWhere.vencimento = dateRange
+      } else {
+        analyticsWhere.createdAt = dateRange
       }
     }
     if (filters.usuarioId) {
