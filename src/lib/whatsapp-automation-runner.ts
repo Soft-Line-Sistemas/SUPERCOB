@@ -17,6 +17,20 @@ function startOfToday() {
   return date
 }
 
+async function isAutomationStillEnabled(ruleId: string) {
+  const [config, rule] = await Promise.all([
+    prisma.whatsappAutomationConfig.findFirst({
+      select: { enabled: true },
+    }),
+    prisma.whatsappAutomationRule.findUnique({
+      where: { id: ruleId },
+      select: { enabled: true },
+    }),
+  ])
+
+  return Boolean(config?.enabled && rule?.enabled)
+}
+
 export async function runWhatsappAutomation(limit = 25): Promise<AutomationRunResult> {
   const safeLimit = Math.min(100, Math.max(1, Number(limit || 25)))
   await ensureWhatsappAutomationSeed()
@@ -128,6 +142,11 @@ export async function runWhatsappAutomation(limit = 25): Promise<AutomationRunRe
         diasAtraso: facts.daysLate,
         dataVencimento: loan.vencimento,
       })
+
+      if (!(await isAutomationStillEnabled(rule.id))) {
+        skipped.push({ ruleId: rule.id, emprestimoId: loan.id, reason: 'Automação pausada durante a execução' })
+        continue
+      }
 
       const dispatch = await prisma.whatsappAutomationDispatch.create({
         data: {
