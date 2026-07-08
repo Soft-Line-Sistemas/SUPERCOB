@@ -1,5 +1,6 @@
 'use server'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
@@ -69,7 +70,7 @@ export async function getEmprestimos(filters?: {
   const page = filters?.page ?? 1
   const skip = (page - 1) * pageSize
 
-  const selectFields = {
+  const selectFields = Prisma.validator<Prisma.EmprestimoSelect>()({
     id: true,
     clienteId: true,
     usuarioId: true,
@@ -97,7 +98,8 @@ export async function getEmprestimos(filters?: {
       take: 120,
       select: { createdAt: true, descricao: true },
     },
-  }
+  })
+  type EmprestimoListItem = Prisma.EmprestimoGetPayload<{ select: typeof selectFields }>
 
   const hasVencimentoDayFilter = (() => {
     const day = Number(filters?.vencimentoDay)
@@ -129,8 +131,8 @@ export async function getEmprestimos(filters?: {
     return true
   }
 
-  let items
-  let total
+  let items: EmprestimoListItem[] = []
+  let total = 0
 
   if (hasVencimentoDayFilter || hasContactOnlyFilter) {
     const filteredCandidates = await prisma.emprestimo.findMany({
