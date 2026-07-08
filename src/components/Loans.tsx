@@ -198,7 +198,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     }
   }
 
-  const formatDate = (date: Date | null | undefined) => {
+  const formatDate = (date: Date | string | null | undefined) => {
     if (!date) return '-';
     return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
   };
