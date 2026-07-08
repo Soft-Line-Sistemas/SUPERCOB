@@ -145,6 +145,9 @@ export function ClientStepRevisao({
                   <span className="font-black">Juros/mês:</span> {chargeData.jurosMes || '0'}%
                 </p>
                 <p>
+                  <span className="font-black">Parcelas:</span> {chargeData.quantidadeParcelas || '-'}
+                </p>
+                <p>
                   <span className="font-black">Atraso/dia:</span> {chargeData.jurosAtrasoDia || '0'}%
                 </p>
                 <p>

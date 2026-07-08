@@ -7,6 +7,7 @@ import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter
 import { createCliente, updateCliente, deleteCliente } from '@/app/(dashboard)/clientes/actions';
 import { createEmprestimo } from '@/app/(dashboard)/emprestimos/actions'
 import { parseDateInputToUTCNoon, sanitizeDigits, validateBirthDateParts } from '@/lib/date-utils'
+import { calculateEstimatedInstallments } from '@/lib/installments'
 import { clientFormDefaults, clientSchema, formatCEP, formatCPF, formatPhoneBR, isValidCPF, normalizeClientPayload, normalizeDigits, tabRequiredFields } from './client-modal/form-schema'
 import { ClientStepAnexos } from './client-modal/StepAnexos'
 import { ClientStepBasic } from './client-modal/StepBasic'
@@ -113,11 +114,13 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
   const [chargeData, setChargeData] = useState({
     enabled: false,
     valor: '',
+    quantidadeParcelas: '',
     jurosMes: '',
     jurosAtrasoDia: '',
     vencimento: '',
     observacao: '',
   })
+  const [chargeInstallmentsManuallyEdited, setChargeInstallmentsManuallyEdited] = useState(false)
   const [docs, setDocs] = useState<Array<{ id: string; originalName: string; mimeType: string; size: number; createdAt: string; url: string }>>([])
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -266,7 +269,8 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
         estado2: client.estado2 ?? '',
         pontoReferencia2: client.pontoReferencia2 ?? '',
       });
-      setChargeData({ enabled: false, valor: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
+      setChargeData({ enabled: false, valor: '', quantidadeParcelas: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
+      setChargeInstallmentsManuallyEdited(false)
     } else {
       setEditingClient(null);
       form.reset({
@@ -309,7 +313,8 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
         estado2: '',
         pontoReferencia2: '',
       });
-      setChargeData({ enabled: false, valor: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
+      setChargeData({ enabled: false, valor: '', quantidadeParcelas: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
+      setChargeInstallmentsManuallyEdited(false)
     }
     setActiveTab('basico');
     setIsModalOpen(true);
@@ -347,6 +352,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
           await createEmprestimo({
             clienteId: editingClient.id,
             valor: Number(chargeData.valor),
+            quantidadeParcelas: Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0 ? Number(chargeData.quantidadeParcelas) : null,
             jurosMes: Number(chargeData.jurosMes) || 0,
             jurosAtrasoDia: Number(chargeData.jurosAtrasoDia) || 0,
             vencimento: parseDateInputToUTCNoon(chargeData.vencimento),
@@ -368,6 +374,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
           await createEmprestimo({
             clienteId: created.id,
             valor: Number(chargeData.valor),
+            quantidadeParcelas: Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0 ? Number(chargeData.quantidadeParcelas) : null,
             jurosMes: Number(chargeData.jurosMes) || 0,
             jurosAtrasoDia: Number(chargeData.jurosAtrasoDia) || 0,
             vencimento: parseDateInputToUTCNoon(chargeData.vencimento),
@@ -642,6 +649,37 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
     w.document.close()
   }
 
+  useEffect(() => {
+    if (!chargeData.enabled) {
+      setChargeInstallmentsManuallyEdited(false)
+    }
+  }, [chargeData.enabled])
+
+  useEffect(() => {
+    if (!chargeData.enabled || chargeInstallmentsManuallyEdited) return
+
+    const estimated = calculateEstimatedInstallments({
+      valor: Number(chargeData.valor),
+      jurosMes: Number(chargeData.jurosMes),
+    })
+
+    const nextValue = estimated ? String(estimated) : ''
+    if (chargeData.quantidadeParcelas === nextValue) return
+
+    setChargeData((prev) => ({ ...prev, quantidadeParcelas: nextValue }))
+  }, [
+    chargeData.enabled,
+    chargeData.jurosMes,
+    chargeData.quantidadeParcelas,
+    chargeData.valor,
+    chargeInstallmentsManuallyEdited,
+  ])
+
+  const handleChargeParcelasManualChange = (value: string) => {
+    setChargeInstallmentsManuallyEdited(true)
+    setChargeData((prev) => ({ ...prev, quantidadeParcelas: value }))
+  }
+
   return (
     <div className="space-y-8">
       {/* Header Actions */}
@@ -910,7 +948,13 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
                     />
                   )}
 
-                  {activeTab === 'cobranca' && <ClientStepCobranca chargeData={chargeData} setChargeData={setChargeData} />}
+                  {activeTab === 'cobranca' && (
+                    <ClientStepCobranca
+                      chargeData={chargeData}
+                      setChargeData={setChargeData}
+                      onParcelasManualChange={handleChargeParcelasManualChange}
+                    />
+                  )}
 
                   {activeTab === 'anexos' && (
                     <ClientStepAnexos

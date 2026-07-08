@@ -7,6 +7,7 @@ export type BirthErrors = { dia?: string; mes?: string; ano?: string }
 export type ChargeData = {
   enabled: boolean
   valor: string
+  quantidadeParcelas: string
   jurosMes: string
   jurosAtrasoDia: string
   vencimento: string

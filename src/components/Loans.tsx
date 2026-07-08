@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChargeModal } from './ChargeModal';
 import { parseDateInputToUTCNoon } from '@/lib/date-utils'
+import { calculateEstimatedInstallments } from '@/lib/installments'
 import { calculateLoanInterest } from '@/lib/loan-interest';
 import { LoanCard } from './LoanCard';
 import { LoanHeader } from './loans/LoanHeader'
@@ -105,6 +106,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const [pagamentoRapido, setPagamentoRapido] = useState('')
   const [isPaymentPending, startPaymentTransition] = useTransition()
   const [directMonthlyPaymentLoanId, setDirectMonthlyPaymentLoanId] = useState<string | null>(null)
+  const [installmentsManuallyEdited, setInstallmentsManuallyEdited] = useState(false)
   
   const [filters, setFilters] = useState(() => {
     const status = initialSearch?.get('status') ?? ''
@@ -277,6 +279,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         vencimento: loan.vencimento ? format(new Date(loan.vencimento), 'yyyy-MM-dd') : '',
         observacao: loan.observacao || '',
       });
+      setInstallmentsManuallyEdited(Boolean(loan.quantidadeParcelas))
     } else {
       setEditingLoan(null);
       setFormData({
@@ -289,9 +292,39 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         vencimento: !prefillConsumed ? initialVencimento : '',
         observacao: !prefillConsumed ? initialObservacao : '',
       });
+      setInstallmentsManuallyEdited(false)
     }
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    if (!isModalOpen || installmentsManuallyEdited) return
+
+    const estimated = calculateEstimatedInstallments({
+      valor: formData.valor,
+      jurosMes: formData.jurosMes,
+    })
+
+    const nextValue = estimated ?? 0
+    if (formData.quantidadeParcelas === nextValue) return
+
+    setFormData((prev) => ({ ...prev, quantidadeParcelas: nextValue }))
+  }, [formData.jurosMes, formData.quantidadeParcelas, formData.valor, installmentsManuallyEdited, isModalOpen])
+
+  const handleQuantidadeParcelasChange = (value: string) => {
+    setInstallmentsManuallyEdited(true)
+    const raw = value.trim()
+    if (raw === '') {
+      setFormData((prev) => ({ ...prev, quantidadeParcelas: 0 }))
+      return
+    }
+
+    const next = Number(raw)
+    setFormData((prev) => ({
+      ...prev,
+      quantidadeParcelas: Number.isInteger(next) && next > 0 ? next : 0,
+    }))
+  }
 
   const resetFilters = () => {
     setFilters({ status: '', q: '', startDate: '', endDate: '', usuarioId: '', cobrancaOnly: false, dateFilterMode: 'created', vencimentoDay: '' })
@@ -607,6 +640,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         toast.success('Cobrança registrada com sucesso!');
       }
       setIsModalOpen(false);
+      setInstallmentsManuallyEdited(false)
       router.refresh()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erro ao salvar cobrança.');
@@ -748,6 +782,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         loading={loading}
         formData={formData}
         setFormData={setFormData}
+        onQuantidadeParcelasChange={handleQuantidadeParcelasChange}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleSubmit}
       />

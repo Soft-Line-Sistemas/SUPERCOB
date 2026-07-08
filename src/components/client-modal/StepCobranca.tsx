@@ -6,9 +6,11 @@ import type { ChargeData, SetState } from './types'
 export function ClientStepCobranca({
   chargeData,
   setChargeData,
+  onParcelasManualChange,
 }: {
   chargeData: ChargeData
   setChargeData: SetState<ChargeData>
+  onParcelasManualChange: (value: string) => void
 }) {
   return (
     <div className="space-y-4">
@@ -51,6 +53,18 @@ export function ClientStepCobranca({
                 onChange={(e) => setChargeData((p) => ({ ...p, jurosMes: e.target.value }))}
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
                 placeholder="0"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Parcelas</label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={chargeData.quantidadeParcelas}
+                onChange={(e) => onParcelasManualChange(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
+                placeholder="Auto"
               />
             </div>
             <div className="space-y-1.5">
