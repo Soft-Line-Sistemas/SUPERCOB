@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 import { isAdminRole } from '@/lib/admin-auth'
+import { assertUniqueClienteCpf, ClientValidationError, normalizeClienteInput, validateClienteInput } from '@/lib/client-validation'
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -9,13 +10,26 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   try {
     const { id } = await params
-    const data = await req.json()
+    const data = normalizeClienteInput(await req.json())
+    validateClienteInput(data)
+    await assertUniqueClienteCpf({
+      cpf: data.cpf,
+      currentClientId: id,
+      actorRole: session.user.role,
+      actorUserId: (session.user as any).id,
+    })
     const cliente = await prisma.cliente.update({
       where: { id },
       data,
     })
     return NextResponse.json(cliente)
   } catch (error) {
+    if (error instanceof ClientValidationError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.code === 'DUPLICATE_CPF' ? 409 : 400 },
+      )
+    }
     return NextResponse.json({ error: 'Erro ao atualizar cliente' }, { status: 500 })
   }
 }

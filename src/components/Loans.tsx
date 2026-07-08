@@ -1,20 +1,23 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState, useTransition } from 'react';
 import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createEmprestimo, updateEmprestimo, deleteEmprestimo, toggleCobrancaAtiva } from '@/app/(dashboard)/emprestimos/actions';
+import { addPagamentoParcial } from '@/app/(dashboard)/emprestimos/[id]/actions';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChargeModal } from './ChargeModal';
 import { parseDateInputToUTCNoon } from '@/lib/date-utils'
+import { calculateLoanInterest } from '@/lib/loan-interest';
 import { LoanCard } from './LoanCard';
 import { LoanHeader } from './loans/LoanHeader'
 import { LoanFilters } from './loans/LoanFilters'
 import { ColaboradorAnalytics } from './loans/ColaboradorAnalytics'
 import { BatchDossieModal } from './loans/BatchDossieModal'
 import { ChargeDeliveryModal } from './loans/ChargeDeliveryModal'
+import { PaymentTerminalModal } from './loans/PaymentTerminalModal'
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
 
@@ -39,6 +42,7 @@ interface Loan {
     nome: string;
   } | null;
   valor: number;
+  quantidadeParcelas?: number | null;
   valorPago?: number | null;
   jurosMes?: number;
   jurosAtrasoDia?: number;
@@ -49,6 +53,7 @@ interface Loan {
   createdAt: Date;
   jurosPagos?: number | null;
   cobrancaAtiva?: boolean;
+  historico?: { createdAt: Date | string; descricao?: string | null }[];
 }
 
 interface LoansProps {
@@ -96,6 +101,10 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const [chargeDeliveryLoanId, setChargeDeliveryLoanId] = useState<string | null>(null)
   const [isSingleChargeDownloading, setIsSingleChargeDownloading] = useState(false)
   const [isSendingChargeWhatsapp, setIsSendingChargeWhatsapp] = useState(false)
+  const [paymentTerminalLoan, setPaymentTerminalLoan] = useState<Loan | null>(null)
+  const [pagamentoRapido, setPagamentoRapido] = useState('')
+  const [isPaymentPending, startPaymentTransition] = useTransition()
+  const [directMonthlyPaymentLoanId, setDirectMonthlyPaymentLoanId] = useState<string | null>(null)
   
   const [filters, setFilters] = useState(() => {
     const status = initialSearch?.get('status') ?? ''
@@ -114,6 +123,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     clienteId: shouldAutoOpenNew ? initialClienteId : '',
     usuarioId: '',
     valor: shouldAutoOpenNew && initialValor ? Number(initialValor) || 0 : 0,
+    quantidadeParcelas: 0,
     jurosMes: shouldAutoOpenNew && initialJurosMes ? Number(initialJurosMes) || 0 : 0,
     jurosAtrasoDia: 0,
     vencimento: shouldAutoOpenNew ? initialVencimento : '',
@@ -123,6 +133,70 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
+
+  const formatCurrencyInput = (value: number) => {
+    const safe = Number.isFinite(value) ? Math.max(0, value) : 0
+    return safe.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+
+  const parseBRL = (value: string) => {
+    const digits = value.replace(/\D/g, '')
+    const cents = digits ? Number(digits) : 0
+    return cents / 100
+  }
+
+  const parsePaymentAmountFromDescription = (value?: string | null) => {
+    if (!value) return 0
+    const match = value.match(/R\$\s*([\d.]+,\d{2})/)
+    if (!match) return 0
+    return Number(match[1].replace(/\./g, '').replace(',', '.')) || 0
+  }
+
+  const getPaidAmountInCurrentMonth = (loan: Loan) => {
+    const now = new Date()
+    return (loan.historico || []).reduce((sum, entry) => {
+      const createdAt = new Date(entry.createdAt)
+      const isSameMonth =
+        createdAt.getUTCFullYear() === now.getUTCFullYear() &&
+        createdAt.getUTCMonth() === now.getUTCMonth()
+
+      if (!isSameMonth) return sum
+      return sum + parsePaymentAmountFromDescription(entry.descricao)
+    }, 0)
+  }
+
+  const getSettledMonthCount = (loan: Loan) => {
+    const monthlyAmount = calculateLoanInterest(loan).jurosBase
+    if (monthlyAmount <= 0) return 0
+
+    const paidByMonth = new Map<string, number>()
+    for (const entry of loan.historico || []) {
+      const createdAt = new Date(entry.createdAt)
+      const key = `${createdAt.getUTCFullYear()}-${createdAt.getUTCMonth()}`
+      paidByMonth.set(key, (paidByMonth.get(key) || 0) + parsePaymentAmountFromDescription(entry.descricao))
+    }
+
+    let settledMonths = 0
+    for (const paid of paidByMonth.values()) {
+      if (paid + 0.01 >= monthlyAmount) settledMonths += 1
+    }
+
+    return settledMonths
+  }
+
+  const getCurrentInstallment = (loan: Loan) => {
+    const total = Number(loan.quantidadeParcelas || 0)
+    if (!Number.isInteger(total) || total <= 0) return null
+
+    if (loan.status === 'QUITADO') {
+      return { current: total, total }
+    }
+
+    return {
+      current: Math.min(total, getSettledMonthCount(loan) + 1),
+      total,
+    }
+  }
 
   const formatDate = (date: Date | null | undefined) => {
     if (!date) return '-';
@@ -197,6 +271,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         clienteId: loan.clienteId,
         usuarioId: loan.usuarioId || '',
         valor: loan.valor,
+        quantidadeParcelas: loan.quantidadeParcelas ?? 0,
         jurosMes: (loan.jurosMes as any) ?? 0,
         jurosAtrasoDia: (loan.jurosAtrasoDia as any) ?? 0,
         vencimento: loan.vencimento ? format(new Date(loan.vencimento), 'yyyy-MM-dd') : '',
@@ -208,6 +283,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         clienteId: initialClienteId || '',
         usuarioId: '',
         valor: !prefillConsumed && initialValor ? Number(initialValor) || 0 : 0,
+        quantidadeParcelas: 0,
         jurosMes: !prefillConsumed && initialJurosMes ? Number(initialJurosMes) || 0 : 0,
         jurosAtrasoDia: 0,
         vencimento: !prefillConsumed ? initialVencimento : '',
@@ -239,47 +315,48 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     router.push(`/emprestimos/${loan.id}`);
   };
 
+  const canOpenPaymentTerminal = (loan: Loan) => {
+    if (loan.id.startsWith('draft-')) return false
+    if (loan.status !== 'ABERTO') return false
+
+    const financials = calculateLoanInterest(loan)
+    if (financials.jurosBase <= 0) return false
+
+    return getPaidAmountInCurrentMonth(loan) + 0.01 < financials.jurosBase
+  }
+
+  const canConfirmMonthlyPayment = (loan: Loan) => {
+    if (loan.id.startsWith('draft-')) return false
+    if (loan.status !== 'ABERTO') return false
+
+    const financials = calculateLoanInterest(loan)
+    if (financials.jurosBase <= 0) return false
+
+    return getPaidAmountInCurrentMonth(loan) + 0.01 < financials.jurosBase
+  }
+
+  const isMonthlyPaymentSettled = (loan: Loan) => {
+    if (loan.id.startsWith('draft-')) return false
+    if (loan.status !== 'ABERTO') return false
+
+    const financials = calculateLoanInterest(loan)
+    if (financials.jurosBase <= 0) return false
+
+    return getPaidAmountInCurrentMonth(loan) + 0.01 >= financials.jurosBase
+  }
+
+  const handleOpenPaymentTerminal = (loan: Loan) => {
+    if (!canOpenPaymentTerminal(loan)) return
+    setPaymentTerminalLoan(loan)
+    setPagamentoRapido('')
+  }
+
   const normalizeDigits = (value: string) => value.replace(/\D/g, '')
   const contactFilter = (loan: Loan) => {
     const hasWhatsapp = normalizeDigits(loan.cliente.whatsapp || '').length >= 10
     const notPaid = loan.status !== 'QUITADO' && loan.status !== 'CANCELADO'
     return hasWhatsapp && notPaid
   }
-
-  const filteredLoans = initialLoans.filter((loan) => {
-    if (filters.status && loan.status !== filters.status) return false
-    if (filters.q) {
-      const qText = filters.q.toLowerCase()
-      const qDigits = normalizeDigits(filters.q)
-      const nameOk = (loan.cliente.nome || '').toLowerCase().includes(qText)
-      const emailOk = (loan.cliente.email || '').toLowerCase().includes(qText)
-      const whatsOk = qDigits ? normalizeDigits(loan.cliente.whatsapp || '').includes(qDigits) : false
-      if (!nameOk && !emailOk && !whatsOk) return false
-    }
-    if (filters.startDate && filters.endDate) {
-      const start = new Date(filters.startDate)
-      const end = new Date(filters.endDate)
-      const targetDate = filters.dateFilterMode === 'vencimento' ? (loan.vencimento ? new Date(loan.vencimento) : null) : new Date(loan.createdAt)
-      
-      if (!targetDate) return false
-      if (!(targetDate >= start && targetDate <= end)) return false
-    }
-    
-    if (filters.vencimentoDay) {
-      const day = Number(filters.vencimentoDay)
-      const loanVenc = loan.vencimento ? new Date(loan.vencimento) : null
-      if (!loanVenc || loanVenc.getUTCDate() !== day) return false
-    }
-    if (contactOnly && !contactFilter(loan)) return false
-    if (filters.cobrancaOnly && !loan.cobrancaAtiva) return false
-    return true
-  })
-
-  const sortedLoans = [...filteredLoans].sort((a, b) => {
-    const dateA = new Date(a.createdAt);
-    const dateB = new Date(b.createdAt);
-    return dateB.getTime() - dateA.getTime();
-  });
 
   const totalPages = Math.ceil(total / pageSize)
 
@@ -302,6 +379,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         },
         usuario: null,
         valor: !prefillConsumed && initialValor ? Number(initialValor) || 0 : 0,
+        quantidadeParcelas: 0,
         valorPago: 0,
         jurosMes: !prefillConsumed && initialJurosMes ? Number(initialJurosMes) || 0 : 0,
         jurosAtrasoDia: 0,
@@ -325,7 +403,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     }
   };
 
-  const loansToRender = draftLoan ? [draftLoan, ...sortedLoans] : sortedLoans
+  const loansToRender = draftLoan ? [draftLoan, ...initialLoans] : initialLoans
   const exportableLoans = loansToRender.filter((loan) => !loan.id.startsWith('draft-') && loan.cobrancaAtiva)
   const batchLoanItems: BatchLoanItem[] = exportableLoans.map((loan) => ({
     id: loan.id,
@@ -335,9 +413,63 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     valor: loan.valor,
   }))
   const chargeDeliveryLoan = loansToRender.find((loan) => loan.id === chargeDeliveryLoanId) ?? null
+  const currentTerminalFinancials = useMemo(() => {
+    if (!paymentTerminalLoan) return null
+    return calculateLoanInterest(paymentTerminalLoan)
+  }, [paymentTerminalLoan])
 
   const handleOpenChargeDelivery = (loanId: string) => {
     setChargeDeliveryLoanId(loanId)
+  }
+
+  const handleFillMonthlyPayment = () => {
+    if (!currentTerminalFinancials) return
+    setPagamentoRapido(formatCurrencyInput(currentTerminalFinancials.jurosBase))
+  }
+
+  const handleQuickPayment = () => {
+    if (!paymentTerminalLoan) return
+
+    const valor = parseBRL(pagamentoRapido)
+    if (!Number.isFinite(valor) || valor <= 0) {
+      toast.error('Informe um valor válido.')
+      return
+    }
+
+    startPaymentTransition(async () => {
+      try {
+        await addPagamentoParcial({ emprestimoId: paymentTerminalLoan.id, valor })
+        toast.success('Pagamento registrado.')
+        setPaymentTerminalLoan(null)
+        setPagamentoRapido('')
+        router.refresh()
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Erro ao registrar pagamento.')
+      }
+    })
+  }
+
+  const handleDirectMonthlyPayment = (loan: Loan) => {
+    const financials = calculateLoanInterest(loan)
+    const valor = financials.jurosBase
+
+    if (!Number.isFinite(valor) || valor <= 0) {
+      toast.error('Pagamento mensal indisponível para este contrato.')
+      return
+    }
+
+    setDirectMonthlyPaymentLoanId(loan.id)
+    startPaymentTransition(async () => {
+      try {
+        await addPagamentoParcial({ emprestimoId: loan.id, valor })
+        toast.success('Pagamento integral do mês confirmado.')
+        router.refresh()
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Erro ao confirmar pagamento do mês.')
+      } finally {
+        setDirectMonthlyPaymentLoanId(null)
+      }
+    })
   }
 
   const handleExportDossie = async (loanId: string) => {
@@ -461,6 +593,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       const data = {
         ...formData,
         usuarioId: formData.usuarioId || null,
+        quantidadeParcelas: Number.isInteger(formData.quantidadeParcelas) && formData.quantidadeParcelas > 0 ? formData.quantidadeParcelas : null,
         jurosMes: Number(formData.jurosMes) || 0,
         jurosAtrasoDia: Number(formData.jurosAtrasoDia) || 0,
         vencimento: parseDateInputToUTCNoon(formData.vencimento),
@@ -536,11 +669,18 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
               onDetail={handleOpenDetail}
               onToggleCobranca={handleToggleCobranca}
               onExportDossie={handleOpenChargeDelivery}
+              onOpenPaymentTerminal={handleOpenPaymentTerminal}
+              onConfirmMonthlyPayment={handleDirectMonthlyPayment}
               formatCurrency={formatCurrency}
               formatDate={formatDate}
               generateWhatsAppLink={generateWhatsAppLink}
               contactFilter={contactFilter}
               isAdmin={userRole === 'ADMIN'}
+              installmentProgress={getCurrentInstallment(loan)}
+              canOpenPaymentTerminal={canOpenPaymentTerminal(loan)}
+              canConfirmMonthlyPayment={canConfirmMonthlyPayment(loan)}
+              isMonthlyPaymentSettled={isMonthlyPaymentSettled(loan)}
+              isConfirmMonthlyPaymentPending={isPaymentPending && directMonthlyPaymentLoanId === loan.id}
             />
           ))}
         </AnimatePresence>
@@ -550,7 +690,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-sm text-muted-foreground">
-            {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} de {total} contratos
+            {total === 0 ? '0' : ((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} de {total} contratos
           </p>
           <div className="flex items-center gap-1">
             <button
@@ -635,6 +775,25 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         }}
         onDownload={handleExportDossie}
         onSendWhatsapp={handleSendChargeWhatsapp}
+      />
+
+      <PaymentTerminalModal
+        open={Boolean(paymentTerminalLoan)}
+        loan={paymentTerminalLoan}
+        totalDevido={currentTerminalFinancials?.totalDevido ?? 0}
+        monthlyPaymentAmount={currentTerminalFinancials?.jurosBase ?? 0}
+        pagamento={pagamentoRapido}
+        onPagamentoChange={setPagamentoRapido}
+        pending={isPaymentPending}
+        onClose={() => {
+          if (isPaymentPending) return
+          setPaymentTerminalLoan(null)
+          setPagamentoRapido('')
+        }}
+        onFillMonthlyPayment={handleFillMonthlyPayment}
+        onSubmit={handleQuickPayment}
+        formatBRL={formatCurrency}
+        formatDate={formatDate}
       />
 
     </div>

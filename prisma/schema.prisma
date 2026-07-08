@@ -105,6 +105,7 @@ model Emprestimo {
   clienteId           String
   usuarioId           String?
   valor               Float
+  quantidadeParcelas  Int?
   jurosMes            Float                 @default(0)
   jurosAtrasoDia      Float                 @default(0)
   vencimento          DateTime?

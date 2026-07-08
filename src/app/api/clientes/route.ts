@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
+import { assertUniqueClienteCpf, ClientValidationError, normalizeClienteInput, validateClienteInput } from '@/lib/client-validation'
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -56,10 +57,22 @@ export async function POST(req: Request) {
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const data = await req.json()
+    const data = normalizeClienteInput(await req.json())
+    validateClienteInput(data)
+    await assertUniqueClienteCpf({
+      cpf: data.cpf,
+      actorRole: session.user.role,
+      actorUserId: (session.user as any).id,
+    })
     const cliente = await prisma.cliente.create({ data })
     return NextResponse.json(cliente, { status: 201 })
   } catch (error) {
+    if (error instanceof ClientValidationError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.code === 'DUPLICATE_CPF' ? 409 : 400 },
+      )
+    }
     return NextResponse.json({ error: 'Erro ao criar cliente' }, { status: 500 })
   }
 }

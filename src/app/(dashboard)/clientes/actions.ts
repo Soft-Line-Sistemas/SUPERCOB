@@ -5,84 +5,7 @@ import type { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import { isAdminRole } from '@/lib/admin-auth'
-
-type ClienteInput = {
-  nome: string
-  indicacao?: string | null
-  cpf?: string | null
-  rg?: string | null
-  orgao?: string | null
-  diaNasc?: number | null
-  mesNasc?: number | null
-  anoNasc?: number | null
-  email?: string | null
-  whatsapp?: string | null
-  instagram?: string | null
-  cep?: string | null
-  endereco?: string | null
-  numeroEndereco?: number | null
-  complemento?: string | null
-  bairro?: string | null
-  cidade?: string | null
-  estado?: string | null
-  pontoReferencia?: string | null
-  profissao?: string | null
-  empresa?: string | null
-  cepEmpresa?: string | null
-  enderecoEmpresa?: string | null
-  cidadeEmpresa?: string | null
-  estadoEmpresa?: string | null
-  contatoEmergencia1?: string | null
-  contatoEmergencia2?: string | null
-  contatoEmergencia3?: string | null
-  telefone2?: string | null
-  observacoes?: string | null
-  cep2?: string | null
-  endereco2?: string | null
-  numeroEndereco2?: number | null
-  complemento2?: string | null
-  bairro2?: string | null
-  cidade2?: string | null
-  estado2?: string | null
-  pontoReferencia2?: string | null
-}
-
-function validateClienteInput(data: ClienteInput) {
-  if (!data.nome || data.nome.trim() === '') throw new Error('Nome é obrigatório')
-
-  const whatsapp = (data.whatsapp ?? '').replace(/\D/g, '')
-  if (whatsapp.length < 10) throw new Error('WhatsApp inválido')
-
-  const cpf = (data.cpf ?? '').replace(/\D/g, '')
-  if (cpf.length !== 11) throw new Error('CPF inválido')
-
-  const anyBirth = data.diaNasc != null || data.mesNasc != null || data.anoNasc != null
-  if (anyBirth) {
-    if (!data.diaNasc || !data.mesNasc || !data.anoNasc) throw new Error('Data de nascimento incompleta')
-    if (data.diaNasc < 1 || data.diaNasc > 31) throw new Error('Dia inválido (01-31)')
-    if (data.mesNasc < 1 || data.mesNasc > 12) throw new Error('Mês inválido (01-12)')
-    const anoAtual = new Date().getFullYear()
-    if (data.anoNasc < 1900 || data.anoNasc > anoAtual) throw new Error('Ano inválido')
-    const dt = new Date(Date.UTC(data.anoNasc, data.mesNasc - 1, data.diaNasc, 12, 0, 0, 0))
-    if (dt.getUTCFullYear() !== data.anoNasc || dt.getUTCMonth() !== data.mesNasc - 1 || dt.getUTCDate() !== data.diaNasc) {
-      throw new Error('Data de nascimento inválida')
-    }
-  }
-
-  const cep = (data.cep ?? '').replace(/\D/g, '')
-  if (cep.length !== 8) throw new Error('CEP inválido')
-
-  if (!data.endereco || data.endereco.trim() === '') throw new Error('Endereço é obrigatório')
-  if (!data.numeroEndereco || data.numeroEndereco <= 0) throw new Error('Número do endereço é obrigatório')
-  if (!data.bairro || data.bairro.trim() === '') throw new Error('Bairro é obrigatório')
-  if (!data.cidade || data.cidade.trim() === '') throw new Error('Cidade é obrigatória')
-  if (!data.estado || data.estado.trim() === '') throw new Error('Estado é obrigatório')
-
-  if (data.cep2) {
-    const cep2 = data.cep2.replace(/\D/g, '')
-    if (cep2.length !== 8) throw new Error('CEP secundário inválido')
-  }
-}
+import { assertUniqueClienteCpf, type ClienteInput, normalizeClienteInput, validateClienteInput } from '@/lib/client-validation'
 
 export async function getClientes(options?: { includeIds?: string[] }) {
   const session = await auth()
@@ -223,10 +146,16 @@ export async function createCliente(data: ClienteInput) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
-  validateClienteInput(data)
+  const normalizedData = normalizeClienteInput(data)
+  validateClienteInput(normalizedData)
+  await assertUniqueClienteCpf({
+    cpf: normalizedData.cpf,
+    actorRole: (session.user as any).role,
+    actorUserId: (session.user as any).id,
+  })
 
   const cliente = await prisma.cliente.create({
-    data,
+    data: normalizedData,
   })
   revalidatePath('/clientes')
   return cliente
@@ -236,11 +165,18 @@ export async function updateCliente(id: string, data: ClienteInput) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
-  validateClienteInput(data)
+  const normalizedData = normalizeClienteInput(data)
+  validateClienteInput(normalizedData)
+  await assertUniqueClienteCpf({
+    cpf: normalizedData.cpf,
+    currentClientId: id,
+    actorRole: (session.user as any).role,
+    actorUserId: (session.user as any).id,
+  })
 
   const cliente = await prisma.cliente.update({
     where: { id },
-    data,
+    data: normalizedData,
   })
   revalidatePath('/clientes')
   return cliente

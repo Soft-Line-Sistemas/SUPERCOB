@@ -34,10 +34,11 @@ export function ClientStepEmergencia({
           />
           <input
             type="text"
+            inputMode="tel"
             value={emergencia1.telefone}
-            onChange={(e) => setFormData({ ...formData, contatoEmergencia1: buildEmergency(emergencia1.nome, e.target.value) })}
+            onChange={(e) => setFormData({ ...formData, contatoEmergencia1: buildEmergency(emergencia1.nome, formatPhoneBR(e.target.value)) })}
             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-            placeholder="Telefone"
+            placeholder="(00) 00000-0000"
           />
         </div>
       </div>
@@ -54,10 +55,11 @@ export function ClientStepEmergencia({
           />
           <input
             type="text"
+            inputMode="tel"
             value={emergencia2.telefone}
-            onChange={(e) => setFormData({ ...formData, contatoEmergencia2: buildEmergency(emergencia2.nome, e.target.value) })}
+            onChange={(e) => setFormData({ ...formData, contatoEmergencia2: buildEmergency(emergencia2.nome, formatPhoneBR(e.target.value)) })}
             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-            placeholder="Telefone"
+            placeholder="(00) 00000-0000"
           />
         </div>
       </div>
@@ -74,14 +76,14 @@ export function ClientStepEmergencia({
           />
           <input
             type="text"
+            inputMode="tel"
             value={emergencia3.telefone}
-            onChange={(e) => setFormData({ ...formData, contatoEmergencia3: buildEmergency(emergencia3.nome, e.target.value) })}
+            onChange={(e) => setFormData({ ...formData, contatoEmergencia3: buildEmergency(emergencia3.nome, formatPhoneBR(e.target.value)) })}
             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
-            placeholder="Telefone"
+            placeholder="(00) 00000-0000"
           />
         </div>
       </div>
     </div>
   )
 }
-

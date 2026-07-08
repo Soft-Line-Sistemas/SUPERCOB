@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Edit2, Trash2, Clock, CheckCircle2, AlertCircle as AlertIcon, X, Download, Send } from 'lucide-react';
+import { Edit2, Trash2, Clock, CheckCircle2, AlertCircle as AlertIcon, X, Download, Send, Wallet } from 'lucide-react';
 import { format } from 'date-fns';
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
@@ -20,6 +20,7 @@ interface Loan {
     nome: string;
   } | null;
   valor: number;
+  quantidadeParcelas?: number | null;
   valorPago?: number | null;
   jurosMes?: number;
   vencimento?: Date | null;
@@ -29,6 +30,7 @@ interface Loan {
   createdAt: Date;
   jurosPagos?: number | null;
   cobrancaAtiva?: boolean;
+  historico?: { createdAt: Date | string; descricao?: string | null }[];
 }
 
 const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any; bg: string; border: string }> = {
@@ -46,11 +48,18 @@ interface LoanCardProps {
   onDetail: (loan: Loan) => void;
   onToggleCobranca: (id: string, active: boolean) => void;
   onExportDossie: (id: string) => void;
+  onOpenPaymentTerminal: (loan: Loan) => void;
+  onConfirmMonthlyPayment: (loan: Loan) => void;
   formatCurrency: (val: number) => string;
   formatDate: (date: Date | null | undefined) => string;
   generateWhatsAppLink: (loan: Loan) => string;
   contactFilter: (loan: Loan) => boolean;
   isAdmin?: boolean;
+  installmentProgress?: { current: number; total: number } | null;
+  canOpenPaymentTerminal?: boolean;
+  canConfirmMonthlyPayment?: boolean;
+  isMonthlyPaymentSettled?: boolean;
+  isConfirmMonthlyPaymentPending?: boolean;
 }
 
 export function LoanCard({
@@ -61,11 +70,18 @@ export function LoanCard({
   onDetail,
   onToggleCobranca,
   onExportDossie,
+  onOpenPaymentTerminal,
+  onConfirmMonthlyPayment,
   formatCurrency,
   formatDate,
   generateWhatsAppLink,
   contactFilter,
-  isAdmin
+  isAdmin,
+  installmentProgress = null,
+  canOpenPaymentTerminal = false,
+  canConfirmMonthlyPayment = false,
+  isMonthlyPaymentSettled = false,
+  isConfirmMonthlyPaymentPending = false,
 }: LoanCardProps) {
   const config = statusConfig[loan.status];
   const StatusIcon = config.icon;
@@ -92,9 +108,52 @@ export function LoanCard({
     >
       {/* Card Header */}
       <div className={`p-4 md:p-6 border-b border-slate-50 flex items-center justify-between ${headerBg} transition-colors`}>
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${config.bg} ${config.color} text-[10px] font-bold uppercase tracking-wider shadow-sm border border-slate-200/50`}>
-          <StatusIcon className="w-3.5 h-3.5" />
-          {isDraft ? 'Cobrança inicial' : config.label}
+        <div className="flex flex-wrap items-center gap-2">
+          {canOpenPaymentTerminal ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenPaymentTerminal(loan);
+              }}
+              className={`flex cursor-pointer items-center gap-2 rounded-full border border-slate-200/50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider shadow-sm transition-all hover:scale-[1.02] hover:shadow-md ${config.bg} ${config.color}`}
+              title="Abrir terminal de cobrança"
+            >
+              <StatusIcon className="w-3.5 h-3.5" />
+              {isDraft ? 'Cobrança inicial' : config.label}
+            </button>
+          ) : (
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${config.bg} ${config.color} text-[10px] font-bold uppercase tracking-wider shadow-sm border border-slate-200/50`}>
+              <StatusIcon className="w-3.5 h-3.5" />
+              {isDraft ? 'Cobrança inicial' : config.label}
+            </div>
+          )}
+
+          {canConfirmMonthlyPayment ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onConfirmMonthlyPayment(loan);
+              }}
+              disabled={isConfirmMonthlyPaymentPending}
+              className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 shadow-sm transition-all hover:scale-[1.02] hover:bg-emerald-100 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+              title="Confirmar pagamento integral do mês"
+            >
+              <Wallet className="h-3.5 w-3.5" />
+              {isConfirmMonthlyPaymentPending ? 'Confirmando...' : 'Confirmar Mês'}
+            </button>
+          ) : null}
+
+          {isMonthlyPaymentSettled ? (
+            <div
+              className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 shadow-sm"
+              title="Pagamento do mês já confirmado"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Pago
+            </div>
+          ) : null}
         </div>
 
         {cobrancaActive ? (
@@ -162,6 +221,15 @@ export function LoanCard({
             <p className="text-base font-black text-gold-600 dark:text-gold-500">{loan.jurosMes}%</p>
           </div>
         </div>
+
+        {installmentProgress ? (
+          <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Parcelamento</p>
+            <p className="mt-1 text-sm font-black text-blue-900">
+              Parcela {installmentProgress.current}/{installmentProgress.total}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       {/* Card Footer */}

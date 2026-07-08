@@ -1,0 +1,148 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { mockFindFirst } = vi.hoisted(() => ({
+  mockFindFirst: vi.fn(),
+}))
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    cliente: {
+      findFirst: mockFindFirst,
+    },
+  },
+}))
+
+import { assertUniqueClienteCpf, ClientValidationError, normalizeClienteInput, validateClienteInput } from './client-validation'
+
+describe('client-validation', () => {
+  beforeEach(() => {
+    mockFindFirst.mockReset()
+  })
+
+  it('normaliza CPF, WhatsApp e CEP antes de persistir', () => {
+    const normalized = normalizeClienteInput({
+      nome: ' Maria ',
+      cpf: '529.982.247-25',
+      whatsapp: '(71) 99999-8888',
+      cep: '40100-000',
+      endereco: ' Rua A ',
+      numeroEndereco: 10,
+      bairro: ' Centro ',
+      cidade: ' Salvador ',
+      estado: ' BA ',
+    })
+
+    expect(normalized).toMatchObject({
+      nome: 'Maria',
+      cpf: '52998224725',
+      whatsapp: '71999998888',
+      cep: '40100000',
+      endereco: 'Rua A',
+      bairro: 'Centro',
+      cidade: 'Salvador',
+      estado: 'BA',
+    })
+  })
+
+  it('valida campos obrigatórios do cliente', () => {
+    expect(() =>
+      validateClienteInput({
+        nome: '',
+        cpf: '52998224725',
+        whatsapp: '71999998888',
+        cep: '40100000',
+        endereco: 'Rua A',
+        numeroEndereco: 10,
+        bairro: 'Centro',
+        cidade: 'Salvador',
+        estado: 'BA',
+      }),
+    ).toThrow('Nome é obrigatório')
+  })
+
+  it('permite CPF inexistente', async () => {
+    mockFindFirst.mockResolvedValue(null)
+
+    await expect(assertUniqueClienteCpf({ cpf: '529.982.247-25', actorRole: 'GERENTE', actorUserId: 'u1' })).resolves.toBeUndefined()
+    expect(mockFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ cpf: '52998224725' }),
+      }),
+    )
+  })
+
+  it('bloqueia CPF já cadastrado com contrato ativo de outro gerente', async () => {
+    mockFindFirst.mockResolvedValue({
+      id: 'c1',
+      nome: 'Ana Souza',
+      loans: [
+        {
+          id: 'l1',
+          status: 'ABERTO',
+          usuarioId: 'u2',
+          usuario: { nome: 'Carlos' },
+        },
+      ],
+    })
+
+    await expect(assertUniqueClienteCpf({ cpf: '52998224725', actorRole: 'GERENTE', actorUserId: 'u1' })).rejects.toMatchObject({
+      name: 'ClientValidationError',
+      code: 'DUPLICATE_CPF',
+      message: 'Já existe um cliente cadastrado com esse CPF: Ana Souza. O cliente já possui contrato ativo com outro gerente: Carlos.',
+    })
+  })
+
+  it('bloqueia CPF já cadastrado com contrato ativo sem gerente diferente', async () => {
+    mockFindFirst.mockResolvedValue({
+      id: 'c1',
+      nome: 'Ana Souza',
+      loans: [
+        {
+          id: 'l1',
+          status: 'NEGOCIACAO',
+          usuarioId: 'u1',
+          usuario: { nome: 'Carlos' },
+        },
+      ],
+    })
+
+    await expect(assertUniqueClienteCpf({ cpf: '52998224725', actorRole: 'GERENTE', actorUserId: 'u1' })).rejects.toThrow(
+      'Já existe um cliente cadastrado com esse CPF: Ana Souza. O cliente já possui contrato ativo.',
+    )
+  })
+
+  it('bloqueia CPF já usado por cliente com empréstimo de outro gerente', async () => {
+    mockFindFirst.mockResolvedValue({
+      id: 'c1',
+      nome: 'Ana Souza',
+      loans: [
+        {
+          id: 'l1',
+          status: 'QUITADO',
+          usuarioId: 'u2',
+          usuario: { nome: 'Carlos' },
+        },
+      ],
+    })
+
+    await expect(assertUniqueClienteCpf({ cpf: '52998224725', actorRole: 'GERENTE', actorUserId: 'u1' })).rejects.toThrow(
+      'Já existe um cliente cadastrado com esse CPF: Ana Souza. O cliente já tomou empréstimo com outro gerente: Carlos.',
+    )
+  })
+
+  it('retorna erro tipado para CPF duplicado', async () => {
+    mockFindFirst.mockResolvedValue({
+      id: 'c1',
+      nome: 'Ana Souza',
+      loans: [],
+    })
+
+    try {
+      await assertUniqueClienteCpf({ cpf: '52998224725' })
+      throw new Error('expected failure')
+    } catch (error) {
+      expect(error).toBeInstanceOf(ClientValidationError)
+      expect((error as ClientValidationError).code).toBe('DUPLICATE_CPF')
+    }
+  })
+})

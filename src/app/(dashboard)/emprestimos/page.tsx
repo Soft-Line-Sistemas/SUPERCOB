@@ -21,6 +21,7 @@ export default async function EmprestimosPage({
     startDate: params.startDate as string,
     endDate: params.endDate as string,
     usuarioId: params.usuarioId as string,
+    contactOnly: params.contactOnly === '1',
     cobrancaOnly: params.cobrancaOnly === '1',
     dateFilterMode: (params.dateFilterMode as 'created' | 'vencimento') || 'created',
     vencimentoDay: params.vencimentoDay as string,

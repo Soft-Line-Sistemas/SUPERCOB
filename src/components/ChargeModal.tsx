@@ -8,6 +8,7 @@ type ChargeFormData = {
   clienteId: string
   usuarioId: string
   valor: number
+  quantidadeParcelas: number
   jurosMes: number
   jurosAtrasoDia: number
   vencimento: string
@@ -284,7 +285,7 @@ export function ChargeModal({
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Valor (R$)</label>
                     <input
@@ -298,6 +299,31 @@ export function ChargeModal({
                       }}
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 text-left outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
                       placeholder="R$ 0,00"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Parcelas</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={
+                        Number.isFinite(formData.quantidadeParcelas) && formData.quantidadeParcelas > 0
+                          ? String(formData.quantidadeParcelas)
+                          : ''
+                      }
+                      onChange={(e) => {
+                        const raw = e.target.value
+                        if (raw === '') {
+                          setFormData((p) => ({ ...p, quantidadeParcelas: 0 }))
+                          return
+                        }
+                        const next = Number(raw)
+                        setFormData((p) => ({ ...p, quantidadeParcelas: Number.isInteger(next) && next > 0 ? next : 0 }))
+                      }}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
+                      placeholder="Ex: 20"
                     />
                   </div>
 

@@ -15,6 +15,7 @@ export async function getEmprestimos(filters?: {
   cobrancaOnly?: boolean;
   dateFilterMode?: 'created' | 'vencimento';
   vencimentoDay?: string;
+  contactOnly?: boolean;
   page?: number;
   pageSize?: number;
 }) {
@@ -60,18 +61,6 @@ export async function getEmprestimos(filters?: {
     }
   }
 
-  if (filters?.vencimentoDay) {
-    const day = Number(filters.vencimentoDay)
-    if (!isNaN(day) && day >= 1 && day <= 31) {
-      // Prisma does not support filtering by day-of-month directly.
-      // We guarantee vencimento is not null so the client-side day filter in Loans.tsx has data to work with.
-      // If a date-range filter on vencimento is already set, we keep it; otherwise just require non-null.
-      if (!where.vencimento) {
-        where.vencimento = { not: null }
-      }
-    }
-  }
-
   if (filters?.cobrancaOnly) {
     where.cobrancaAtiva = true
   }
@@ -85,6 +74,7 @@ export async function getEmprestimos(filters?: {
     clienteId: true,
     usuarioId: true,
     valor: true,
+    quantidadeParcelas: true,
     valorPago: true,
     jurosMes: true,
     jurosAtrasoDia: true,
@@ -101,18 +91,88 @@ export async function getEmprestimos(filters?: {
     usuario: {
       select: { nome: true },
     },
+    historico: {
+      where: { tipo: 'PAGAMENTO' },
+      orderBy: { createdAt: 'desc' as const },
+      take: 120,
+      select: { createdAt: true, descricao: true },
+    },
   }
 
-  const [items, total] = await Promise.all([
-    prisma.emprestimo.findMany({
+  const hasVencimentoDayFilter = (() => {
+    const day = Number(filters?.vencimentoDay)
+    return !Number.isNaN(day) && day >= 1 && day <= 31
+  })()
+  const hasContactOnlyFilter = Boolean(filters?.contactOnly)
+
+  if (hasVencimentoDayFilter && !where.vencimento) {
+    where.vencimento = { not: null }
+  }
+
+  const normalizeDigits = (value?: string | null) => (value || '').replace(/\D/g, '')
+  const matchesSpecialFilters = (loan: {
+    status: string
+    vencimento: Date | null
+    cliente: { whatsapp: string | null }
+  }) => {
+    if (hasVencimentoDayFilter) {
+      const day = Number(filters?.vencimentoDay)
+      if (!loan.vencimento || new Date(loan.vencimento).getUTCDate() !== day) return false
+    }
+
+    if (hasContactOnlyFilter) {
+      const hasWhatsapp = normalizeDigits(loan.cliente.whatsapp).length >= 10
+      const notPaid = loan.status !== 'QUITADO' && loan.status !== 'CANCELADO'
+      if (!hasWhatsapp || !notPaid) return false
+    }
+
+    return true
+  }
+
+  let items
+  let total
+
+  if (hasVencimentoDayFilter || hasContactOnlyFilter) {
+    const filteredCandidates = await prisma.emprestimo.findMany({
       where,
-      select: selectFields,
+      select: {
+        id: true,
+        status: true,
+        vencimento: true,
+        createdAt: true,
+        cliente: {
+          select: { whatsapp: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
-      skip,
-      take: pageSize,
-    }),
-    prisma.emprestimo.count({ where }),
-  ])
+    })
+
+    const filteredIds = filteredCandidates.filter(matchesSpecialFilters).map((loan) => loan.id)
+    total = filteredIds.length
+
+    const pagedIds = filteredIds.slice(skip, skip + pageSize)
+    if (pagedIds.length === 0) {
+      items = []
+    } else {
+      const pageItems = await prisma.emprestimo.findMany({
+        where: { id: { in: pagedIds } },
+        select: selectFields,
+      })
+      const order = new Map(pagedIds.map((id, index) => [id, index]))
+      items = pageItems.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    }
+  } else {
+    ;[items, total] = await Promise.all([
+      prisma.emprestimo.findMany({
+        where,
+        select: selectFields,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      prisma.emprestimo.count({ where }),
+    ])
+  }
 
   return { items, total, page, pageSize }
 }
@@ -120,6 +180,7 @@ export async function getEmprestimos(filters?: {
 export async function createEmprestimo(data: {
   clienteId: string;
   valor: number;
+  quantidadeParcelas?: number | null;
   jurosMes?: number;
   jurosAtrasoDia?: number;
   vencimento?: Date | null;
@@ -135,6 +196,9 @@ export async function createEmprestimo(data: {
   }
   if (!data.vencimento) {
     throw new Error('Vencimento é obrigatório para criar a cobrança')
+  }
+  if (data.quantidadeParcelas != null && (!Number.isInteger(Number(data.quantidadeParcelas)) || Number(data.quantidadeParcelas) <= 0)) {
+    throw new Error('Quantidade de parcelas inválida')
   }
 
   const role = (session.user as any).role
@@ -175,6 +239,7 @@ export async function createEmprestimo(data: {
 
 export async function updateEmprestimo(id: string, data: {
   valor: number;
+  quantidadeParcelas?: number | null;
   jurosMes?: number;
   jurosAtrasoDia?: number;
   vencimento?: Date | null;
@@ -190,6 +255,9 @@ export async function updateEmprestimo(id: string, data: {
   }
   if (!data.vencimento) {
     throw new Error('Vencimento é obrigatório para atualizar a cobrança')
+  }
+  if (data.quantidadeParcelas != null && (!Number.isInteger(Number(data.quantidadeParcelas)) || Number(data.quantidadeParcelas) <= 0)) {
+    throw new Error('Quantidade de parcelas inválida')
   }
 
   let status: 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' = 'ABERTO'

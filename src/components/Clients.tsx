@@ -128,6 +128,17 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
   const lastAutoAdvanceRef = useRef<string | null>(null)
   const [birthErrors, setBirthErrors] = useState<{ dia?: string; mes?: string; ano?: string }>({})
 
+  const handleClientSaveError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : 'Erro ao salvar cliente. Tente novamente.'
+    if (message.toUpperCase().includes('CPF')) {
+      form.setError('cpf', { message })
+      setActiveTab('identificacao')
+      toast.error(message)
+      return
+    }
+    toast.error(message)
+  }
+
   const formErrorMessages = Object.fromEntries(
     Object.entries(fieldErrors).map(([key, value]) => [key, value?.message ? String(value.message) : undefined]),
   ) as Partial<Record<keyof typeof formData, string>>
@@ -308,18 +319,6 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
     setLoading(true);
     try {
       const formData = values
-      const cpfDigits = normalizeDigits(formData.cpf)
-      const cpfDuplicado = initialClients.some((c) => {
-        const other = normalizeDigits(c.cpf ?? '')
-        if (editingClient && c.id === editingClient.id) return false
-        return other !== '' && other === cpfDigits
-      })
-      if (cpfDuplicado) {
-        form.setError('cpf', { message: 'Já existe um cliente cadastrado com esse CPF.' })
-        setActiveTab('identificacao')
-        return
-      }
-
       if (chargeData.enabled) {
         const valor = Number(chargeData.valor)
         if (!Number.isFinite(valor) || valor <= 0) {
@@ -380,7 +379,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
         router.push(`/clientes/${created.id}`)
       }
     } catch (error) {
-      toast.error('Erro ao salvar cliente. Tente novamente.');
+      handleClientSaveError(error)
     } finally {
       setLoading(false);
     }
@@ -426,13 +425,8 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
     if (tab === 'identificacao') {
       const cpfDigits = normalizeDigits(formData.cpf)
       if (cpfDigits.length !== 11 || !isValidCPF(cpfDigits)) return false
-      const cpfDuplicado = initialClients.some((c) => {
-        const other = normalizeDigits(c.cpf ?? '')
-        if (editingClient && c.id === editingClient.id) return false
-        return other !== '' && other === cpfDigits
-      })
       const birthCheck = validateBirthDateParts(formData.diaNasc, formData.mesNasc, formData.anoNasc)
-      return !cpfDuplicado && !birthCheck.dia && !birthCheck.mes && !birthCheck.ano
+      return !birthCheck.dia && !birthCheck.mes && !birthCheck.ano
     }
     if (tab === 'endereco') {
       const cepDigits = normalizeDigits(formData.cep)
@@ -477,16 +471,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
     if (!ok) return false
 
     if (tab === 'identificacao') {
-      const cpfDigits = normalizeDigits(formData.cpf)
-      const cpfDuplicado = initialClients.some((c) => {
-        const other = normalizeDigits(c.cpf ?? '')
-        if (editingClient && c.id === editingClient.id) return false
-        return other !== '' && other === cpfDigits
-      })
-      if (cpfDuplicado) {
-        form.setError('cpf', { message: 'Já existe um cliente cadastrado com esse CPF.' })
-        return false
-      }
+      return true
     }
 
     if (tab === 'cobranca' && chargeData.enabled) {
