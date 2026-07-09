@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { calculateLoanInterest } from '@/lib/loan-interest'
+import { isAdminRole } from '@/lib/admin-auth'
 
 type DashboardPeriod = 'hoje' | 'semana' | 'mes'
 
@@ -160,7 +161,7 @@ export async function getDashboardData(period: DashboardPeriod = 'hoje') {
   }
 
   let agentData: { name: string; value: number; color: string }[] = []
-  if (role === 'ADMIN') {
+  if (isAdminRole(role)) {
     const agents = await prisma.usuario.findMany({
       where: { role: 'OPERADOR' },
       select: { id: true, nome: true },

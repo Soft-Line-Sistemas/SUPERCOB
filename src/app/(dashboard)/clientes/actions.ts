@@ -5,7 +5,21 @@ import type { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import { isAdminRole } from '@/lib/admin-auth'
-import { assertUniqueClienteCpf, type ClienteInput, normalizeClienteInput, validateClienteInput } from '@/lib/client-validation'
+import {
+  assertUniqueClienteCpf,
+  ClientValidationError,
+  type ClienteInput,
+  normalizeClienteInput,
+  validateClienteInput,
+} from '@/lib/client-validation'
+
+type ClienteMutationResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string; code?: 'INVALID_INPUT' | 'DUPLICATE_CPF' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'INTERNAL_ERROR' }
+
+type ClienteCpfValidationResult =
+  | { ok: true }
+  | { ok: false; error: string; code?: 'INVALID_INPUT' | 'DUPLICATE_CPF' | 'UNAUTHORIZED' }
 
 export async function getClientes(options?: { includeIds?: string[] }) {
   const session = await auth()
@@ -143,54 +157,118 @@ export async function getClientesPage(options?: {
 }
 
 export async function createCliente(data: ClienteInput) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      return { ok: false, error: 'Sessão expirada. Faça login novamente.', code: 'UNAUTHORIZED' } satisfies ClienteMutationResult
+    }
 
-  const normalizedData = normalizeClienteInput(data)
-  validateClienteInput(normalizedData)
-  await assertUniqueClienteCpf({
-    cpf: normalizedData.cpf,
-    actorRole: (session.user as any).role,
-    actorUserId: (session.user as any).id,
-  })
+    const normalizedData = normalizeClienteInput(data)
+    validateClienteInput(normalizedData)
+    await assertUniqueClienteCpf({
+      cpf: normalizedData.cpf,
+      actorRole: (session.user as any).role,
+      actorUserId: (session.user as any).id,
+    })
 
-  const cliente = await prisma.cliente.create({
-    data: normalizedData,
-  })
-  revalidatePath('/clientes')
-  return cliente
+    const cliente = await prisma.cliente.create({
+      data: normalizedData,
+      select: { id: true },
+    })
+
+    revalidatePath('/clientes')
+    return { ok: true, id: cliente.id } satisfies ClienteMutationResult
+  } catch (error) {
+    if (error instanceof ClientValidationError) {
+      return { ok: false, error: error.message, code: error.code } satisfies ClienteMutationResult
+    }
+
+    console.error('[clientes/createCliente] unexpected error', error)
+    return { ok: false, error: 'Erro ao salvar cliente. Tente novamente.', code: 'INTERNAL_ERROR' } satisfies ClienteMutationResult
+  }
+}
+
+export async function validateClienteCpf(
+  cpf: string,
+  options?: { currentClientId?: string }
+) {
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      return { ok: false, error: 'Sessão expirada. Faça login novamente.', code: 'UNAUTHORIZED' } satisfies ClienteCpfValidationResult
+    }
+
+    await assertUniqueClienteCpf({
+      cpf,
+      currentClientId: options?.currentClientId,
+      actorRole: (session.user as any).role,
+      actorUserId: (session.user as any).id,
+    })
+
+    return { ok: true } satisfies ClienteCpfValidationResult
+  } catch (error) {
+    if (error instanceof ClientValidationError) {
+      return { ok: false, error: error.message, code: error.code } satisfies ClienteCpfValidationResult
+    }
+
+    console.error('[clientes/validateClienteCpf] unexpected error', error)
+    return { ok: false, error: 'Erro ao validar CPF. Tente novamente.', code: 'INVALID_INPUT' } satisfies ClienteCpfValidationResult
+  }
 }
 
 export async function updateCliente(id: string, data: ClienteInput) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      return { ok: false, error: 'Sessão expirada. Faça login novamente.', code: 'UNAUTHORIZED' } satisfies ClienteMutationResult
+    }
 
-  const normalizedData = normalizeClienteInput(data)
-  validateClienteInput(normalizedData)
-  await assertUniqueClienteCpf({
-    cpf: normalizedData.cpf,
-    currentClientId: id,
-    actorRole: (session.user as any).role,
-    actorUserId: (session.user as any).id,
-  })
+    const normalizedData = normalizeClienteInput(data)
+    validateClienteInput(normalizedData)
+    await assertUniqueClienteCpf({
+      cpf: normalizedData.cpf,
+      currentClientId: id,
+      actorRole: (session.user as any).role,
+      actorUserId: (session.user as any).id,
+    })
 
-  const cliente = await prisma.cliente.update({
-    where: { id },
-    data: normalizedData,
-  })
-  revalidatePath('/clientes')
-  return cliente
+    const cliente = await prisma.cliente.update({
+      where: { id },
+      data: normalizedData,
+      select: { id: true },
+    })
+
+    revalidatePath('/clientes')
+    return { ok: true, id: cliente.id } satisfies ClienteMutationResult
+  } catch (error) {
+    if (error instanceof ClientValidationError) {
+      return { ok: false, error: error.message, code: error.code } satisfies ClienteMutationResult
+    }
+
+    console.error('[clientes/updateCliente] unexpected error', error)
+    return { ok: false, error: 'Erro ao salvar cliente. Tente novamente.', code: 'INTERNAL_ERROR' } satisfies ClienteMutationResult
+  }
 }
 
 export async function deleteCliente(id: string) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      return { ok: false, error: 'Sessão expirada. Faça login novamente.', code: 'UNAUTHORIZED' } satisfies ClienteMutationResult
+    }
 
-  const role = (session.user as any).role
-  if (!isAdminRole(role)) throw new Error('Apenas administradores podem excluir clientes.')
+    const role = (session.user as any).role
+    if (!isAdminRole(role)) {
+      return { ok: false, error: 'Apenas administradores podem excluir clientes.', code: 'FORBIDDEN' } satisfies ClienteMutationResult
+    }
 
-  await prisma.cliente.delete({
-    where: { id },
-  })
-  revalidatePath('/clientes')
+    await prisma.cliente.delete({
+      where: { id },
+    })
+    revalidatePath('/clientes')
+    return { ok: true, id } satisfies ClienteMutationResult
+  } catch (error) {
+    console.error('[clientes/deleteCliente] unexpected error', error)
+    return { ok: false, error: 'Erro ao excluir cliente. Verifique se há contratos ativos.', code: 'INTERNAL_ERROR' } satisfies ClienteMutationResult
+  }
 }

@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChargeModal } from './ChargeModal';
 import { parseDateInputToUTCNoon } from '@/lib/date-utils'
-import { calculateEstimatedInstallments } from '@/lib/installments'
+import { calculateEstimatedInstallments, calculateEstimatedMonthlyPayment } from '@/lib/installments'
 import { calculateLoanInterest } from '@/lib/loan-interest';
 import { LoanCard } from './LoanCard';
 import { LoanHeader } from './loans/LoanHeader'
@@ -167,8 +167,18 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     }, 0)
   }
 
+  const getMonthlyChargeAmount = (loan: Loan) => {
+    return (
+      calculateEstimatedMonthlyPayment({
+        valor: loan.valor,
+        jurosMes: loan.jurosMes,
+        quantidadeParcelas: loan.quantidadeParcelas,
+      }) ?? calculateLoanInterest(loan).jurosBase
+    )
+  }
+
   const getSettledMonthCount = (loan: Loan) => {
-    const monthlyAmount = calculateLoanInterest(loan).jurosBase
+    const monthlyAmount = getMonthlyChargeAmount(loan)
     if (monthlyAmount <= 0) return 0
 
     const paidByMonth = new Map<string, number>()
@@ -326,6 +336,19 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     }))
   }
 
+  const installmentHint = (() => {
+    const installments = Number(formData.quantidadeParcelas)
+    const monthlyPayment = calculateEstimatedMonthlyPayment({
+      valor: formData.valor,
+      jurosMes: formData.jurosMes,
+      quantidadeParcelas: installments,
+    })
+
+    if (!Number.isInteger(installments) || installments <= 0 || !monthlyPayment) return null
+
+    return `${installments} parcelas de ${formatCurrency(monthlyPayment)}`
+  })()
+
   const resetFilters = () => {
     setFilters({ status: '', q: '', startDate: '', endDate: '', usuarioId: '', cobrancaOnly: false, dateFilterMode: 'created', vencimentoDay: '' })
     setContactOnly(false)
@@ -352,30 +375,30 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     if (loan.id.startsWith('draft-')) return false
     if (loan.status !== 'ABERTO') return false
 
-    const financials = calculateLoanInterest(loan)
-    if (financials.jurosBase <= 0) return false
+    const monthlyCharge = getMonthlyChargeAmount(loan)
+    if (monthlyCharge <= 0) return false
 
-    return getPaidAmountInCurrentMonth(loan) + 0.01 < financials.jurosBase
+    return getPaidAmountInCurrentMonth(loan) + 0.01 < monthlyCharge
   }
 
   const canConfirmMonthlyPayment = (loan: Loan) => {
     if (loan.id.startsWith('draft-')) return false
     if (loan.status !== 'ABERTO') return false
 
-    const financials = calculateLoanInterest(loan)
-    if (financials.jurosBase <= 0) return false
+    const monthlyCharge = getMonthlyChargeAmount(loan)
+    if (monthlyCharge <= 0) return false
 
-    return getPaidAmountInCurrentMonth(loan) + 0.01 < financials.jurosBase
+    return getPaidAmountInCurrentMonth(loan) + 0.01 < monthlyCharge
   }
 
   const isMonthlyPaymentSettled = (loan: Loan) => {
     if (loan.id.startsWith('draft-')) return false
     if (loan.status !== 'ABERTO') return false
 
-    const financials = calculateLoanInterest(loan)
-    if (financials.jurosBase <= 0) return false
+    const monthlyCharge = getMonthlyChargeAmount(loan)
+    if (monthlyCharge <= 0) return false
 
-    return getPaidAmountInCurrentMonth(loan) + 0.01 >= financials.jurosBase
+    return getPaidAmountInCurrentMonth(loan) + 0.01 >= monthlyCharge
   }
 
   const handleOpenPaymentTerminal = (loan: Loan) => {
@@ -450,14 +473,18 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     if (!paymentTerminalLoan) return null
     return calculateLoanInterest(paymentTerminalLoan)
   }, [paymentTerminalLoan])
+  const currentTerminalMonthlyPaymentAmount = useMemo(() => {
+    if (!paymentTerminalLoan) return 0
+    return getMonthlyChargeAmount(paymentTerminalLoan)
+  }, [paymentTerminalLoan])
 
   const handleOpenChargeDelivery = (loanId: string) => {
     setChargeDeliveryLoanId(loanId)
   }
 
   const handleFillMonthlyPayment = () => {
-    if (!currentTerminalFinancials) return
-    setPagamentoRapido(formatCurrencyInput(currentTerminalFinancials.jurosBase))
+    if (!currentTerminalMonthlyPaymentAmount) return
+    setPagamentoRapido(formatCurrencyInput(currentTerminalMonthlyPaymentAmount))
   }
 
   const handleQuickPayment = () => {
@@ -483,8 +510,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   }
 
   const handleDirectMonthlyPayment = (loan: Loan) => {
-    const financials = calculateLoanInterest(loan)
-    const valor = financials.jurosBase
+    const valor = getMonthlyChargeAmount(loan)
 
     if (!Number.isFinite(valor) || valor <= 0) {
       toast.error('Pagamento mensal indisponível para este contrato.')
@@ -783,6 +809,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         formData={formData}
         setFormData={setFormData}
         onQuantidadeParcelasChange={handleQuantidadeParcelasChange}
+        installmentHint={installmentHint}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleSubmit}
       />
@@ -816,7 +843,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         open={Boolean(paymentTerminalLoan)}
         loan={paymentTerminalLoan}
         totalDevido={currentTerminalFinancials?.totalDevido ?? 0}
-        monthlyPaymentAmount={currentTerminalFinancials?.jurosBase ?? 0}
+        monthlyPaymentAmount={currentTerminalMonthlyPaymentAmount}
         pagamento={pagamentoRapido}
         onPagamentoChange={setPagamentoRapido}
         pending={isPaymentPending}

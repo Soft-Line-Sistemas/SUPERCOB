@@ -2,10 +2,11 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { isAdminRole } from '@/lib/admin-auth'
 
 async function checkAdmin() {
   const session = await auth()
-  if (session?.user?.role !== 'ADMIN') {
+  if (!isAdminRole(session?.user?.role)) {
     throw new Error('Unauthorized')
   }
 }

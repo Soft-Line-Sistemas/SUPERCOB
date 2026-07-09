@@ -7,10 +7,12 @@ export function ClientStepCobranca({
   chargeData,
   setChargeData,
   onParcelasManualChange,
+  installmentHint,
 }: {
   chargeData: ChargeData
   setChargeData: SetState<ChargeData>
   onParcelasManualChange: (value: string) => void
+  installmentHint: string | null
 }) {
   return (
     <div className="space-y-4">
@@ -86,6 +88,13 @@ export function ClientStepCobranca({
                 onChange={(e) => setChargeData((p) => ({ ...p, vencimento: e.target.value }))}
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5"
               />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              {installmentHint ? (
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-900">
+                  {installmentHint}
+                </div>
+              ) : null}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Observação</label>

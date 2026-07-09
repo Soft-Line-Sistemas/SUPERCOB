@@ -2,11 +2,12 @@ import { getUsuarios } from './actions'
 import { Users } from '@/components/Users'
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
+import { isAdminRole } from '@/lib/admin-auth'
 
 export default async function UsuariosPage() {
   const session = await auth()
   const role = session?.user?.role?.toUpperCase()
-  const isAuthorized = role === 'ADM' || role === 'ADMIN' || role === 'ESCRITORIO'
+  const isAuthorized = isAdminRole(role) || role === 'ESCRITORIO'
   
   if (!isAuthorized) {
     redirect('/dashboard')

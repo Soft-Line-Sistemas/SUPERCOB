@@ -10,7 +10,7 @@ interface ChatUser {
   id: string;
   nome: string;
   email: string;
-  role: 'ADMIN' | 'OPERADOR';
+  role: string;
 }
 
 interface Message {
@@ -140,7 +140,7 @@ export function Chat({ currentUser }: { currentUser: any }) {
             <div className="flex-1 flex overflow-hidden">
               {/* User List Sidebar */}
               <div className="w-20 bg-slate-50 border-r border-slate-100 flex flex-col items-center py-4 gap-4">
-                {currentUser.role === 'ADMIN' && (
+                {String(currentUser.role).toUpperCase() === 'ADM' || String(currentUser.role).toUpperCase() === 'ADMIN' ? (
                   <button
                     onClick={() => { setSelectedUser(null); setIsMassMode(true); }}
                     className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${isMassMode ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-950'}`}
@@ -148,7 +148,7 @@ export function Chat({ currentUser }: { currentUser: any }) {
                   >
                     <Megaphone className="w-5 h-5" />
                   </button>
-                )}
+                ) : null}
                 <div className="w-8 h-[1px] bg-slate-200" />
                 {users.map((u) => (
                   <button
@@ -158,7 +158,7 @@ export function Chat({ currentUser }: { currentUser: any }) {
                     title={u.nome}
                   >
                     {u.nome.charAt(0)}
-                    {u.role === 'ADMIN' && <div className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 rounded-full border-2 border-slate-50" />}
+                    {(String(u.role).toUpperCase() === 'ADM' || String(u.role).toUpperCase() === 'ADMIN') && <div className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 rounded-full border-2 border-slate-50" />}
                   </button>
                 ))}
               </div>

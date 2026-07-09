@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
+import { isAdminRole } from '@/lib/admin-auth'
 
 export async function GET() {
   const session = await auth()
@@ -57,7 +58,7 @@ export async function GET() {
     ].filter(s => s.value > 0)
 
     let agentData: { name: string; value: number; color: string }[] = []
-    if (role === 'ADMIN') {
+    if (isAdminRole(role)) {
       const agents = await prisma.usuario.findMany({
         where: { role: 'OPERADOR' },
         include: { _count: { select: { emprestimos: true } } }

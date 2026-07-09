@@ -4,10 +4,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter, Download, UserPlus } from 'lucide-react';
-import { createCliente, updateCliente, deleteCliente } from '@/app/(dashboard)/clientes/actions';
+import { createCliente, updateCliente, deleteCliente, validateClienteCpf } from '@/app/(dashboard)/clientes/actions';
 import { createEmprestimo } from '@/app/(dashboard)/emprestimos/actions'
 import { parseDateInputToUTCNoon, sanitizeDigits, validateBirthDateParts } from '@/lib/date-utils'
-import { calculateEstimatedInstallments } from '@/lib/installments'
+import { calculateEstimatedInstallments, calculateEstimatedMonthlyPayment } from '@/lib/installments'
 import { clientFormDefaults, clientSchema, formatCEP, formatCPF, formatPhoneBR, isValidCPF, normalizeClientPayload, normalizeDigits, tabRequiredFields } from './client-modal/form-schema'
 import { ClientStepAnexos } from './client-modal/StepAnexos'
 import { ClientStepBasic } from './client-modal/StepBasic'
@@ -129,6 +129,8 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
   const inputFileRef = useRef<HTMLInputElement>(null)
   const inputCameraRef = useRef<HTMLInputElement>(null)
   const lastAutoAdvanceRef = useRef<string | null>(null)
+  const lastValidatedCpfRef = useRef<string | null>(null)
+  const lastCpfToastRef = useRef<string | null>(null)
   const [birthErrors, setBirthErrors] = useState<{ dia?: string; mes?: string; ano?: string }>({})
 
   const handleClientSaveError = (error: unknown) => {
@@ -140,6 +142,19 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
       return
     }
     toast.error(message)
+  }
+
+  const handleCpfChange = (value: string) => {
+    const cpfDigits = normalizeDigits(value)
+    const cpfErrorMessage = String(form.formState.errors.cpf?.message ?? '').toUpperCase()
+
+    if (cpfDigits.length < 11) {
+      lastValidatedCpfRef.current = null
+      lastCpfToastRef.current = null
+      if (cpfErrorMessage.includes('JÁ EXISTE UM CLIENTE CADASTRADO COM ESSE CPF')) {
+        form.clearErrors('cpf')
+      }
+    }
   }
 
   const formErrorMessages = Object.fromEntries(
@@ -225,6 +240,59 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
 
     return () => window.clearTimeout(timeout)
   }, [searchParams, searchTerm, updateQueryParams])
+
+  useEffect(() => {
+    const cpfDigits = normalizeDigits(formData.cpf)
+    const currentEditingCpf = normalizeDigits(editingClient?.cpf ?? '')
+    const cpfErrorMessage = String(form.formState.errors.cpf?.message ?? '').toUpperCase()
+
+    if (cpfDigits.length !== 11 || !isValidCPF(cpfDigits)) {
+      if (cpfErrorMessage.includes('JÁ EXISTE UM CLIENTE CADASTRADO COM ESSE CPF')) {
+        form.clearErrors('cpf')
+      }
+      lastValidatedCpfRef.current = null
+      lastCpfToastRef.current = null
+      return
+    }
+
+    if (editingClient && cpfDigits === currentEditingCpf) {
+      if (cpfErrorMessage.includes('JÁ EXISTE UM CLIENTE CADASTRADO COM ESSE CPF')) {
+        form.clearErrors('cpf')
+      }
+      lastValidatedCpfRef.current = cpfDigits
+      lastCpfToastRef.current = null
+      return
+    }
+
+    if (lastValidatedCpfRef.current === cpfDigits) return
+
+    let cancelled = false
+    const timeout = window.setTimeout(async () => {
+      const result = await validateClienteCpf(cpfDigits, {
+        currentClientId: editingClient?.id,
+      })
+
+      if (cancelled) return
+
+      if (!result.ok) {
+        form.setError('cpf', { message: result.error })
+        if (lastCpfToastRef.current !== cpfDigits) {
+          toast.error(result.error)
+          lastCpfToastRef.current = cpfDigits
+        }
+      } else if (cpfErrorMessage.includes('JÁ EXISTE UM CLIENTE CADASTRADO COM ESSE CPF')) {
+        form.clearErrors('cpf')
+        lastCpfToastRef.current = null
+      }
+
+      lastValidatedCpfRef.current = cpfDigits
+    }, 250)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+    }
+  }, [editingClient, form, formData.cpf])
 
   const handleOpenModal = (client?: Cliente) => {
     if (client) {
@@ -341,7 +409,11 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
       const payload = normalizeClientPayload(formData)
 
       if (editingClient) {
-        await updateCliente(editingClient.id, payload);
+        const result = await updateCliente(editingClient.id, payload);
+        if (!result.ok) {
+          handleClientSaveError(result.error)
+          return
+        }
         toast.success('Cliente atualizado com sucesso!');
         if (selectedFiles.length > 0) {
           for (const file of selectedFiles) {
@@ -364,6 +436,10 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
         router.push(`/clientes/${editingClient.id}`)
       } else {
         const created = await createCliente(payload);
+        if (!created.ok) {
+          handleClientSaveError(created.error)
+          return
+        }
         toast.success('Cliente cadastrado com sucesso!');
         if (selectedFiles.length > 0) {
           for (const file of selectedFiles) {
@@ -397,10 +473,10 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
       action: {
         label: 'Confirmar',
         onClick: async () => {
-          try {
-            await deleteCliente(id);
+          const result = await deleteCliente(id);
+          if (result.ok) {
             toast.success('Cliente excluído com sucesso!');
-          } catch (error) {
+          } else {
             toast.error('Erro ao excluir cliente. Verifique se há contratos ativos.');
           }
         },
@@ -680,6 +756,22 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
     setChargeData((prev) => ({ ...prev, quantidadeParcelas: value }))
   }
 
+  const chargeInstallmentHint = (() => {
+    const installments = Number(chargeData.quantidadeParcelas)
+    const monthlyPayment = calculateEstimatedMonthlyPayment({
+      valor: Number(chargeData.valor),
+      jurosMes: Number(chargeData.jurosMes),
+      quantidadeParcelas: installments,
+    })
+
+    if (!Number.isInteger(installments) || installments <= 0 || !monthlyPayment) return null
+
+    return `${installments} parcelas de ${new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(monthlyPayment)}`
+  })()
+
   return (
     <div className="space-y-8">
       {/* Header Actions */}
@@ -940,6 +1032,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
                       formData={formData}
                       setFormData={setFormData}
                       formatCPF={formatCPF}
+                      onCpfChange={handleCpfChange}
                       birthErrors={birthErrors}
                       setBirthErrors={setBirthErrors}
                       sanitizeDigits={sanitizeDigits}
@@ -953,6 +1046,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
                       chargeData={chargeData}
                       setChargeData={setChargeData}
                       onParcelasManualChange={handleChargeParcelasManualChange}
+                      installmentHint={chargeInstallmentHint}
                     />
                   )}
 
@@ -1023,6 +1117,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
                       emergencia1={emergencia1}
                       emergencia2={emergencia2}
                       emergencia3={emergencia3}
+                      installmentHint={chargeInstallmentHint}
                       printReview={printReview}
                       setActiveTab={setActiveTab}
                     />

@@ -2,6 +2,7 @@ import { Loans } from '@/components/Loans'
 import { getEmprestimos } from './actions'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
+import { isAdminRole } from '@/lib/admin-auth'
 // import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/card'
 // import { Receipt } from 'lucide-react'
 
@@ -60,7 +61,7 @@ export default async function EmprestimosPage({
   ])
 
   let analytics: any[] = []
-  if (role === 'ADMIN') {
+  if (isAdminRole(role)) {
     const analyticsWhere: any = {}
     if (filters.status) analyticsWhere.status = filters.status
     if (filters.startDate && filters.endDate) {

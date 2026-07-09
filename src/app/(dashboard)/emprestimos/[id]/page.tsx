@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { notFound, redirect } from 'next/navigation'
 import { ContractDetails } from './ui'
 import { processInterestAccrual } from '@/lib/interest-engine'
+import { isAdminRole } from '@/lib/admin-auth'
 
 export default async function EmprestimoDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -33,7 +34,7 @@ export default async function EmprestimoDetailsPage({ params }: { params: Promis
         },
       }
     }),
-    role === 'ADM' ? prisma.usuario.findMany({ 
+    isAdminRole(role) ? prisma.usuario.findMany({ 
       where: { isActive: true }, 
       select: { id: true, nome: true },
       orderBy: { nome: 'asc' }

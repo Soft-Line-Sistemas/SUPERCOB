@@ -12,6 +12,7 @@ export function ClientStepRevisao({
   emergencia1,
   emergencia2,
   emergencia3,
+  installmentHint,
   printReview,
   setActiveTab,
 }: {
@@ -23,6 +24,7 @@ export function ClientStepRevisao({
   emergencia1: EmergencyParts
   emergencia2: EmergencyParts
   emergencia3: EmergencyParts
+  installmentHint: string | null
   printReview: () => void
   setActiveTab: SetState<any>
 }) {
@@ -147,6 +149,11 @@ export function ClientStepRevisao({
                 <p>
                   <span className="font-black">Parcelas:</span> {chargeData.quantidadeParcelas || '-'}
                 </p>
+                {installmentHint ? (
+                  <p>
+                    <span className="font-black">Estimativa:</span> {installmentHint}
+                  </p>
+                ) : null}
                 <p>
                   <span className="font-black">Atraso/dia:</span> {chargeData.jurosAtrasoDia || '0'}%
                 </p>

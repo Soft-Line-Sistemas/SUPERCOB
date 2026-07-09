@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
+import { isAdminRole } from '@/lib/admin-auth';
 
 export async function getChatUsers() {
   const session = await auth();
@@ -10,7 +11,7 @@ export async function getChatUsers() {
 
   const { id, role } = session.user as any;
 
-  if (role === 'ADMIN') {
+  if (isAdminRole(role)) {
     // Admin vê todos da Gerência
     return await prisma.usuario.findMany({
       where: { role: 'OPERADOR', isActive: true },
@@ -19,7 +20,7 @@ export async function getChatUsers() {
   } else {
     // Gerência vê apenas os admins
     return await prisma.usuario.findMany({
-      where: { role: 'ADMIN', isActive: true },
+      where: { role: { in: ['ADM', 'ADMIN'] }, isActive: true },
       select: { id: true, nome: true, email: true, role: true }
     });
   }
@@ -85,7 +86,7 @@ export async function sendMessage(destinatarioId: string, conteudo: string) {
 
 export async function sendMassMessage(conteudo: string) {
   const session = await auth();
-  if (!session?.user || (session.user as any).role !== 'ADMIN') {
+  if (!session?.user || !isAdminRole((session.user as any).role)) {
     throw new Error('Apenas administradores podem enviar mensagens em massa');
   }
 

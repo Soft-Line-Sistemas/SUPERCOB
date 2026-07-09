@@ -8,6 +8,7 @@ export function ClientStepIdentificacao({
   formData,
   setFormData,
   formatCPF,
+  onCpfChange,
   birthErrors,
   setBirthErrors,
   sanitizeDigits,
@@ -17,6 +18,7 @@ export function ClientStepIdentificacao({
   formData: ClientFormData
   setFormData: SetState<ClientFormData>
   formatCPF: (value: string) => string
+  onCpfChange?: (value: string) => void
   birthErrors: BirthErrors
   setBirthErrors: SetState<BirthErrors>
   sanitizeDigits: (value: string, maxLen: number) => string
@@ -32,7 +34,19 @@ export function ClientStepIdentificacao({
         <div className="space-y-1.5">
           <label className="text-sm font-bold text-slate-700 ml-1">CPF</label>
           <div className="relative">
-            <input type="text" inputMode="numeric" required value={formData.cpf} onChange={(e) => setFormData({ ...formData, cpf: formatCPF(e.target.value) })} className={`${fieldClass(!!errors?.cpf)} pr-10`} placeholder="000.000.000-00" />
+            <input
+              type="text"
+              inputMode="numeric"
+              required
+              value={formData.cpf}
+              onChange={(e) => {
+                const formatted = formatCPF(e.target.value)
+                setFormData({ ...formData, cpf: formatted })
+                onCpfChange?.(formatted)
+              }}
+              className={`${fieldClass(!!errors?.cpf)} pr-10`}
+              placeholder="000.000.000-00"
+            />
             {errors?.cpf ? <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" /> : null}
           </div>
           {errors?.cpf ? <p className="text-xs font-black text-red-600">{errors.cpf}</p> : null}

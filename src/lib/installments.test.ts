@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { calculateEstimatedInstallments } from './installments'
+import { calculateEstimatedInstallments, calculateEstimatedMonthlyPayment } from './installments'
 
 describe('calculateEstimatedInstallments', () => {
   it('calcula a quantidade estimada de parcelas com base no valor e no juros mensal', () => {
@@ -25,5 +25,24 @@ describe('calculateEstimatedInstallments', () => {
     expect(calculateEstimatedInstallments({ valor: 0, jurosMes: 30 })).toBeNull()
     expect(calculateEstimatedInstallments({ valor: 1000, jurosMes: 0 })).toBeNull()
     expect(calculateEstimatedInstallments({ valor: null, jurosMes: 30 })).toBeNull()
+  })
+
+  it('calcula o valor mensal estimado', () => {
+    expect(
+      calculateEstimatedMonthlyPayment({
+        valor: 3000,
+        jurosMes: 15,
+        quantidadeParcelas: 10,
+      }),
+    ).toBe(750)
+  })
+
+  it('retorna null para valor mensal quando a quantidade de parcelas nao foi informada', () => {
+    expect(
+      calculateEstimatedMonthlyPayment({
+        valor: 1000,
+        jurosMes: 10,
+      }),
+    ).toBeNull()
   })
 })

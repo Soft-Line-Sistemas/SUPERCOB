@@ -26,6 +26,7 @@ export function ChargeModal({
   formData,
   setFormData,
   onQuantidadeParcelasChange,
+  installmentHint,
   onClose,
   onSubmit,
 }: {
@@ -39,6 +40,7 @@ export function ChargeModal({
   formData: ChargeFormData
   setFormData: React.Dispatch<React.SetStateAction<ChargeFormData>>
   onQuantidadeParcelasChange: (value: string) => void
+  installmentHint: string | null
   onClose: () => void
   onSubmit: (e: React.FormEvent) => void
 }) {
@@ -369,6 +371,12 @@ export function ChargeModal({
                     />
                   </div>
                 </div>
+
+                {installmentHint ? (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-900">
+                    {installmentHint}
+                  </div>
+                ) : null}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
