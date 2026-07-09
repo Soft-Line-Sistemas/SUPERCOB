@@ -101,4 +101,13 @@ describe('client form schema', () => {
     expect(payload.bairro2).toBe('Centro')
     expect(payload.pontoReferencia2).toBe('Proximo a praca')
   })
+
+  it('preserva espacos durante a digitacao e normaliza contato de emergencia no envio', () => {
+    const payload = normalizeClientPayload({
+      ...validData,
+      contatoEmergencia1: 'Maria Clara |(71) 99999-8888',
+    })
+
+    expect(payload.contatoEmergencia1).toBe('Maria Clara|(71) 99999-8888')
+  })
 })

@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { DEFAULT_RULES } from './whatsapp-automation-core'
-export { DEFAULT_RULES, computeLoanFacts, isRuleMatch, renderTemplate, validateAutomationWindow } from './whatsapp-automation-core'
+export { DEFAULT_RULES, computeLoanFacts, getInstallmentProgressLabel, isRuleMatch, renderTemplate, validateAutomationWindow } from './whatsapp-automation-core'
 
 export async function ensureWhatsappAutomationSeed() {
   const existing = await prisma.whatsappAutomationConfig.findFirst({

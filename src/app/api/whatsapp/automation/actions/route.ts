@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { computeLoanFacts, isRuleMatch, renderTemplate, validateAutomationWindow } from '@/lib/whatsapp-automation'
+import { computeLoanFacts, getInstallmentProgressLabel, isRuleMatch, renderTemplate, validateAutomationWindow } from '@/lib/whatsapp-automation'
 import { loadWhatsappAutomationQueue } from '@/lib/whatsapp-automation-queue'
 import { whatsappService } from '@/lib/whatsapp-client'
 import { isAdminRole } from '@/lib/admin-auth'
@@ -39,6 +39,12 @@ async function loadLoanWithClient(emprestimoId: string) {
           whatsappPrefs: true,
         },
       },
+      historico: {
+        select: {
+          createdAt: true,
+          descricao: true,
+        },
+      },
     },
   })
 }
@@ -61,6 +67,7 @@ async function createAndSendDispatch(params: {
     jurosAtrasoDia: Number(loan!.jurosAtrasoDia || 0),
     diasAtraso: facts.daysLate,
     dataVencimento: loan!.vencimento,
+    parcela: getInstallmentProgressLabel(loan!),
   })
 
   const dispatch = await prisma.whatsappAutomationDispatch.create({

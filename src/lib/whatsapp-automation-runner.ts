@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { ensureWhatsappAutomationSeed } from '@/lib/whatsapp-automation'
-import { computeLoanFacts, isRuleMatch, renderTemplate, validateAutomationWindow } from '@/lib/whatsapp-automation'
+import { computeLoanFacts, getInstallmentProgressLabel, isRuleMatch, renderTemplate, validateAutomationWindow } from '@/lib/whatsapp-automation'
 import { whatsappService } from '@/lib/whatsapp-client'
 
 export type AutomationRunResult = {
@@ -52,6 +52,12 @@ export async function runWhatsappAutomation(limit = 25): Promise<AutomationRunRe
       cliente: {
         include: {
           whatsappPrefs: true,
+        },
+      },
+      historico: {
+        select: {
+          createdAt: true,
+          descricao: true,
         },
       },
     },
@@ -141,6 +147,7 @@ export async function runWhatsappAutomation(limit = 25): Promise<AutomationRunRe
         jurosAtrasoDia: Number(loan.jurosAtrasoDia || 0),
         diasAtraso: facts.daysLate,
         dataVencimento: loan.vencimento,
+        parcela: getInstallmentProgressLabel(loan),
       })
 
       if (!(await isAutomationStillEnabled(rule.id))) {

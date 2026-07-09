@@ -1,12 +1,17 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { computeLoanFacts, isRuleMatch, renderTemplate, validateAutomationWindow } from './whatsapp-automation-core'
+import { computeLoanFacts, getInstallmentProgressLabel, isRuleMatch, renderTemplate, validateAutomationWindow } from './whatsapp-automation-core'
 
 afterEach(() => {
   vi.useRealTimers()
 })
 
-function buildLoan(overrides?: Partial<Parameters<typeof computeLoanFacts>[0]>) {
-  return {
+type TestLoan = Parameters<typeof computeLoanFacts>[0] & {
+  quantidadeParcelas?: number | null
+  historico?: Array<{ createdAt: Date | string; descricao?: string | null }>
+}
+
+function buildLoan(overrides?: Partial<TestLoan>) {
+  const loan = {
     id: 'loan-base',
     valor: 1000,
     valorPago: 100,
@@ -15,9 +20,13 @@ function buildLoan(overrides?: Partial<Parameters<typeof computeLoanFacts>[0]>) 
     vencimento: new Date('2026-05-15T12:00:00.000Z'),
     createdAt: new Date('2026-05-01T12:00:00.000Z'),
     status: 'ABERTO',
+    quantidadeParcelas: 20,
     cliente: { nome: 'Maria', whatsapp: '71999999999' },
+    historico: [],
     ...overrides,
   }
+
+  return loan
 }
 
 describe('whatsapp-automation situational', () => {
@@ -154,7 +163,7 @@ describe('whatsapp-automation situational', () => {
 
   it('renderTemplate replaces all supported tags', () => {
     const message = renderTemplate(
-      'Oi {cliente_nome}, contrato {contrato_id}, valor {valor}, pago {valor_pago}, saldo {saldo}, juros {juros_mes}, atraso dia {juros_atraso_dia}, atraso {dias_atraso}, vence {data_vencimento}.',
+      'Oi {cliente_nome}, contrato {contrato_id}, valor {valor}, pago {valor_pago}, saldo {saldo}, juros {juros_mes}, atraso dia {juros_atraso_dia}, atraso {dias_atraso}, vence {data_vencimento}, parcela {parcela}.',
       {
         clienteNome: 'Ana',
         contratoId: 'ABC123',
@@ -165,6 +174,7 @@ describe('whatsapp-automation situational', () => {
         jurosAtrasoDia: 1.25,
         diasAtraso: 7,
         dataVencimento: new Date('2026-05-08T12:00:00.000Z'),
+        parcela: '2 de 20',
       },
     )
 
@@ -177,6 +187,7 @@ describe('whatsapp-automation situational', () => {
     expect(message).toContain('1,25%')
     expect(message).toContain('7')
     expect(message).toContain('08/05/2026')
+    expect(message).toContain('2 de 20')
   })
 
   it('renderTemplate keeps unknown tags untouched', () => {
@@ -190,9 +201,21 @@ describe('whatsapp-automation situational', () => {
       jurosAtrasoDia: 0,
       diasAtraso: 0,
       dataVencimento: null,
+      parcela: '-',
     })
 
     expect(message).toContain('{foo}')
+  })
+
+  it('getInstallmentProgressLabel returns current installment in expected format', () => {
+    const label = getInstallmentProgressLabel(buildLoan({
+      historico: [
+        { createdAt: '2026-05-02T12:00:00.000Z', descricao: 'Pagamento mensal recebido: R$ 50,00' },
+        { createdAt: '2026-05-05T12:00:00.000Z', descricao: 'Complemento mensal: R$ 50,00' },
+      ],
+    }))
+
+    expect(label).toBe('2 de 20')
   })
 
   it('validateAutomationWindow blocks weekends when disabled', () => {

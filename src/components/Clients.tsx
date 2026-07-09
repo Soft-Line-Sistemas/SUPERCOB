@@ -7,6 +7,7 @@ import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter
 import { createCliente, updateCliente, deleteCliente, validateClienteCpf } from '@/app/(dashboard)/clientes/actions';
 import { createEmprestimo } from '@/app/(dashboard)/emprestimos/actions'
 import { parseDateInputToUTCNoon, sanitizeDigits, validateBirthDateParts } from '@/lib/date-utils'
+import { buildEmergencyContact, parseEmergencyContact } from '@/lib/client-emergency'
 import { calculateEstimatedInstallments, calculateEstimatedMonthlyPayment } from '@/lib/installments'
 import { clientFormDefaults, clientSchema, formatCEP, formatCPF, formatPhoneBR, isValidCPF, normalizeClientPayload, normalizeDigits, tabRequiredFields } from './client-modal/form-schema'
 import { ClientStepAnexos } from './client-modal/StepAnexos'
@@ -161,28 +162,9 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
     Object.entries(fieldErrors).map(([key, value]) => [key, value?.message ? String(value.message) : undefined]),
   ) as Partial<Record<keyof typeof formData, string>>
 
-  const parseEmergency = (value: string) => {
-    const raw = (value ?? '').trim()
-    if (raw === '') return { nome: '', telefone: '' }
-    if (raw.includes('|')) {
-      const [nome, telefone] = raw.split('|')
-      return { nome: (nome ?? '').trim(), telefone: (telefone ?? '').trim() }
-    }
-    const parts = raw.split('-')
-    if (parts.length >= 2) {
-      const telefone = parts.slice(1).join('-').trim()
-      const nome = parts[0].trim()
-      return { nome, telefone }
-    }
-    return { nome: raw, telefone: '' }
-  }
+  const parseEmergency = (value: string) => parseEmergencyContact(value)
 
-  const buildEmergency = (nome: string, telefone: string) => {
-    const n = nome.trim()
-    const t = telefone.trim()
-    if (n === '' && t === '') return ''
-    return `${n}|${t}`
-  }
+  const buildEmergency = (nome: string, telefone: string) => buildEmergencyContact(nome, telefone)
 
   const fetchCep = async (cep: string) => {
     const d = normalizeDigits(cep)

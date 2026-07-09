@@ -1,3 +1,6 @@
+import { calculateEstimatedMonthlyPayment } from './installments'
+import { calculateLoanInterest } from './loan-interest'
+
 export const DEFAULT_RULES = [
   {
     key: 'PRE_DUE_3D',
@@ -106,6 +109,67 @@ export function computeLoanFacts(loan: {
   }
 }
 
+type InstallmentProgressLoan = {
+  valor: number
+  valorPago: number
+  jurosMes: number
+  jurosAtrasoDia: number
+  jurosPagos?: number | null
+  quantidadeParcelas?: number | null
+  status: string
+  createdAt?: Date
+  vencimento?: Date | null
+  historico?: Array<{ createdAt: Date | string; descricao?: string | null }>
+}
+
+function parsePaymentAmountFromDescription(value?: string | null) {
+  if (!value) return 0
+  const match = value.match(/R\$\s*([\d.]+,\d{2})/)
+  if (!match) return 0
+  return Number(match[1].replace(/\./g, '').replace(',', '.')) || 0
+}
+
+function getMonthlyChargeAmount(loan: InstallmentProgressLoan) {
+  return (
+    calculateEstimatedMonthlyPayment({
+      valor: loan.valor,
+      jurosMes: loan.jurosMes,
+      quantidadeParcelas: loan.quantidadeParcelas,
+    }) ?? calculateLoanInterest(loan).jurosBase
+  )
+}
+
+function getSettledMonthCount(loan: InstallmentProgressLoan) {
+  const monthlyAmount = getMonthlyChargeAmount(loan)
+  if (monthlyAmount <= 0) return 0
+
+  const paidByMonth = new Map<string, number>()
+  for (const entry of loan.historico || []) {
+    const createdAt = new Date(entry.createdAt)
+    const key = `${createdAt.getUTCFullYear()}-${createdAt.getUTCMonth()}`
+    paidByMonth.set(key, (paidByMonth.get(key) || 0) + parsePaymentAmountFromDescription(entry.descricao))
+  }
+
+  let settledMonths = 0
+  for (const paid of paidByMonth.values()) {
+    if (paid + 0.01 >= monthlyAmount) settledMonths += 1
+  }
+
+  return settledMonths
+}
+
+export function getInstallmentProgressLabel(loan: InstallmentProgressLoan) {
+  const total = Number(loan.quantidadeParcelas || 0)
+  if (!Number.isInteger(total) || total <= 0) return '-'
+
+  if (loan.status === 'QUITADO') {
+    return `${total} de ${total}`
+  }
+
+  const current = Math.min(total, getSettledMonthCount(loan) + 1)
+  return `${current} de ${total}`
+}
+
 export function renderTemplate(template: string, ctx: {
   clienteNome: string
   contratoId: string
@@ -116,6 +180,7 @@ export function renderTemplate(template: string, ctx: {
   jurosAtrasoDia: number
   diasAtraso: number
   dataVencimento: Date | null
+  parcela: string
 }) {
   const replacements: Record<string, string> = {
     '{cliente_nome}': ctx.clienteNome,
@@ -127,6 +192,7 @@ export function renderTemplate(template: string, ctx: {
     '{juros_atraso_dia}': `${ctx.jurosAtrasoDia.toFixed(2).replace('.', ',')}%`,
     '{dias_atraso}': String(ctx.diasAtraso),
     '{data_vencimento}': formatDateBR(ctx.dataVencimento),
+    '{parcela}': ctx.parcela,
   }
 
   let output = template

@@ -22,6 +22,8 @@ import { PaymentTerminalModal } from './loans/PaymentTerminalModal'
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
 
+const MONTHLY_PAYMENT_STATUSES: LoanStatus[] = ['ABERTO', 'NEGOCIACAO']
+
 interface BatchLoanItem {
   id: string
   clienteNome: string
@@ -373,7 +375,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
 
   const canOpenPaymentTerminal = (loan: Loan) => {
     if (loan.id.startsWith('draft-')) return false
-    if (loan.status !== 'ABERTO') return false
+    if (!MONTHLY_PAYMENT_STATUSES.includes(loan.status)) return false
 
     const monthlyCharge = getMonthlyChargeAmount(loan)
     if (monthlyCharge <= 0) return false
@@ -383,7 +385,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
 
   const canConfirmMonthlyPayment = (loan: Loan) => {
     if (loan.id.startsWith('draft-')) return false
-    if (loan.status !== 'ABERTO') return false
+    if (!MONTHLY_PAYMENT_STATUSES.includes(loan.status)) return false
 
     const monthlyCharge = getMonthlyChargeAmount(loan)
     if (monthlyCharge <= 0) return false
@@ -393,7 +395,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
 
   const isMonthlyPaymentSettled = (loan: Loan) => {
     if (loan.id.startsWith('draft-')) return false
-    if (loan.status !== 'ABERTO') return false
+    if (!MONTHLY_PAYMENT_STATUSES.includes(loan.status)) return false
 
     const monthlyCharge = getMonthlyChargeAmount(loan)
     if (monthlyCharge <= 0) return false

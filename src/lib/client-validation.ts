@@ -1,4 +1,10 @@
 import { prisma } from '@/lib/prisma'
+import {
+  EMERGENCY_CONTACT_NAME_MAX_LENGTH,
+  EMERGENCY_CONTACT_PHONE_MAX_LENGTH,
+  isEmergencyContactValid,
+  normalizeEmergencyContact,
+} from '@/lib/client-emergency'
 
 export type ClienteInput = {
   nome: string
@@ -96,6 +102,18 @@ export function validateClienteInput(data: ClienteInput) {
     const cep2 = normalizeDigits(data.cep2)
     if (cep2.length !== 8) invalid('CEP secundário inválido')
   }
+
+  if (!isEmergencyContactValid(data.contatoEmergencia1)) {
+    invalid(`Contato de emergência 1 deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone`)
+  }
+
+  if (!isEmergencyContactValid(data.contatoEmergencia2)) {
+    invalid(`Contato de emergência 2 deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone`)
+  }
+
+  if (!isEmergencyContactValid(data.contatoEmergencia3)) {
+    invalid(`Contato de emergência 3 deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone`)
+  }
 }
 
 export function normalizeClienteInput(data: ClienteInput): ClienteInput {
@@ -127,9 +145,9 @@ export function normalizeClienteInput(data: ClienteInput): ClienteInput {
     enderecoEmpresa: normalizeOptional(data.enderecoEmpresa),
     cidadeEmpresa: normalizeOptional(data.cidadeEmpresa),
     estadoEmpresa: normalizeOptional(data.estadoEmpresa),
-    contatoEmergencia1: normalizeOptional(data.contatoEmergencia1),
-    contatoEmergencia2: normalizeOptional(data.contatoEmergencia2),
-    contatoEmergencia3: normalizeOptional(data.contatoEmergencia3),
+    contatoEmergencia1: normalizeEmergencyContact(data.contatoEmergencia1),
+    contatoEmergencia2: normalizeEmergencyContact(data.contatoEmergencia2),
+    contatoEmergencia3: normalizeEmergencyContact(data.contatoEmergencia3),
     telefone2: normalizeOptional(data.telefone2),
     observacoes: normalizeOptional(data.observacoes),
     cep2: normalizeOptional(normalizeDigits(data.cep2)),

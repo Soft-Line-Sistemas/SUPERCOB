@@ -1,5 +1,11 @@
 import { z } from 'zod'
 import { validateBirthDateParts } from '../../lib/date-utils'
+import {
+  EMERGENCY_CONTACT_NAME_MAX_LENGTH,
+  EMERGENCY_CONTACT_PHONE_MAX_LENGTH,
+  isEmergencyContactValid,
+  normalizeEmergencyContact,
+} from '../../lib/client-emergency'
 import type { ClientFormData, ClientModalTab } from './types'
 
 export const clientFormDefaults: ClientFormData = {
@@ -113,9 +119,9 @@ export const clientSchema = z.object({
   enderecoEmpresa: z.string(),
   cidadeEmpresa: z.string(),
   estadoEmpresa: z.string(),
-  contatoEmergencia1: z.string(),
-  contatoEmergencia2: z.string(),
-  contatoEmergencia3: z.string(),
+  contatoEmergencia1: z.string().refine(isEmergencyContactValid, `Contato de emergência deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone.`),
+  contatoEmergencia2: z.string().refine(isEmergencyContactValid, `Contato de emergência deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone.`),
+  contatoEmergencia3: z.string().refine(isEmergencyContactValid, `Contato de emergência deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone.`),
   telefone2: z.string(),
   observacoes: z.string(),
   cep2: z.string(),
@@ -182,9 +188,9 @@ export const normalizeClientPayload = (formData: ClientFormData) => {
     enderecoEmpresa: normalizeOptional(formData.enderecoEmpresa),
     cidadeEmpresa: normalizeOptional(formData.cidadeEmpresa),
     estadoEmpresa: normalizeOptional(formData.estadoEmpresa),
-    contatoEmergencia1: normalizeOptional(formData.contatoEmergencia1),
-    contatoEmergencia2: normalizeOptional(formData.contatoEmergencia2),
-    contatoEmergencia3: normalizeOptional(formData.contatoEmergencia3),
+    contatoEmergencia1: normalizeEmergencyContact(formData.contatoEmergencia1),
+    contatoEmergencia2: normalizeEmergencyContact(formData.contatoEmergencia2),
+    contatoEmergencia3: normalizeEmergencyContact(formData.contatoEmergencia3),
     telefone2: normalizeOptional(formData.telefone2),
     observacoes: normalizeOptional(formData.observacoes),
     cep2: normalizeOptional(normalizeDigits(formData.cep2)),

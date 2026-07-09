@@ -715,7 +715,7 @@ function ConfigTab() {
   const [saving, setSaving] = useState(false)
 
   const tags = useMemo(
-    () => ['{cliente_nome}', '{contrato_id}', '{valor}', '{valor_pago}', '{saldo}', '{juros_mes}', '{juros_atraso_dia}', '{dias_atraso}', '{data_vencimento}'],
+    () => ['{cliente_nome}', '{contrato_id}', '{valor}', '{valor_pago}', '{saldo}', '{juros_mes}', '{juros_atraso_dia}', '{dias_atraso}', '{data_vencimento}', '{parcela}'],
     [],
   )
 
@@ -806,6 +806,7 @@ function ConfigTab() {
             </select>
           </div>
           <textarea value={rule.template} onChange={(e) => setConfig({ ...config, rules: config.rules.map((r: any) => (r.id === rule.id ? { ...r, template: e.target.value } : r)) })} rows={3} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-sm" />
+          <p className="text-[11px] text-slate-500">Use <span className="font-black">{'{parcela}'}</span> para renderizar no formato 2 de 20.</p>
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => (
               <button key={tag} onClick={() => insertTag(rule.id, tag)} className="px-2 py-1 rounded-lg text-[11px] font-black border border-slate-200 dark:border-white/10">{tag}</button>
