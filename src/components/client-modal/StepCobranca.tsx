@@ -64,18 +64,6 @@ export function ClientStepCobranca({
               />
             </div>
             <div className="space-y-1.5">
-              <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Parcelas</label>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={chargeData.quantidadeParcelas}
-                onChange={(e) => onParcelasManualChange(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/5 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="Auto"
-              />
-            </div>
-            <div className="space-y-1.5">
               <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Juros esperado (%)</label>
               <select
                 value={expectedInterestPercent}
@@ -88,6 +76,18 @@ export function ClientStepCobranca({
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Parcelas</label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={chargeData.quantidadeParcelas}
+                onChange={(e) => onParcelasManualChange(e.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/5 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
+                placeholder="Auto"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Atraso ao dia (%)</label>

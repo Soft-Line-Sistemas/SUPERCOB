@@ -25,6 +25,9 @@ export function ChargeModal({
   loading,
   formData,
   setFormData,
+  expectedInterestPercent,
+  expectedInterestOptions,
+  onExpectedInterestPercentChange,
   onQuantidadeParcelasChange,
   installmentHint,
   onClose,
@@ -39,6 +42,9 @@ export function ChargeModal({
   loading: boolean
   formData: ChargeFormData
   setFormData: React.Dispatch<React.SetStateAction<ChargeFormData>>
+  expectedInterestPercent: string
+  expectedInterestOptions: number[]
+  onExpectedInterestPercentChange: (value: string) => void
   onQuantidadeParcelasChange: (value: string) => void
   installmentHint: string | null
   onClose: () => void
@@ -331,6 +337,21 @@ export function ChargeModal({
                   </div>
 
                   <div className="space-y-1.5">
+                    <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Juros esperado (%)</label>
+                    <select
+                      value={expectedInterestPercent}
+                      onChange={(e) => onExpectedInterestPercentChange(e.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
+                    >
+                      {expectedInterestOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}%
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Parcelas</label>
                     <input
                       type="number"
@@ -377,6 +398,9 @@ export function ChargeModal({
                     {installmentHint}
                   </div>
                 ) : null}
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Esse percentual serve apenas como base local para sugerir a quantidade de parcelas e nao e salvo.
+                </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">

@@ -78,6 +78,7 @@ const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any
 };
 
 export function Loans({ initialLoans, total, page, pageSize, clientes, colaboradores, userRole, analytics }: LoansProps) {
+  const expectedInterestOptions = Array.from({ length: 20 }, (_, index) => (index + 1) * 5)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams();
@@ -109,6 +110,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const [isPaymentPending, startPaymentTransition] = useTransition()
   const [directMonthlyPaymentLoanId, setDirectMonthlyPaymentLoanId] = useState<string | null>(null)
   const [installmentsManuallyEdited, setInstallmentsManuallyEdited] = useState(false)
+  const [expectedInterestPercent, setExpectedInterestPercent] = useState('100')
   
   const [filters, setFilters] = useState(() => {
     const status = initialSearch?.get('status') ?? ''
@@ -292,6 +294,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         observacao: loan.observacao || '',
       });
       setInstallmentsManuallyEdited(Boolean(loan.quantidadeParcelas))
+      setExpectedInterestPercent('100')
     } else {
       setEditingLoan(null);
       setFormData({
@@ -305,6 +308,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         observacao: !prefillConsumed ? initialObservacao : '',
       });
       setInstallmentsManuallyEdited(false)
+      setExpectedInterestPercent('100')
     }
     setIsModalOpen(true);
   };
@@ -315,13 +319,14 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     const estimated = calculateEstimatedInstallments({
       valor: formData.valor,
       jurosMes: formData.jurosMes,
+      jurosTotalPercentualEsperado: Number(expectedInterestPercent),
     })
 
     const nextValue = estimated ?? 0
     if (formData.quantidadeParcelas === nextValue) return
 
     setFormData((prev) => ({ ...prev, quantidadeParcelas: nextValue }))
-  }, [formData.jurosMes, formData.quantidadeParcelas, formData.valor, installmentsManuallyEdited, isModalOpen])
+  }, [expectedInterestPercent, formData.jurosMes, formData.quantidadeParcelas, formData.valor, installmentsManuallyEdited, isModalOpen])
 
   const handleQuantidadeParcelasChange = (value: string) => {
     setInstallmentsManuallyEdited(true)
@@ -336,6 +341,11 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       ...prev,
       quantidadeParcelas: Number.isInteger(next) && next > 0 ? next : 0,
     }))
+  }
+
+  const handleExpectedInterestPercentChange = (value: string) => {
+    setInstallmentsManuallyEdited(false)
+    setExpectedInterestPercent(value)
   }
 
   const installmentHint = (() => {
@@ -810,6 +820,9 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         loading={loading}
         formData={formData}
         setFormData={setFormData}
+        expectedInterestPercent={expectedInterestPercent}
+        expectedInterestOptions={expectedInterestOptions}
+        onExpectedInterestPercentChange={handleExpectedInterestPercentChange}
         onQuantidadeParcelasChange={handleQuantidadeParcelasChange}
         installmentHint={installmentHint}
         onClose={() => setIsModalOpen(false)}
