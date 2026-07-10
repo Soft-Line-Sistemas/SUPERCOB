@@ -25,6 +25,8 @@ export function ChargeModal({
   loading,
   formData,
   setFormData,
+  parcelarValor,
+  onParcelarValorChange,
   expectedInterestPercent,
   expectedInterestOptions,
   onExpectedInterestPercentChange,
@@ -42,6 +44,8 @@ export function ChargeModal({
   loading: boolean
   formData: ChargeFormData
   setFormData: React.Dispatch<React.SetStateAction<ChargeFormData>>
+  parcelarValor: boolean
+  onParcelarValorChange: (checked: boolean) => void
   expectedInterestPercent: string
   expectedInterestOptions: number[]
   onExpectedInterestPercentChange: (value: string) => void
@@ -335,38 +339,50 @@ export function ChargeModal({
                       placeholder="0"
                     />
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Juros esperado (%)</label>
-                    <select
-                      value={expectedInterestPercent}
-                      onChange={(e) => onExpectedInterestPercentChange(e.target.value)}
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
-                    >
-                      {expectedInterestOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}%
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Parcelas</label>
+                  <label className="sm:col-span-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200">
                     <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={
-                        Number.isFinite(formData.quantidadeParcelas) && formData.quantidadeParcelas > 0
-                          ? String(formData.quantidadeParcelas)
-                          : ''
-                      }
-                      onChange={(e) => onQuantidadeParcelasChange(e.target.value)}
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
-                      placeholder="Ex: 20"
+                      type="checkbox"
+                      checked={parcelarValor}
+                      onChange={(e) => onParcelarValorChange(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
-                  </div>
+                    Parcelar valor
+                  </label>
+                  {parcelarValor ? (
+                    <>
+                      <div className="space-y-1.5">
+                        <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Receita esperada (%)</label>
+                        <select
+                          value={expectedInterestPercent}
+                          onChange={(e) => onExpectedInterestPercentChange(e.target.value)}
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
+                        >
+                          {expectedInterestOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}%
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Parcelas</label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={
+                            Number.isFinite(formData.quantidadeParcelas) && formData.quantidadeParcelas > 0
+                              ? String(formData.quantidadeParcelas)
+                              : ''
+                          }
+                          onChange={(e) => onQuantidadeParcelasChange(e.target.value)}
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
+                          placeholder="Ex: 20"
+                        />
+                      </div>
+                    </>
+                  ) : null}
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Atraso ao dia (%)</label>
@@ -393,14 +409,14 @@ export function ChargeModal({
                   </div>
                 </div>
 
-                {installmentHint ? (
+                {parcelarValor && installmentHint ? (
                   <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-900 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-100">
                     {installmentHint}
                   </div>
                 ) : null}
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                {parcelarValor ? <p className="text-xs text-slate-500 dark:text-slate-400">
                   Esse percentual serve apenas como base local para sugerir a quantidade de parcelas e nao e salvo.
-                </p>
+                </p> : null}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">

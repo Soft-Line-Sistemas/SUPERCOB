@@ -55,4 +55,14 @@ describe('calculateEstimatedInstallments', () => {
       }),
     ).toBeNull()
   })
+
+  it('calcula o valor mensal estimado com juros zero', () => {
+    expect(
+      calculateEstimatedMonthlyPayment({
+        valor: 6000,
+        jurosMes: 0,
+        quantidadeParcelas: 20,
+      }),
+    ).toBe(300)
+  })
 })

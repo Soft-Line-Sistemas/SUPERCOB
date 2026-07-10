@@ -22,12 +22,12 @@ export function ClientStepEmergencia({
   formatPhoneBR: (value: string) => string
 }) {
   const inputClassName =
-    'w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all'
+    'w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition-all focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100'
 
   return (
     <div className="space-y-5">
-      <div className="space-y-2 rounded-3xl border border-slate-200/80 bg-white/80 p-4">
-        <label className="text-sm font-bold text-slate-700 ml-1">Contato de Emergência 1</label>
+      <div className="space-y-2 rounded-3xl border border-slate-200/80 bg-white/80 p-4 dark:border-white/10 dark:bg-white/5">
+        <label className="ml-1 text-sm font-bold text-slate-700 dark:text-slate-300">Contato de Emergência 1</label>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] md:gap-4">
           <input
             type="text"
@@ -49,8 +49,8 @@ export function ClientStepEmergencia({
         </div>
       </div>
 
-      <div className="space-y-2 rounded-3xl border border-slate-200/80 bg-white/80 p-4">
-        <label className="text-sm font-bold text-slate-700 ml-1">Contato de Emergência 2</label>
+      <div className="space-y-2 rounded-3xl border border-slate-200/80 bg-white/80 p-4 dark:border-white/10 dark:bg-white/5">
+        <label className="ml-1 text-sm font-bold text-slate-700 dark:text-slate-300">Contato de Emergência 2</label>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] md:gap-4">
           <input
             type="text"
@@ -72,8 +72,8 @@ export function ClientStepEmergencia({
         </div>
       </div>
 
-      <div className="space-y-2 rounded-3xl border border-slate-200/80 bg-white/80 p-4">
-        <label className="text-sm font-bold text-slate-700 ml-1">Contato de Emergência 3</label>
+      <div className="space-y-2 rounded-3xl border border-slate-200/80 bg-white/80 p-4 dark:border-white/10 dark:bg-white/5">
+        <label className="ml-1 text-sm font-bold text-slate-700 dark:text-slate-300">Contato de Emergência 3</label>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] md:gap-4">
           <input
             type="text"

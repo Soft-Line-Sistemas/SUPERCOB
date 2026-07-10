@@ -28,7 +28,7 @@ export function calculateEstimatedMonthlyPayment(input: {
   const quantidadeParcelas = Number(input.quantidadeParcelas ?? 0)
 
   if (!Number.isFinite(valor) || valor <= 0) return null
-  if (!Number.isFinite(jurosMes) || jurosMes <= 0) return null
+  if (!Number.isFinite(jurosMes) || jurosMes < 0) return null
   if (!Number.isInteger(quantidadeParcelas) || quantidadeParcelas <= 0) return null
 
   const jurosDoMes = valor * (jurosMes / 100)

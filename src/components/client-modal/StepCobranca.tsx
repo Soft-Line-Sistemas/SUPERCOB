@@ -6,6 +6,8 @@ import type { ChargeData, SetState } from './types'
 export function ClientStepCobranca({
   chargeData,
   setChargeData,
+  parcelarValor,
+  onParcelarValorChange,
   onParcelasManualChange,
   installmentHint,
   expectedInterestPercent,
@@ -14,6 +16,8 @@ export function ClientStepCobranca({
 }: {
   chargeData: ChargeData
   setChargeData: SetState<ChargeData>
+  parcelarValor: boolean
+  onParcelarValorChange: (checked: boolean) => void
   onParcelasManualChange: (value: string) => void
   installmentHint: string | null
   expectedInterestPercent: string
@@ -63,32 +67,45 @@ export function ClientStepCobranca({
                 placeholder="0"
               />
             </div>
-            <div className="space-y-1.5">
-              <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Juros esperado (%)</label>
-              <select
-                value={expectedInterestPercent}
-                onChange={(e) => onExpectedInterestPercentChange(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/5 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
-              >
-                {expectedInterestOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}%
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Parcelas</label>
+            <label className="sm:col-span-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200">
               <input
-                type="number"
-                min="1"
-                step="1"
-                value={chargeData.quantidadeParcelas}
-                onChange={(e) => onParcelasManualChange(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/5 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
-                placeholder="Auto"
+                type="checkbox"
+                checked={parcelarValor}
+                onChange={(e) => onParcelarValorChange(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
-            </div>
+              Parcelar valor
+            </label>
+            {parcelarValor ? (
+              <>
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Receita esperada (%)</label>
+                  <select
+                    value={expectedInterestPercent}
+                    onChange={(e) => onExpectedInterestPercentChange(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/5 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
+                  >
+                    {expectedInterestOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}%
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Parcelas</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={chargeData.quantidadeParcelas}
+                    onChange={(e) => onParcelasManualChange(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/5 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
+                    placeholder="Auto"
+                  />
+                </div>
+              </>
+            ) : null}
             <div className="space-y-1.5">
               <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Atraso ao dia (%)</label>
               <input
@@ -110,14 +127,14 @@ export function ClientStepCobranca({
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              {installmentHint ? (
+              {parcelarValor && installmentHint ? (
                 <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-900 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-100">
                   {installmentHint}
                 </div>
               ) : null}
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              {parcelarValor ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                 Esse percentual serve apenas como base local para sugerir a quantidade de parcelas e nao e salvo.
-              </p>
+              </p> : null}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Observação</label>
