@@ -8,6 +8,16 @@ export function ClientStepCobranca({
   setChargeData,
   parcelarValor,
   onParcelarValorChange,
+  parcelingMode,
+  onParcelingModeChange,
+  parcelingModeOptions,
+  remainingGrossAmountLabel,
+  currentInstallment,
+  currentInstallmentOptions,
+  onCurrentInstallmentChange,
+  discountPaidInstallments,
+  onDiscountPaidInstallmentsChange,
+  discountedPaidInstallmentsLabel,
   onParcelasManualChange,
   installmentHint,
   expectedInterestPercent,
@@ -18,6 +28,16 @@ export function ClientStepCobranca({
   setChargeData: SetState<ChargeData>
   parcelarValor: boolean
   onParcelarValorChange: (checked: boolean) => void
+  parcelingMode: 'integral' | 'remaining'
+  onParcelingModeChange: (value: 'integral' | 'remaining') => void
+  parcelingModeOptions: Array<{ value: 'integral' | 'remaining'; label: string; disabled?: boolean }>
+  remainingGrossAmountLabel: string | null
+  currentInstallment: number
+  currentInstallmentOptions: number[]
+  onCurrentInstallmentChange: (value: number) => void
+  discountPaidInstallments: boolean
+  onDiscountPaidInstallmentsChange: (checked: boolean) => void
+  discountedPaidInstallmentsLabel: string | null
   onParcelasManualChange: (value: string) => void
   installmentHint: string | null
   expectedInterestPercent: string
@@ -79,19 +99,45 @@ export function ClientStepCobranca({
             {parcelarValor ? (
               <>
                 <div className="space-y-1.5">
-                  <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Receita esperada (%)</label>
+                  <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Modalidade</label>
                   <select
-                    value={expectedInterestPercent}
-                    onChange={(e) => onExpectedInterestPercentChange(e.target.value)}
+                    value={parcelingMode}
+                    onChange={(e) => onParcelingModeChange(e.target.value as 'integral' | 'remaining')}
                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/5 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
                   >
-                    {expectedInterestOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}%
+                    {parcelingModeOptions.map((option) => (
+                      <option key={option.value} value={option.value} disabled={option.disabled}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
                 </div>
+                {parcelingMode === 'integral' ? (
+                  <div className="space-y-1.5">
+                    <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Receita esperada (%)</label>
+                    <select
+                      value={expectedInterestPercent}
+                      onChange={(e) => onExpectedInterestPercentChange(e.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/5 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
+                    >
+                      {expectedInterestOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}%
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Valor bruto (R$)</label>
+                    <input
+                      type="text"
+                      value={remainingGrossAmountLabel ?? '-'}
+                      readOnly
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-100"
+                    />
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Parcelas</label>
                   <input
@@ -104,6 +150,31 @@ export function ClientStepCobranca({
                     placeholder="Auto"
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Parcela atual</label>
+                  <select
+                    value={currentInstallment}
+                    onChange={(e) => onCurrentInstallmentChange(Number(e.target.value))}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/5 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
+                    disabled={currentInstallmentOptions.length === 0}
+                  >
+                    {(currentInstallmentOptions.length > 0 ? currentInstallmentOptions : [1]).map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={discountPaidInstallments}
+                    onChange={(e) => onDiscountPaidInstallmentsChange(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    disabled={currentInstallment <= 1}
+                  />
+                  Descontar as parcelas ja pagas?
+                </label>
               </>
             ) : null}
             <div className="space-y-1.5">
@@ -133,8 +204,15 @@ export function ClientStepCobranca({
                 </div>
               ) : null}
               {parcelarValor ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                Esse percentual serve apenas como base local para sugerir a quantidade de parcelas e nao e salvo.
+                {parcelingMode === 'integral'
+                  ? 'Receita esperada serve apenas como base local para sugerir a quantidade de parcelas e nao e salva.'
+                  : 'Valor bruto usa o saldo restante atualizado com juros apenas como base local para calcular a parcela e nao e salvo.'}
               </p> : null}
+              {parcelarValor && discountPaidInstallments && discountedPaidInstallmentsLabel ? (
+                <p className="mt-2 text-xs font-black text-red-600 dark:text-red-400">
+                  Descontado as parcelas ja pagas valor: {discountedPaidInstallmentsLabel}
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Observação</label>

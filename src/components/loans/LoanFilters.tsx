@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Search, Filter, Download, Send, X } from 'lucide-react'
+import { Search, Filter, Download, Send, X, LayoutGrid, List } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface LoanFiltersData {
@@ -28,6 +28,10 @@ interface LoanFiltersProps {
   setContactOnly: React.Dispatch<React.SetStateAction<boolean>>
   exportableCount: number
   onOpenBatchDossie: () => void
+  sortOrder: 'newest' | 'az'
+  setSortOrder: React.Dispatch<React.SetStateAction<'newest' | 'az'>>
+  viewMode: 'grid' | 'list'
+  setViewMode: React.Dispatch<React.SetStateAction<'grid' | 'list'>>
 }
 
 export function LoanFilters({
@@ -42,7 +46,11 @@ export function LoanFilters({
   contactOnly,
   setContactOnly,
   exportableCount,
-  onOpenBatchDossie
+  onOpenBatchDossie,
+  sortOrder,
+  setSortOrder,
+  viewMode,
+  setViewMode,
 }: LoanFiltersProps) {
   return (
     <div className="w-full">
@@ -59,6 +67,34 @@ export function LoanFilters({
             className="w-full pl-10 pr-4 py-3.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:ring-4 focus:ring-gold-500/5 focus:border-gold-500 outline-none transition-all shadow-sm dark:text-slate-100"
             placeholder="Buscar por nome, e-mail ou WhatsApp..."
           />
+        </div>
+
+        <select
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value === 'az' ? 'az' : 'newest')}
+          className="px-4 py-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-sm font-black text-slate-700 dark:text-slate-200 shadow-sm outline-none"
+        >
+          <option value="newest">Novos primeiro</option>
+          <option value="az">A-Z</option>
+        </select>
+
+        <div className="flex items-center rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setViewMode('grid')}
+            className={`rounded-xl p-2 transition-colors ${viewMode === 'grid' ? 'bg-slate-900 text-white dark:bg-gold-600' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'}`}
+            aria-label="Visualização em grade"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={`rounded-xl p-2 transition-colors ${viewMode === 'list' ? 'bg-slate-900 text-white dark:bg-gold-600' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'}`}
+            aria-label="Visualização em lista"
+          >
+            <List className="h-4 w-4" />
+          </button>
         </div>
 
         <button

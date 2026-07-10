@@ -62,6 +62,7 @@ export async function getClientesPage(options?: {
   cidade?: string
   estado?: string
   cpf?: string
+  sort?: 'newest' | 'az'
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -78,6 +79,7 @@ export async function getClientesPage(options?: {
   const cidade = (options?.cidade ?? '').trim()
   const estado = (options?.estado ?? '').trim()
   const cpf = (options?.cpf ?? '').replace(/\D/g, '')
+  const sort: 'newest' | 'az' = options?.sort === 'az' ? 'az' : 'newest'
 
   let where: Prisma.ClienteWhereInput | undefined
 
@@ -137,14 +139,27 @@ export async function getClientesPage(options?: {
     where = where ? { AND: [where, ...andConditions] } : { AND: andConditions }
   }
 
-  const [items, total] = await Promise.all([
+  const orderBy =
+    sort === 'az'
+      ? ([{ nome: 'asc' as const }, { createdAt: 'desc' as const }] satisfies Prisma.ClienteOrderByWithRelationInput[])
+      : ([{ createdAt: 'desc' as const }] satisfies Prisma.ClienteOrderByWithRelationInput[])
+
+  const [items, total, totalWithEmail, totalWithWhatsapp, totalWithCpf, cities] = await Promise.all([
     prisma.cliente.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       skip,
       take: perPage,
     }),
     prisma.cliente.count({ where }),
+    prisma.cliente.count({ where: { AND: [where ?? {}, { email: { not: null } }, { email: { not: '' } }] } }),
+    prisma.cliente.count({ where: { AND: [where ?? {}, { whatsapp: { not: null } }, { whatsapp: { not: '' } }] } }),
+    prisma.cliente.count({ where: { AND: [where ?? {}, { cpf: { not: null } }, { cpf: { not: '' } }] } }),
+    prisma.cliente.findMany({
+      where: { AND: [where ?? {}, { cidade: { not: null } }] },
+      distinct: ['cidade'],
+      select: { cidade: true },
+    }),
   ])
 
   return {
@@ -153,6 +168,14 @@ export async function getClientesPage(options?: {
     page,
     perPage,
     totalPages: Math.max(1, Math.ceil(total / perPage)),
+    sort,
+    summary: {
+      total,
+      withEmail: totalWithEmail,
+      withWhatsapp: totalWithWhatsapp,
+      withCpf: totalWithCpf,
+      cities: cities.filter((item) => item.cidade && item.cidade.trim() !== '').length,
+    },
   }
 }
 

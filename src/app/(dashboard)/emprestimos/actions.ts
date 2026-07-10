@@ -19,12 +19,14 @@ export async function getEmprestimos(filters?: {
   contactOnly?: boolean;
   page?: number;
   pageSize?: number;
+  sort?: 'newest' | 'az';
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
   const role = (session.user as any).role
   const userId = (session.user as any).id
+  const sort: 'newest' | 'az' = filters?.sort === 'az' ? 'az' : 'newest'
 
   // Regra: GERENTE vê apenas os próprios contratos. ADM e ESCRITORIO veem tudo.
   const where: any = role === 'GERENTE' ? { usuarioId: userId } : {}
@@ -69,6 +71,10 @@ export async function getEmprestimos(filters?: {
   const pageSize = filters?.pageSize ?? 50
   const page = filters?.page ?? 1
   const skip = (page - 1) * pageSize
+  const orderBy =
+    sort === 'az'
+      ? ([{ cliente: { nome: 'asc' as const } }, { createdAt: 'desc' as const }] satisfies Prisma.EmprestimoOrderByWithRelationInput[])
+      : ([{ createdAt: 'desc' as const }] satisfies Prisma.EmprestimoOrderByWithRelationInput[])
 
   const selectFields = Prisma.validator<Prisma.EmprestimoSelect>()({
     id: true,
@@ -133,6 +139,16 @@ export async function getEmprestimos(filters?: {
 
   let items: EmprestimoListItem[] = []
   let total = 0
+  let summary = {
+    total: 0,
+    valorTotal: 0,
+    aberto: 0,
+    negociacao: 0,
+    quitado: 0,
+    cancelado: 0,
+    vencidos: 0,
+    cobrancaAtiva: 0,
+  }
 
   if (hasVencimentoDayFilter || hasContactOnlyFilter) {
     const filteredCandidates = await prisma.emprestimo.findMany({
@@ -140,17 +156,42 @@ export async function getEmprestimos(filters?: {
       select: {
         id: true,
         status: true,
+        valor: true,
+        cobrancaAtiva: true,
         vencimento: true,
         createdAt: true,
         cliente: {
-          select: { whatsapp: true },
+          select: { nome: true, whatsapp: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy,
     })
 
-    const filteredIds = filteredCandidates.filter(matchesSpecialFilters).map((loan) => loan.id)
+    const now = new Date()
+    const filteredLoans = filteredCandidates.filter(matchesSpecialFilters)
+    const filteredIds = filteredLoans.map((loan) => loan.id)
     total = filteredIds.length
+    summary = filteredLoans.reduce(
+      (acc, loan) => {
+        acc.total += 1
+        acc.valorTotal += Number(loan.valor) || 0
+        if (loan.status === 'ABERTO') acc.aberto += 1
+        if (loan.status === 'NEGOCIACAO') acc.negociacao += 1
+        if (loan.status === 'QUITADO') acc.quitado += 1
+        if (loan.status === 'CANCELADO') acc.cancelado += 1
+        if (loan.cobrancaAtiva) acc.cobrancaAtiva += 1
+        if (
+          loan.status !== 'QUITADO' &&
+          loan.status !== 'CANCELADO' &&
+          loan.vencimento &&
+          new Date(loan.vencimento).getTime() < now.getTime()
+        ) {
+          acc.vencidos += 1
+        }
+        return acc
+      },
+      { total: 0, valorTotal: 0, aberto: 0, negociacao: 0, quitado: 0, cancelado: 0, vencidos: 0, cobrancaAtiva: 0 },
+    )
 
     const pagedIds = filteredIds.slice(skip, skip + pageSize)
     if (pagedIds.length === 0) {
@@ -164,19 +205,62 @@ export async function getEmprestimos(filters?: {
       items = pageItems.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
     }
   } else {
-    ;[items, total] = await Promise.all([
+    const now = new Date()
+    const [pageItems, totalCount, grouped, aggregate, overdueCount, activeChargeCount] = await Promise.all([
       prisma.emprestimo.findMany({
         where,
         select: selectFields,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
         take: pageSize,
       }),
       prisma.emprestimo.count({ where }),
+      prisma.emprestimo.groupBy({
+        by: ['status'],
+        where,
+        _count: { _all: true },
+      }),
+      prisma.emprestimo.aggregate({
+        where,
+        _sum: { valor: true },
+      }),
+      prisma.emprestimo.count({
+        where: {
+          AND: [
+            where,
+            { status: { in: ['ABERTO', 'NEGOCIACAO'] } },
+            { vencimento: { lt: now } },
+          ],
+        },
+      }),
+      prisma.emprestimo.count({
+        where: {
+          AND: [where, { cobrancaAtiva: true }],
+        },
+      }),
     ])
+
+    items = pageItems
+    total = totalCount
+
+    const byStatus = grouped.reduce<Record<string, number>>((acc, row) => {
+      acc[row.status] = row._count._all
+      return acc
+    }, {})
+
+    summary = {
+      total: totalCount,
+      valorTotal: Number(aggregate._sum.valor ?? 0),
+      aberto: byStatus.ABERTO ?? 0,
+      negociacao: byStatus.NEGOCIACAO ?? 0,
+      quitado: byStatus.QUITADO ?? 0,
+      cancelado: byStatus.CANCELADO ?? 0,
+      vencidos: overdueCount,
+      cobrancaAtiva: activeChargeCount,
+    }
   }
 
-  return { items, total, page, pageSize }
+  return { items, total, page, pageSize, sort, summary }
 }
 
 export async function createEmprestimo(data: {

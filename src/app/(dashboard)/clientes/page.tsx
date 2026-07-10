@@ -13,6 +13,7 @@ export default async function ClientesPage({
   const params = await searchParams
   const page = Math.max(1, Number(getSingleParam(params.page) ?? '1') || 1)
   const perPage = Math.max(1, Number(getSingleParam(params.per_page) ?? '15') || 15)
+  const sort: 'newest' | 'az' = getSingleParam(params.sort) === 'az' ? 'az' : 'newest'
   const clientesPage = await getClientesPage({
     page,
     perPage,
@@ -22,6 +23,7 @@ export default async function ClientesPage({
     cidade: getSingleParam(params.cidade),
     estado: getSingleParam(params.estado),
     cpf: getSingleParam(params.cpf),
+    sort,
   })
 
   return (
@@ -40,6 +42,8 @@ export default async function ClientesPage({
           total: clientesPage.total,
           totalPages: clientesPage.totalPages,
         }}
+        sort={clientesPage.sort}
+        summary={clientesPage.summary}
       />
     </div>
   )

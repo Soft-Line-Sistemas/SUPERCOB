@@ -68,6 +68,17 @@ interface LoansProps {
   colaboradores: { id: string; nome: string }[];
   userRole: 'ADMIN' | 'OPERADOR';
   analytics?: { id: string; nome: string; aberto: number; negociacao: number; quitado: number; total: number }[];
+  sort: 'newest' | 'az';
+  summary: {
+    total: number;
+    valorTotal: number;
+    aberto: number;
+    negociacao: number;
+    quitado: number;
+    cancelado: number;
+    vencidos: number;
+    cobrancaAtiva: number;
+  };
 }
 
 const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any; bg: string }> = {
@@ -77,7 +88,9 @@ const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any
   CANCELADO: { label: 'Cancelado', color: 'text-slate-500 dark:text-slate-400', bg: 'bg-slate-100/50 dark:bg-slate-800', icon: Info },
 };
 
-export function Loans({ initialLoans, total, page, pageSize, clientes, colaboradores, userRole, analytics }: LoansProps) {
+export function Loans({ initialLoans, total, page, pageSize, clientes, colaboradores, userRole, analytics, sort, summary }: LoansProps) {
+  const sortStorageKey = 'supercob:emprestimos:sort'
+  const viewStorageKey = 'supercob:emprestimos:view'
   const expectedInterestOptions = Array.from({ length: 20 }, (_, index) => (index + 1) * 5)
   const router = useRouter()
   const pathname = usePathname()
@@ -111,7 +124,14 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const [directMonthlyPaymentLoanId, setDirectMonthlyPaymentLoanId] = useState<string | null>(null)
   const [installmentsManuallyEdited, setInstallmentsManuallyEdited] = useState(false)
   const [installmentsEnabled, setInstallmentsEnabled] = useState(false)
+  const [parcelingMode, setParcelingMode] = useState<'integral' | 'remaining'>('integral')
   const [expectedInterestPercent, setExpectedInterestPercent] = useState('100')
+  const [currentInstallmentSelection, setCurrentInstallmentSelection] = useState(1)
+  const [discountPaidInstallments, setDiscountPaidInstallments] = useState(false)
+  const parcelingModeOptions = [
+    { value: 'integral' as const, label: 'Saldo integral' },
+    { value: 'remaining' as const, label: 'Saldo restante', disabled: !editingLoan },
+  ]
   
   const [filters, setFilters] = useState(() => {
     const status = initialSearch?.get('status') ?? ''
@@ -125,6 +145,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     return { status, q, startDate, endDate, usuarioId, cobrancaOnly, dateFilterMode, vencimentoDay }
   })
   const [contactOnly, setContactOnly] = useState(() => (initialSearch?.get('contactOnly') ?? '') === '1')
+  const [sortOrder, setSortOrder] = useState<'newest' | 'az'>(sort)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   const [formData, setFormData] = useState(() => ({
     clienteId: shouldAutoOpenNew ? initialClienteId : '',
@@ -227,6 +249,42 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   };
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const storedViewMode = window.localStorage.getItem(viewStorageKey)
+    if (storedViewMode === 'grid' || storedViewMode === 'list') {
+      setViewMode(storedViewMode)
+    }
+
+    const currentSortParam = searchParams.get('sort')
+    if (!currentSortParam) {
+      const storedSort = window.localStorage.getItem(sortStorageKey)
+      if (storedSort === 'az' || storedSort === 'newest') {
+        setSortOrder(storedSort)
+      }
+    } else {
+      setSortOrder(currentSortParam === 'az' ? 'az' : 'newest')
+    }
+  }, [searchParams, sortStorageKey, viewStorageKey])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(sortStorageKey, sortOrder)
+    const currentSortParam = (searchParams.get('sort') ?? 'newest') === 'az' ? 'az' : 'newest'
+    if (currentSortParam === sortOrder) return
+    const next = new URLSearchParams(searchParams.toString())
+    if (sortOrder === 'az') next.set('sort', 'az')
+    else next.delete('sort')
+    next.delete('page')
+    router.replace(`${pathname}?${next.toString()}`)
+    router.refresh()
+  }, [pathname, router, searchParams, sortOrder, sortStorageKey])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(viewStorageKey, viewMode)
+  }, [viewMode, viewStorageKey])
+
+  useEffect(() => {
     if (!shouldAutoOpenNew) return
     const next = new URLSearchParams(searchParams.toString())
     next.delete('novo')
@@ -296,7 +354,10 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       });
       setInstallmentsManuallyEdited(Boolean(loan.quantidadeParcelas))
       setInstallmentsEnabled(Boolean(loan.quantidadeParcelas))
+      setParcelingMode('integral')
       setExpectedInterestPercent('100')
+      setCurrentInstallmentSelection(1)
+      setDiscountPaidInstallments(false)
     } else {
       setEditingLoan(null);
       setFormData({
@@ -311,13 +372,16 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       });
       setInstallmentsManuallyEdited(false)
       setInstallmentsEnabled(false)
+      setParcelingMode('integral')
       setExpectedInterestPercent('100')
+      setCurrentInstallmentSelection(1)
+      setDiscountPaidInstallments(false)
     }
     setIsModalOpen(true);
   };
 
   useEffect(() => {
-    if (!isModalOpen || !installmentsEnabled || installmentsManuallyEdited) return
+    if (!isModalOpen || !installmentsEnabled || parcelingMode !== 'integral' || installmentsManuallyEdited) return
 
     const estimated = calculateEstimatedInstallments({
       valor: formData.valor,
@@ -329,7 +393,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     if (formData.quantidadeParcelas === nextValue) return
 
     setFormData((prev) => ({ ...prev, quantidadeParcelas: nextValue }))
-  }, [expectedInterestPercent, formData.jurosMes, formData.quantidadeParcelas, formData.valor, installmentsEnabled, installmentsManuallyEdited, isModalOpen])
+  }, [expectedInterestPercent, formData.jurosMes, formData.quantidadeParcelas, formData.valor, installmentsEnabled, installmentsManuallyEdited, isModalOpen, parcelingMode])
 
   const handleQuantidadeParcelasChange = (value: string) => {
     setInstallmentsManuallyEdited(true)
@@ -351,30 +415,113 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     setExpectedInterestPercent(value)
   }
 
+  const handleParcelingModeChange = (value: 'integral' | 'remaining') => {
+    setInstallmentsManuallyEdited(false)
+    setParcelingMode(value)
+  }
+
   const handleInstallmentsEnabledChange = (checked: boolean) => {
     setInstallmentsEnabled(checked)
     setInstallmentsManuallyEdited(false)
+    setCurrentInstallmentSelection(1)
+    setDiscountPaidInstallments(false)
     if (!checked) {
       setFormData((prev) => ({ ...prev, quantidadeParcelas: 0 }))
     }
   }
 
+  const currentInstallmentOptions = useMemo(
+    () =>
+      Number.isInteger(formData.quantidadeParcelas) && formData.quantidadeParcelas > 0
+        ? Array.from({ length: formData.quantidadeParcelas }, (_, index) => index + 1)
+        : [],
+    [formData.quantidadeParcelas],
+  )
+
+  useEffect(() => {
+    if (currentInstallmentOptions.length === 0) {
+      if (currentInstallmentSelection !== 1) setCurrentInstallmentSelection(1)
+      if (discountPaidInstallments) setDiscountPaidInstallments(false)
+      return
+    }
+
+    if (currentInstallmentSelection > currentInstallmentOptions.length) {
+      setCurrentInstallmentSelection(currentInstallmentOptions.length)
+    }
+
+    if (currentInstallmentSelection <= 1 && discountPaidInstallments) {
+      setDiscountPaidInstallments(false)
+    }
+  }, [currentInstallmentOptions, currentInstallmentSelection, discountPaidInstallments])
+
   const installmentHint = (() => {
     const installments = Number(formData.quantidadeParcelas)
-    const monthlyPayment = calculateEstimatedMonthlyPayment({
-      valor: formData.valor,
-      jurosMes: formData.jurosMes,
-      quantidadeParcelas: installments,
-    })
+    const remainingGrossAmount = editingLoan
+      ? calculateLoanInterest({
+          ...editingLoan,
+          valor: formData.valor,
+          jurosMes: formData.jurosMes,
+          jurosAtrasoDia: formData.jurosAtrasoDia,
+          vencimento: formData.vencimento || editingLoan.vencimento,
+        }).totalDevido
+      : null
+    const monthlyPayment = parcelingMode === 'remaining'
+      ? (remainingGrossAmount && Number.isInteger(installments) && installments > 0 ? remainingGrossAmount / installments : null)
+      : calculateEstimatedMonthlyPayment({
+          valor: formData.valor,
+          jurosMes: formData.jurosMes,
+          quantidadeParcelas: installments,
+        })
 
     if (!installmentsEnabled || !Number.isInteger(installments) || installments <= 0 || !monthlyPayment) return null
 
     return `${installments} parcelas de ${formatCurrency(monthlyPayment)}`
   })()
 
+  const remainingGrossAmountLabel = editingLoan
+    ? formatCurrency(
+        calculateLoanInterest({
+          ...editingLoan,
+          valor: formData.valor,
+          jurosMes: formData.jurosMes,
+          jurosAtrasoDia: formData.jurosAtrasoDia,
+          vencimento: formData.vencimento || editingLoan.vencimento,
+        }).totalDevido,
+      )
+    : null
+
+  const discountedPaidInstallmentsLabel = (() => {
+    if (!installmentsEnabled || !discountPaidInstallments) return null
+    const installments = Number(formData.quantidadeParcelas)
+    const paidInstallments = Math.max(currentInstallmentSelection - 1, 0)
+    if (!Number.isInteger(installments) || installments <= 0 || paidInstallments <= 0) return null
+
+    const remainingGrossAmount = editingLoan
+      ? calculateLoanInterest({
+          ...editingLoan,
+          valor: formData.valor,
+          jurosMes: formData.jurosMes,
+          jurosAtrasoDia: formData.jurosAtrasoDia,
+          vencimento: formData.vencimento || editingLoan.vencimento,
+        }).totalDevido
+      : null
+
+    const monthlyPayment = parcelingMode === 'remaining'
+      ? (remainingGrossAmount ? remainingGrossAmount / installments : null)
+      : calculateEstimatedMonthlyPayment({
+          valor: formData.valor,
+          jurosMes: formData.jurosMes,
+          quantidadeParcelas: installments,
+        })
+
+    if (!monthlyPayment) return null
+    return formatCurrency(monthlyPayment * paidInstallments)
+  })()
+
   const resetFilters = () => {
     setFilters({ status: '', q: '', startDate: '', endDate: '', usuarioId: '', cobrancaOnly: false, dateFilterMode: 'created', vencimentoDay: '' })
     setContactOnly(false)
+    setSortOrder('newest')
     const next = new URLSearchParams(searchParams.toString())
     next.delete('status')
     next.delete('q')
@@ -384,11 +531,11 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     next.delete('contactOnly')
     next.delete('cobrancaOnly')
     next.delete('vencimentoDay')
+    next.delete('sort')
     next.delete('page')
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
   }
-
   const handleOpenDetail = (loan: Loan) => {
     if (loan.id.startsWith('draft-')) return;
     router.push(`/emprestimos/${loan.id}`);
@@ -732,7 +879,34 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         setContactOnly={setContactOnly}
         exportableCount={exportableLoans.length}
         onOpenBatchDossie={() => setIsBatchDossieOpen(true)}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
       />
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Filtrados</p>
+          <p className="mt-3 text-3xl font-black text-slate-900">{summary.total}</p>
+          <p className="mt-1 text-sm text-slate-500">Contratos no resultado atual</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Volume</p>
+          <p className="mt-3 text-3xl font-black text-slate-900">{formatCurrency(summary.valorTotal)}</p>
+          <p className="mt-1 text-sm text-slate-500">Valor total filtrado</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Em aberto</p>
+          <p className="mt-3 text-3xl font-black text-slate-900">{summary.aberto + summary.negociacao}</p>
+          <p className="mt-1 text-sm text-slate-500">{summary.vencidos} vencidos no filtro</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Cobrança ativa</p>
+          <p className="mt-3 text-3xl font-black text-slate-900">{summary.cobrancaAtiva}</p>
+          <p className="mt-1 text-sm text-slate-500">{summary.quitado} quitados e {summary.cancelado} cancelados</p>
+        </div>
+      </div>
 
       <ColaboradorAnalytics 
         analytics={analytics || []} 
@@ -740,7 +914,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       />
 
       {/* Grid Layout for Loans */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
         <AnimatePresence mode='popLayout'>
           {loansToRender.map((loan, idx) => (
             <LoanCard
@@ -833,6 +1007,16 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         setFormData={setFormData}
         parcelarValor={installmentsEnabled}
         onParcelarValorChange={handleInstallmentsEnabledChange}
+        parcelingMode={parcelingMode}
+        onParcelingModeChange={handleParcelingModeChange}
+        parcelingModeOptions={parcelingModeOptions}
+        remainingGrossAmountLabel={remainingGrossAmountLabel}
+        currentInstallment={currentInstallmentSelection}
+        currentInstallmentOptions={currentInstallmentOptions}
+        onCurrentInstallmentChange={setCurrentInstallmentSelection}
+        discountPaidInstallments={discountPaidInstallments}
+        onDiscountPaidInstallmentsChange={setDiscountPaidInstallments}
+        discountedPaidInstallmentsLabel={discountedPaidInstallmentsLabel}
         expectedInterestPercent={expectedInterestPercent}
         expectedInterestOptions={expectedInterestOptions}
         onExpectedInterestPercentChange={handleExpectedInterestPercentChange}

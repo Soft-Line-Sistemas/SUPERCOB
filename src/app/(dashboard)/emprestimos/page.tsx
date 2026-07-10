@@ -16,6 +16,7 @@ export default async function EmprestimosPage({
   const params = await searchParams
   const pageSize = 50
   const page = Math.max(1, Number(params.page) || 1)
+  const sort: 'newest' | 'az' = params.sort === 'az' ? 'az' : 'newest'
   const filters = {
     status: params.status as string,
     q: params.q as string,
@@ -28,6 +29,7 @@ export default async function EmprestimosPage({
     vencimentoDay: params.vencimentoDay as string,
     page,
     pageSize,
+    sort,
   }
   const clienteId = params.clienteId as string
   const role = (session?.user as any)?.role as 'ADMIN' | 'OPERADOR'
@@ -128,6 +130,8 @@ export default async function EmprestimosPage({
         colaboradores={colaboradores}
         userRole={(session?.user as any)?.role}
         analytics={analytics}
+        sort={emprestimosResult.sort}
+        summary={emprestimosResult.summary}
       />
     </div>
   )

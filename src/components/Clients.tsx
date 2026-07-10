@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter, Download, UserPlus } from 'lucide-react';
+import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter, Download, UserPlus, LayoutGrid, List } from 'lucide-react';
 import { createCliente, updateCliente, deleteCliente, validateClienteCpf } from '@/app/(dashboard)/clientes/actions';
 import { createEmprestimo } from '@/app/(dashboard)/emprestimos/actions'
 import { parseDateInputToUTCNoon, sanitizeDigits, validateBirthDateParts } from '@/lib/date-utils'
@@ -75,10 +75,21 @@ interface ClientsProps {
     total: number;
     totalPages: number;
   };
+  sort: 'newest' | 'az';
+  summary: {
+    total: number;
+    withEmail: number;
+    withWhatsapp: number;
+    withCpf: number;
+    cities: number;
+  };
 }
 
-export function Clients({ initialClients, pagination }: ClientsProps) {
+export function Clients({ initialClients, pagination, sort, summary }: ClientsProps) {
+  const sortStorageKey = 'supercob:clientes:sort'
+  const viewStorageKey = 'supercob:clientes:view'
   const expectedInterestOptions = Array.from({ length: 20 }, (_, index) => (index + 1) * 5)
+  const parcelingModeOptions = [{ value: 'integral' as const, label: 'Saldo integral' }]
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -87,6 +98,8 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
   const isAdmin = isAdminRole(session?.user?.role);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'az'>(sort);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [filters, setFilters] = useState(() => ({
     email: searchParams.get('email') ?? '',
     whatsapp: searchParams.get('whatsapp') ?? '',
@@ -124,7 +137,10 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
   })
   const [chargeInstallmentsManuallyEdited, setChargeInstallmentsManuallyEdited] = useState(false)
   const [chargeInstallmentsEnabled, setChargeInstallmentsEnabled] = useState(false)
+  const [chargeParcelingMode, setChargeParcelingMode] = useState<'integral' | 'remaining'>('integral')
   const [chargeExpectedInterestPercent, setChargeExpectedInterestPercent] = useState('100')
+  const [chargeCurrentInstallment, setChargeCurrentInstallment] = useState(1)
+  const [chargeDiscountPaidInstallments, setChargeDiscountPaidInstallments] = useState(false)
   const [docs, setDocs] = useState<Array<{ id: string; originalName: string; mimeType: string; size: number; createdAt: string; url: string }>>([])
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -207,6 +223,24 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
   }, [pathname, router, searchParams])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const storedViewMode = window.localStorage.getItem(viewStorageKey)
+    if (storedViewMode === 'grid' || storedViewMode === 'list') {
+      setViewMode(storedViewMode)
+    }
+
+    const currentSortParam = searchParams.get('sort')
+    if (!currentSortParam) {
+      const storedSort = window.localStorage.getItem(sortStorageKey)
+      if (storedSort === 'az' || storedSort === 'newest') {
+        setSortOrder(storedSort)
+      }
+    } else {
+      setSortOrder(currentSortParam === 'az' ? 'az' : 'newest')
+    }
+  }, [searchParams, sortStorageKey, viewStorageKey])
+
+  useEffect(() => {
     setSearchTerm(searchParams.get('search') ?? '')
     setFilters({
       email: searchParams.get('email') ?? '',
@@ -216,6 +250,19 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
       cpf: searchParams.get('cpf') ?? '',
     })
   }, [searchParams])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(sortStorageKey, sortOrder)
+    }
+    if (sortOrder === sort) return
+    updateQueryParams({ sort: sortOrder === 'newest' ? null : sortOrder })
+  }, [sort, sortOrder, sortStorageKey, updateQueryParams])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(viewStorageKey, viewMode)
+  }, [viewMode, viewStorageKey])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -325,7 +372,10 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
       setChargeData({ enabled: false, valor: '', quantidadeParcelas: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
       setChargeInstallmentsManuallyEdited(false)
       setChargeInstallmentsEnabled(false)
+      setChargeParcelingMode('integral')
       setChargeExpectedInterestPercent('100')
+      setChargeCurrentInstallment(1)
+      setChargeDiscountPaidInstallments(false)
     } else {
       setEditingClient(null);
       form.reset({
@@ -371,7 +421,10 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
       setChargeData({ enabled: false, valor: '', quantidadeParcelas: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
       setChargeInstallmentsManuallyEdited(false)
       setChargeInstallmentsEnabled(false)
+      setChargeParcelingMode('integral')
       setChargeExpectedInterestPercent('100')
+      setChargeCurrentInstallment(1)
+      setChargeDiscountPaidInstallments(false)
     }
     setActiveTab('basico');
     setIsModalOpen(true);
@@ -721,7 +774,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
   }, [chargeData.enabled])
 
   useEffect(() => {
-    if (!chargeData.enabled || !chargeInstallmentsEnabled || chargeInstallmentsManuallyEdited) return
+    if (!chargeData.enabled || !chargeInstallmentsEnabled || chargeParcelingMode !== 'integral' || chargeInstallmentsManuallyEdited) return
 
     const estimated = calculateEstimatedInstallments({
       valor: Number(chargeData.valor),
@@ -736,6 +789,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
   }, [
     chargeData.enabled,
     chargeInstallmentsEnabled,
+    chargeParcelingMode,
     chargeExpectedInterestPercent,
     chargeData.jurosMes,
     chargeData.quantidadeParcelas,
@@ -751,6 +805,8 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
   const handleChargeInstallmentsEnabledChange = (checked: boolean) => {
     setChargeInstallmentsEnabled(checked)
     setChargeInstallmentsManuallyEdited(false)
+    setChargeCurrentInstallment(1)
+    setChargeDiscountPaidInstallments(false)
     if (!checked) {
       setChargeData((prev) => ({ ...prev, quantidadeParcelas: '' }))
     }
@@ -761,13 +817,46 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
     setChargeExpectedInterestPercent(value)
   }
 
+  const handleChargeParcelingModeChange = (value: 'integral' | 'remaining') => {
+    setChargeInstallmentsManuallyEdited(false)
+    setChargeParcelingMode(value)
+  }
+
+  const chargeInstallmentCount = Number(chargeData.quantidadeParcelas)
+  const chargeCurrentInstallmentOptions = useMemo(
+    () =>
+      Number.isInteger(chargeInstallmentCount) && chargeInstallmentCount > 0
+        ? Array.from({ length: chargeInstallmentCount }, (_, index) => index + 1)
+        : [],
+    [chargeInstallmentCount],
+  )
+
+  useEffect(() => {
+    if (chargeCurrentInstallmentOptions.length === 0) {
+      if (chargeCurrentInstallment !== 1) setChargeCurrentInstallment(1)
+      if (chargeDiscountPaidInstallments) setChargeDiscountPaidInstallments(false)
+      return
+    }
+
+    if (chargeCurrentInstallment > chargeCurrentInstallmentOptions.length) {
+      setChargeCurrentInstallment(chargeCurrentInstallmentOptions.length)
+    }
+
+    if (chargeCurrentInstallment <= 1 && chargeDiscountPaidInstallments) {
+      setChargeDiscountPaidInstallments(false)
+    }
+  }, [chargeCurrentInstallment, chargeCurrentInstallmentOptions, chargeDiscountPaidInstallments])
+
   const chargeInstallmentHint = (() => {
     const installments = Number(chargeData.quantidadeParcelas)
-    const monthlyPayment = calculateEstimatedMonthlyPayment({
-      valor: Number(chargeData.valor),
-      jurosMes: Number(chargeData.jurosMes),
-      quantidadeParcelas: installments,
-    })
+    const chargeValue = Number(chargeData.valor)
+    const monthlyPayment = chargeParcelingMode === 'remaining'
+      ? (Number.isFinite(chargeValue) && chargeValue > 0 && Number.isInteger(installments) && installments > 0 ? chargeValue / installments : null)
+      : calculateEstimatedMonthlyPayment({
+          valor: chargeValue,
+          jurosMes: Number(chargeData.jurosMes),
+          quantidadeParcelas: installments,
+        })
 
     if (!chargeInstallmentsEnabled || !Number.isInteger(installments) || installments <= 0 || !monthlyPayment) return null
 
@@ -775,6 +864,29 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
       style: 'currency',
       currency: 'BRL',
     }).format(monthlyPayment)}`
+  })()
+
+  const chargeDiscountedPaidInstallmentsLabel = (() => {
+    if (!chargeInstallmentsEnabled || !chargeDiscountPaidInstallments) return null
+    const installments = Number(chargeData.quantidadeParcelas)
+    const paidInstallments = Math.max(chargeCurrentInstallment - 1, 0)
+    if (!Number.isInteger(installments) || installments <= 0 || paidInstallments <= 0) return null
+
+    const chargeValue = Number(chargeData.valor)
+    const monthlyPayment = chargeParcelingMode === 'remaining'
+      ? (Number.isFinite(chargeValue) && chargeValue > 0 ? chargeValue / installments : null)
+      : calculateEstimatedMonthlyPayment({
+          valor: chargeValue,
+          jurosMes: Number(chargeData.jurosMes),
+          quantidadeParcelas: installments,
+        })
+
+    if (!monthlyPayment) return null
+
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(monthlyPayment * paidInstallments)
   })()
 
   return (
@@ -796,6 +908,34 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all shadow-sm"
               placeholder="Buscar por nome, e-mail ou WhatsApp..."
             />
+          </div>
+
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value === 'az' ? 'az' : 'newest')}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none shadow-sm"
+          >
+            <option value="newest">Novos primeiro</option>
+            <option value="az">A-Z</option>
+          </select>
+
+          <div className="flex items-center rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`rounded-xl p-2 transition-colors ${viewMode === 'grid' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              aria-label="Visualização em grade"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`rounded-xl p-2 transition-colors ${viewMode === 'list' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              aria-label="Visualização em lista"
+            >
+              <List className="h-4 w-4" />
+            </button>
           </div>
           
           <button
@@ -820,8 +960,36 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Filtrados</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">{summary.total}</p>
+          <p className="mt-1 text-sm text-slate-500">Clientes no resultado atual</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">WhatsApp</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withWhatsapp}</p>
+          <p className="mt-1 text-sm text-slate-500">Com contato disponível</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">E-mail</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withEmail}</p>
+          <p className="mt-1 text-sm text-slate-500">Com e-mail preenchido</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">CPF</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withCpf}</p>
+          <p className="mt-1 text-sm text-slate-500">Com CPF cadastrado</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Cidades</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">{summary.cities}</p>
+          <p className="mt-1 text-sm text-slate-500">Cidades distintas no filtro</p>
+        </div>
+      </div>
+
       {/* Grid of Clients (Modern approach instead of just table) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
         <AnimatePresence mode='popLayout'>
           {initialClients.map((client, idx) => (
             <motion.div
@@ -831,7 +999,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2, delay: idx * 0.05 }}
               key={client.id}
-              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group"
+              className={`bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group ${viewMode === 'list' ? 'w-full' : ''}`}
             >
               <div className="flex items-start justify-between mb-6">
                 <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xl shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
@@ -1052,6 +1220,16 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
                       setChargeData={setChargeData}
                       parcelarValor={chargeInstallmentsEnabled}
                       onParcelarValorChange={handleChargeInstallmentsEnabledChange}
+                      parcelingMode={chargeParcelingMode}
+                      onParcelingModeChange={handleChargeParcelingModeChange}
+                      parcelingModeOptions={parcelingModeOptions}
+                      remainingGrossAmountLabel={null}
+                      currentInstallment={chargeCurrentInstallment}
+                      currentInstallmentOptions={chargeCurrentInstallmentOptions}
+                      onCurrentInstallmentChange={setChargeCurrentInstallment}
+                      discountPaidInstallments={chargeDiscountPaidInstallments}
+                      onDiscountPaidInstallmentsChange={setChargeDiscountPaidInstallments}
+                      discountedPaidInstallmentsLabel={chargeDiscountedPaidInstallmentsLabel}
                       onParcelasManualChange={handleChargeParcelasManualChange}
                       installmentHint={chargeInstallmentHint}
                       expectedInterestPercent={chargeExpectedInterestPercent}
