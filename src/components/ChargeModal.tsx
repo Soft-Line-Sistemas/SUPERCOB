@@ -331,7 +331,7 @@ export function ChargeModal({
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Parcelas</label>
+                    <label className="ml-1 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Parcelas</label>
                     <input
                       type="number"
                       min="1"
@@ -342,7 +342,7 @@ export function ChargeModal({
                           : ''
                       }
                       onChange={(e) => onQuantidadeParcelasChange(e.target.value)}
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
                       placeholder="Ex: 20"
                     />
                   </div>
@@ -373,7 +373,7 @@ export function ChargeModal({
                 </div>
 
                 {installmentHint ? (
-                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-900">
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-900 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-100">
                     {installmentHint}
                   </div>
                 ) : null}

@@ -78,6 +78,7 @@ interface ClientsProps {
 }
 
 export function Clients({ initialClients, pagination }: ClientsProps) {
+  const expectedInterestOptions = Array.from({ length: 20 }, (_, index) => (index + 1) * 5)
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -122,6 +123,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
     observacao: '',
   })
   const [chargeInstallmentsManuallyEdited, setChargeInstallmentsManuallyEdited] = useState(false)
+  const [chargeExpectedInterestPercent, setChargeExpectedInterestPercent] = useState('100')
   const [docs, setDocs] = useState<Array<{ id: string; originalName: string; mimeType: string; size: number; createdAt: string; url: string }>>([])
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -321,6 +323,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
       });
       setChargeData({ enabled: false, valor: '', quantidadeParcelas: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
       setChargeInstallmentsManuallyEdited(false)
+      setChargeExpectedInterestPercent('100')
     } else {
       setEditingClient(null);
       form.reset({
@@ -365,6 +368,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
       });
       setChargeData({ enabled: false, valor: '', quantidadeParcelas: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
       setChargeInstallmentsManuallyEdited(false)
+      setChargeExpectedInterestPercent('100')
     }
     setActiveTab('basico');
     setIsModalOpen(true);
@@ -719,6 +723,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
     const estimated = calculateEstimatedInstallments({
       valor: Number(chargeData.valor),
       jurosMes: Number(chargeData.jurosMes),
+      jurosTotalPercentualEsperado: Number(chargeExpectedInterestPercent),
     })
 
     const nextValue = estimated ? String(estimated) : ''
@@ -727,6 +732,7 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
     setChargeData((prev) => ({ ...prev, quantidadeParcelas: nextValue }))
   }, [
     chargeData.enabled,
+    chargeExpectedInterestPercent,
     chargeData.jurosMes,
     chargeData.quantidadeParcelas,
     chargeData.valor,
@@ -736,6 +742,11 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
   const handleChargeParcelasManualChange = (value: string) => {
     setChargeInstallmentsManuallyEdited(true)
     setChargeData((prev) => ({ ...prev, quantidadeParcelas: value }))
+  }
+
+  const handleExpectedInterestPercentChange = (value: string) => {
+    setChargeInstallmentsManuallyEdited(false)
+    setChargeExpectedInterestPercent(value)
   }
 
   const chargeInstallmentHint = (() => {
@@ -1029,6 +1040,9 @@ export function Clients({ initialClients, pagination }: ClientsProps) {
                       setChargeData={setChargeData}
                       onParcelasManualChange={handleChargeParcelasManualChange}
                       installmentHint={chargeInstallmentHint}
+                      expectedInterestPercent={chargeExpectedInterestPercent}
+                      expectedInterestOptions={expectedInterestOptions}
+                      onExpectedInterestPercentChange={handleExpectedInterestPercentChange}
                     />
                   )}
 

@@ -27,6 +27,16 @@ describe('calculateEstimatedInstallments', () => {
     expect(calculateEstimatedInstallments({ valor: null, jurosMes: 30 })).toBeNull()
   })
 
+  it('permite usar um percentual total esperado para reduzir a sugestao de parcelas', () => {
+    expect(
+      calculateEstimatedInstallments({
+        valor: 1000,
+        jurosMes: 10,
+        jurosTotalPercentualEsperado: 50,
+      }),
+    ).toBe(5)
+  })
+
   it('calcula o valor mensal estimado', () => {
     expect(
       calculateEstimatedMonthlyPayment({

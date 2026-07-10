@@ -223,9 +223,9 @@ export function LoanCard({
         </div>
 
         {installmentProgress ? (
-          <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Parcelamento</p>
-            <p className="mt-1 text-sm font-black text-blue-900">
+          <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 dark:border-blue-500/20 dark:bg-blue-500/10">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-300">Parcelamento</p>
+            <p className="mt-1 text-sm font-black text-blue-900 dark:text-blue-100">
               Parcela {installmentProgress.current}/{installmentProgress.total}
             </p>
           </div>
