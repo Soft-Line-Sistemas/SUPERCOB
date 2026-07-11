@@ -17,6 +17,8 @@ export default async function EmprestimosPage({
   const pageSize = 50
   const page = Math.max(1, Number(params.page) || 1)
   const sort: 'newest' | 'az' = params.sort === 'az' ? 'az' : 'newest'
+  const overdue: 'yes' | 'no' | undefined = params.overdue === 'yes' ? 'yes' : params.overdue === 'no' ? 'no' : undefined
+  const lifecycle: 'open' | 'closed' | undefined = params.lifecycle === 'open' ? 'open' : params.lifecycle === 'closed' ? 'closed' : undefined
   const filters = {
     status: params.status as string,
     q: params.q as string,
@@ -30,6 +32,8 @@ export default async function EmprestimosPage({
     page,
     pageSize,
     sort,
+    overdue,
+    lifecycle,
   }
   const clienteId = params.clienteId as string
   const role = (session?.user as any)?.role as 'ADMIN' | 'OPERADOR'

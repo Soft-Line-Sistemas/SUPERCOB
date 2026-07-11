@@ -126,4 +126,36 @@ describe('clientes actions - listagem e dashboard', () => {
       }),
     )
   })
+
+  it('aplica filtros de preenchimento dos cards do dashboard', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } })
+    mockClienteFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+    mockClienteCount
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+
+    await getClientesPage({
+      emailStatus: 'missing',
+      whatsappStatus: 'filled',
+      cpfStatus: 'missing',
+    })
+
+    expect(mockClienteFindMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: {
+          AND: [
+            { OR: [{ email: null }, { email: '' }] },
+            { whatsapp: { not: null } },
+            { whatsapp: { not: '' } },
+            { OR: [{ cpf: null }, { cpf: '' }] },
+          ],
+        },
+      }),
+    )
+  })
 })

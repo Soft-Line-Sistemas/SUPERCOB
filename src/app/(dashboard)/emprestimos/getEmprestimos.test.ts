@@ -209,4 +209,91 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
     expect(result.summary.vencidos).toBeGreaterThanOrEqual(1)
     expect(result.items.map((item) => item.id)).toEqual(['l1'])
   })
+
+  it('aplica filtro de lifecycle fechado no fluxo padrao', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } })
+    mockFindMany.mockResolvedValueOnce([])
+    mockCount
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+    mockGroupBy.mockResolvedValue([])
+    mockAggregate.mockResolvedValue({ _sum: { valor: 0 } })
+
+    await getEmprestimos({
+      lifecycle: 'closed',
+      page: 1,
+      pageSize: 10,
+    })
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: { in: ['QUITADO', 'CANCELADO'] },
+        },
+      }),
+    )
+  })
+
+  it('aplica filtro de vencidos no fluxo especial', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } })
+    mockFindMany
+      .mockResolvedValueOnce([
+        {
+          id: 'l1',
+          status: 'ABERTO',
+          valor: 1000,
+          cobrancaAtiva: true,
+          vencimento: new Date('2000-01-01T12:00:00.000Z'),
+          createdAt: new Date('2026-07-05T12:00:00.000Z'),
+          cliente: { nome: 'Ana', whatsapp: '71999999999' },
+        },
+        {
+          id: 'l2',
+          status: 'ABERTO',
+          valor: 500,
+          cobrancaAtiva: true,
+          vencimento: new Date('2999-01-01T12:00:00.000Z'),
+          createdAt: new Date('2026-07-04T12:00:00.000Z'),
+          cliente: { nome: 'Bruno', whatsapp: '71988888888' },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'l1',
+          clienteId: 'c1',
+          usuarioId: 'u1',
+          valor: 1000,
+          quantidadeParcelas: null,
+          valorPago: 0,
+          jurosMes: 10,
+          jurosAtrasoDia: 0,
+          vencimento: new Date('2000-01-01T12:00:00.000Z'),
+          quitadoEm: null,
+          status: 'ABERTO',
+          observacao: null,
+          createdAt: new Date('2026-07-05T12:00:00.000Z'),
+          cobrancaAtiva: true,
+          jurosPagos: 0,
+          cliente: { nome: 'Ana', email: 'ana@x.com', whatsapp: '71999999999' },
+          usuario: { nome: 'Gerente 1' },
+          historico: [],
+        },
+      ])
+
+    const result = await getEmprestimos({
+      overdue: 'yes',
+      page: 1,
+      pageSize: 10,
+    })
+
+    expect(mockFindMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { id: { in: ['l1'] } },
+      }),
+    )
+    expect(result.total).toBe(1)
+    expect(result.summary.vencidos).toBe(1)
+  })
 })

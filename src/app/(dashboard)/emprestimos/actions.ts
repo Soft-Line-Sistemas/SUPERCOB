@@ -20,6 +20,8 @@ export async function getEmprestimos(filters?: {
   page?: number;
   pageSize?: number;
   sort?: 'newest' | 'az';
+  overdue?: 'yes' | 'no';
+  lifecycle?: 'open' | 'closed';
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -38,6 +40,12 @@ export async function getEmprestimos(filters?: {
 
   if (filters?.status) {
     where.status = filters.status
+  }
+
+  if (filters?.lifecycle === 'open') {
+    where.status = { in: ['ABERTO', 'NEGOCIACAO'] }
+  } else if (filters?.lifecycle === 'closed') {
+    where.status = { in: ['QUITADO', 'CANCELADO'] }
   }
 
   if (filters?.q && filters.q.trim() !== '') {
@@ -112,6 +120,7 @@ export async function getEmprestimos(filters?: {
     return !Number.isNaN(day) && day >= 1 && day <= 31
   })()
   const hasContactOnlyFilter = Boolean(filters?.contactOnly)
+  const overdueFilter = filters?.overdue
 
   if (hasVencimentoDayFilter && !where.vencimento) {
     where.vencimento = { not: null }
@@ -123,6 +132,22 @@ export async function getEmprestimos(filters?: {
     vencimento: Date | null
     cliente: { whatsapp: string | null }
   }) => {
+    if (overdueFilter === 'yes') {
+      const isOverdue =
+        loan.status !== 'QUITADO' &&
+        loan.status !== 'CANCELADO' &&
+        !!loan.vencimento &&
+        new Date(loan.vencimento).getTime() < Date.now()
+      if (!isOverdue) return false
+    } else if (overdueFilter === 'no') {
+      const isOverdue =
+        loan.status !== 'QUITADO' &&
+        loan.status !== 'CANCELADO' &&
+        !!loan.vencimento &&
+        new Date(loan.vencimento).getTime() < Date.now()
+      if (isOverdue) return false
+    }
+
     if (hasVencimentoDayFilter) {
       const day = Number(filters?.vencimentoDay)
       if (!loan.vencimento || new Date(loan.vencimento).getUTCDate() !== day) return false
@@ -150,7 +175,7 @@ export async function getEmprestimos(filters?: {
     cobrancaAtiva: 0,
   }
 
-  if (hasVencimentoDayFilter || hasContactOnlyFilter) {
+  if (hasVencimentoDayFilter || hasContactOnlyFilter || overdueFilter === 'yes' || overdueFilter === 'no') {
     const filteredCandidates = await prisma.emprestimo.findMany({
       where,
       select: {

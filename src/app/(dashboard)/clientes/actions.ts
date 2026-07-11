@@ -63,6 +63,9 @@ export async function getClientesPage(options?: {
   estado?: string
   cpf?: string
   sort?: 'newest' | 'az'
+  emailStatus?: 'filled' | 'missing'
+  whatsappStatus?: 'filled' | 'missing'
+  cpfStatus?: 'filled' | 'missing'
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -80,6 +83,9 @@ export async function getClientesPage(options?: {
   const estado = (options?.estado ?? '').trim()
   const cpf = (options?.cpf ?? '').replace(/\D/g, '')
   const sort: 'newest' | 'az' = options?.sort === 'az' ? 'az' : 'newest'
+  const emailStatus = options?.emailStatus
+  const whatsappStatus = options?.whatsappStatus
+  const cpfStatus = options?.cpfStatus
 
   let where: Prisma.ClienteWhereInput | undefined
 
@@ -133,6 +139,30 @@ export async function getClientesPage(options?: {
 
   if (cpf !== '') {
     andConditions.push({ cpf: { contains: cpf } })
+  }
+
+  if (emailStatus === 'filled') {
+    andConditions.push({ email: { not: null } }, { email: { not: '' } })
+  } else if (emailStatus === 'missing') {
+    andConditions.push({
+      OR: [{ email: null }, { email: '' }],
+    })
+  }
+
+  if (whatsappStatus === 'filled') {
+    andConditions.push({ whatsapp: { not: null } }, { whatsapp: { not: '' } })
+  } else if (whatsappStatus === 'missing') {
+    andConditions.push({
+      OR: [{ whatsapp: null }, { whatsapp: '' }],
+    })
+  }
+
+  if (cpfStatus === 'filled') {
+    andConditions.push({ cpf: { not: null } }, { cpf: { not: '' } })
+  } else if (cpfStatus === 'missing') {
+    andConditions.push({
+      OR: [{ cpf: null }, { cpf: '' }],
+    })
   }
 
   if (andConditions.length > 0) {

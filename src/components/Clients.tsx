@@ -264,6 +264,28 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
     window.localStorage.setItem(viewStorageKey, viewMode)
   }, [viewMode, viewStorageKey])
 
+  const emailStatusFilter = searchParams.get('emailStatus')
+  const whatsappStatusFilter = searchParams.get('whatsappStatus')
+  const cpfStatusFilter = searchParams.get('cpfStatus')
+
+  const getSummaryCardClass = (state: string | null) => {
+    if (state === 'missing') return 'border-red-300 ring-2 ring-red-100'
+    if (state === 'filled') return 'border-blue-300 ring-2 ring-blue-100'
+    return 'border-slate-200'
+  }
+
+  const getSummaryHintClass = (state: string | null) => {
+    if (state === 'missing') return 'text-red-600'
+    if (state === 'filled') return 'text-blue-600'
+    return 'text-slate-500'
+  }
+
+  const cyclePresenceFilter = (param: 'emailStatus' | 'whatsappStatus' | 'cpfStatus') => {
+    const current = searchParams.get(param)
+    const nextValue = current === 'missing' ? 'filled' : current === 'filled' ? null : 'missing'
+    updateQueryParams({ [param]: nextValue } as Record<string, string | null>)
+  }
+
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       if (searchTerm === (searchParams.get('search') ?? '')) return
@@ -966,20 +988,38 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
           <p className="mt-3 text-3xl font-bold text-slate-900">{summary.total}</p>
           <p className="mt-1 text-sm text-slate-500">Clientes no resultado atual</p>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className={`rounded-3xl border bg-white p-5 shadow-sm ${getSummaryCardClass(whatsappStatusFilter)}`}>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">WhatsApp</p>
           <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withWhatsapp}</p>
-          <p className="mt-1 text-sm text-slate-500">Com contato disponível</p>
+          <button
+            type="button"
+            onClick={() => cyclePresenceFilter('whatsappStatus')}
+            className={`mt-1 text-sm ${getSummaryHintClass(whatsappStatusFilter)}`}
+          >
+            Com contato disponível
+          </button>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className={`rounded-3xl border bg-white p-5 shadow-sm ${getSummaryCardClass(emailStatusFilter)}`}>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">E-mail</p>
           <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withEmail}</p>
-          <p className="mt-1 text-sm text-slate-500">Com e-mail preenchido</p>
+          <button
+            type="button"
+            onClick={() => cyclePresenceFilter('emailStatus')}
+            className={`mt-1 text-sm ${getSummaryHintClass(emailStatusFilter)}`}
+          >
+            Com e-mail preenchido
+          </button>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className={`rounded-3xl border bg-white p-5 shadow-sm ${getSummaryCardClass(cpfStatusFilter)}`}>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">CPF</p>
           <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withCpf}</p>
-          <p className="mt-1 text-sm text-slate-500">Com CPF cadastrado</p>
+          <button
+            type="button"
+            onClick={() => cyclePresenceFilter('cpfStatus')}
+            className={`mt-1 text-sm ${getSummaryHintClass(cpfStatusFilter)}`}
+          >
+            Com CPF cadastrado
+          </button>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Cidades</p>
@@ -989,77 +1029,146 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
       </div>
 
       {/* Grid of Clients (Modern approach instead of just table) */}
-      <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
-        <AnimatePresence mode='popLayout'>
-          {initialClients.map((client, idx) => (
-            <motion.div
-              layout
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2, delay: idx * 0.05 }}
-              key={client.id}
-              className={`bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group ${viewMode === 'list' ? 'w-full' : ''}`}
-            >
-              <div className="flex items-start justify-between mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xl shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
-                  {client.nome.charAt(0)}
-                </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    onClick={() => handleOpenModal(client)}
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </button>
-                  {isAdmin && (
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <AnimatePresence mode='popLayout'>
+            {initialClients.map((client, idx) => (
+              <motion.div
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, delay: idx * 0.05 }}
+                key={client.id}
+                className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group"
+              >
+                <div className="flex items-start justify-between mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xl shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                    {client.nome.charAt(0)}
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
-                      onClick={() => handleDelete(client.id)}
-                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      onClick={() => handleOpenModal(client)}
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Edit2 className="h-4 w-4" />
                     </button>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-1 truncate">{client.nome}</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <Mail className="h-4 w-4" />
-                    <span className="truncate">{client.email || '-'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <Phone className="h-4 w-4" />
-                    <span>{client.whatsapp ? formatPhoneBR(client.whatsapp) : '-'}</span>
+                    {isAdmin && (
+                      <button 
+                        onClick={() => handleDelete(client.id)}
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-6 pt-6 border-t border-slate-50 flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Desde {new Date(client.createdAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
-                <button
-                  type="button"
-                  onClick={() => router.push(`/clientes/${client.id}`)}
-                  className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-600 hover:text-white transition-colors"
-                >
-                  Ver Histórico
-                </button>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-1 truncate">{client.nome}</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <Mail className="h-4 w-4" />
+                      <span className="truncate">{client.email || '-'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <Phone className="h-4 w-4" />
+                      <span>{client.whatsapp ? formatPhoneBR(client.whatsapp) : '-'}</span>
+                    </div>
+                  </div>
+                </div>
 
-        {initialClients.length === 0 && (
-          <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-300">
-            <div className="w-16 h-16 bg-slate-950 rounded-full flex items-center justify-center mx-auto mb-4">
-              <User className="h-8 w-8 text-slate-300" />
-            </div>
-            <p className="text-slate-500 font-medium">Nenhum cliente encontrado com os filtros atuais.</p>
+                <div className="mt-6 pt-6 border-t border-slate-50 flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Desde {new Date(client.createdAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/clientes/${client.id}`)}
+                    className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-600 hover:text-white transition-colors"
+                  >
+                    Ver Histórico
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Cliente</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Contato</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Cidade</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">CPF</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Cadastro</th>
+                  <th className="px-6 py-4 text-right text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {initialClients.map((client) => (
+                  <tr key={client.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-sm font-bold text-blue-600">
+                          {client.nome.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-slate-900">{client.nome}</p>
+                          <p className="truncate text-xs text-slate-500">{client.email || 'Sem e-mail'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{client.whatsapp ? formatPhoneBR(client.whatsapp) : '-'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{client.cidade || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{client.cpf ? formatCPF(client.cpf) : '-'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {new Date(client.createdAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/clientes/${client.id}`)}
+                          className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 transition-colors hover:bg-blue-600 hover:text-white"
+                        >
+                          Ver histórico
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenModal(client)}
+                          className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(client.id)}
+                            className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {initialClients.length === 0 && (
+        <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-300">
+          <div className="w-16 h-16 bg-slate-950 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="h-8 w-8 text-slate-300" />
+          </div>
+          <p className="text-slate-500 font-medium">Nenhum cliente encontrado com os filtros atuais.</p>
+        </div>
+      )}
 
       {pagination.totalPages > 1 && (
         <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white px-6 py-4 shadow-sm md:flex-row md:items-center md:justify-between">

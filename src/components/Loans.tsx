@@ -242,6 +242,12 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
   };
 
+  const getLoanSaldo = (loan: Loan) => {
+    if (loan.status === 'CANCELADO') return 0
+    const pago = Number(loan.valorPago ?? 0) || 0
+    return Math.max((Number(loan.valor) || 0) - pago, 0)
+  }
+
   const generateWhatsAppLink = (loan: Loan) => {
     const text = `Olá ${loan.cliente.nome}, sou da Mister Cobrança. Gostaria de falar sobre a sua cobrança no valor de ${formatCurrency(loan.valor)}.`;
     const phone = loan.cliente.whatsapp.replace(/\D/g, '');
@@ -283,6 +289,44 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     if (typeof window === 'undefined') return
     window.localStorage.setItem(viewStorageKey, viewMode)
   }, [viewMode, viewStorageKey])
+
+  const overdueFilter = searchParams.get('overdue')
+  const lifecycleFilter = searchParams.get('lifecycle')
+
+  const getSummaryCardClass = (state: string | null) => {
+    if (state === 'no' || state === 'open') return 'border-red-300 ring-2 ring-red-100'
+    if (state === 'yes' || state === 'closed') return 'border-blue-300 ring-2 ring-blue-100'
+    return 'border-slate-200'
+  }
+
+  const getSummaryHintClass = (state: string | null) => {
+    if (state === 'no' || state === 'open') return 'text-red-600'
+    if (state === 'yes' || state === 'closed') return 'text-blue-600'
+    return 'text-slate-500'
+  }
+
+  const cycleLoanSummaryFilter = (param: 'overdue' | 'lifecycle') => {
+    const current = searchParams.get(param)
+    const nextValue =
+      param === 'overdue'
+        ? current === 'no'
+          ? 'yes'
+          : current === 'yes'
+            ? null
+            : 'no'
+        : current === 'open'
+          ? 'closed'
+          : current === 'closed'
+            ? null
+            : 'open'
+
+    const next = new URLSearchParams(searchParams.toString())
+    if (nextValue) next.set(param, nextValue)
+    else next.delete(param)
+    next.delete('page')
+    router.replace(`${pathname}?${next.toString()}`)
+    router.refresh()
+  }
 
   useEffect(() => {
     if (!shouldAutoOpenNew) return
@@ -896,15 +940,27 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
           <p className="mt-3 text-3xl font-black text-slate-900">{formatCurrency(summary.valorTotal)}</p>
           <p className="mt-1 text-sm text-slate-500">Valor total filtrado</p>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className={`rounded-3xl border bg-white p-5 shadow-sm ${getSummaryCardClass(overdueFilter)}`}>
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Em aberto</p>
           <p className="mt-3 text-3xl font-black text-slate-900">{summary.aberto + summary.negociacao}</p>
-          <p className="mt-1 text-sm text-slate-500">{summary.vencidos} vencidos no filtro</p>
+          <button
+            type="button"
+            onClick={() => cycleLoanSummaryFilter('overdue')}
+            className={`mt-1 text-sm ${getSummaryHintClass(overdueFilter)}`}
+          >
+            {summary.vencidos} vencidos no filtro
+          </button>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className={`rounded-3xl border bg-white p-5 shadow-sm ${getSummaryCardClass(lifecycleFilter)}`}>
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Cobrança ativa</p>
           <p className="mt-3 text-3xl font-black text-slate-900">{summary.cobrancaAtiva}</p>
-          <p className="mt-1 text-sm text-slate-500">{summary.quitado} quitados e {summary.cancelado} cancelados</p>
+          <button
+            type="button"
+            onClick={() => cycleLoanSummaryFilter('lifecycle')}
+            className={`mt-1 text-sm ${getSummaryHintClass(lifecycleFilter)}`}
+          >
+            {summary.quitado} quitados e {summary.cancelado} cancelados
+          </button>
         </div>
       </div>
 
@@ -914,34 +970,162 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       />
 
       {/* Grid Layout for Loans */}
-      <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
-        <AnimatePresence mode='popLayout'>
-          {loansToRender.map((loan, idx) => (
-            <LoanCard
-              key={loan.id}
-              loan={loan}
-              idx={idx}
-              onEdit={handleOpenModal}
-              onDelete={handleDelete}
-              onDetail={handleOpenDetail}
-              onToggleCobranca={handleToggleCobranca}
-              onExportDossie={handleOpenChargeDelivery}
-              onOpenPaymentTerminal={handleOpenPaymentTerminal}
-              onConfirmMonthlyPayment={handleDirectMonthlyPayment}
-              formatCurrency={formatCurrency}
-              formatDate={formatDate}
-              generateWhatsAppLink={generateWhatsAppLink}
-              contactFilter={contactFilter}
-              isAdmin={userRole === 'ADMIN'}
-              installmentProgress={getCurrentInstallment(loan)}
-              canOpenPaymentTerminal={canOpenPaymentTerminal(loan)}
-              canConfirmMonthlyPayment={canConfirmMonthlyPayment(loan)}
-              isMonthlyPaymentSettled={isMonthlyPaymentSettled(loan)}
-              isConfirmMonthlyPaymentPending={isPaymentPending && directMonthlyPaymentLoanId === loan.id}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <AnimatePresence mode='popLayout'>
+            {loansToRender.map((loan, idx) => (
+              <LoanCard
+                key={loan.id}
+                loan={loan}
+                idx={idx}
+                onEdit={handleOpenModal}
+                onDelete={handleDelete}
+                onDetail={handleOpenDetail}
+                onToggleCobranca={handleToggleCobranca}
+                onExportDossie={handleOpenChargeDelivery}
+                onOpenPaymentTerminal={handleOpenPaymentTerminal}
+                onConfirmMonthlyPayment={handleDirectMonthlyPayment}
+                formatCurrency={formatCurrency}
+                formatDate={formatDate}
+                generateWhatsAppLink={generateWhatsAppLink}
+                contactFilter={contactFilter}
+                isAdmin={userRole === 'ADMIN'}
+                installmentProgress={getCurrentInstallment(loan)}
+                canOpenPaymentTerminal={canOpenPaymentTerminal(loan)}
+                canConfirmMonthlyPayment={canConfirmMonthlyPayment(loan)}
+                isMonthlyPaymentSettled={isMonthlyPaymentSettled(loan)}
+                isConfirmMonthlyPaymentPending={isPaymentPending && directMonthlyPaymentLoanId === loan.id}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Cliente</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Status</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Saldo</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Valor</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Vencimento</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Consultor</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Cobrança</th>
+                  <th className="px-6 py-4 text-right text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loansToRender.map((loan) => {
+                  const config = statusConfig[loan.status]
+                  const isDraft = loan.id.startsWith('draft-')
+                  const saldo = getLoanSaldo(loan)
+                  const installmentProgress = getCurrentInstallment(loan)
+                  return (
+                    <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetail(loan)}
+                          className="text-left"
+                        >
+                          <p className="font-bold text-slate-900">{loan.cliente.nome}</p>
+                          <p className="text-xs text-slate-500">{loan.cliente.email || loan.cliente.whatsapp || '-'}</p>
+                        </button>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${config.bg} ${config.color}`}>
+                          {isDraft ? 'Cobrança inicial' : config.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-bold text-slate-900">{formatCurrency(saldo)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        <div>{formatCurrency(loan.valor)}</div>
+                        {installmentProgress ? (
+                          <div className="text-xs text-blue-600">
+                            Parcela {installmentProgress.current}/{installmentProgress.total}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{formatDate(loan.vencimento)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{loan.usuario?.nome || 'Não atribuído'}</td>
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          disabled={isDraft}
+                          onClick={() => handleToggleCobranca(loan.id, !(loan.cobrancaAtiva ?? false))}
+                          className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${(loan.cobrancaAtiva ?? false) ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'} disabled:cursor-not-allowed disabled:opacity-60`}
+                        >
+                          {(loan.cobrancaAtiva ?? false) ? 'Ativa' : 'Inativa'}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          {!isDraft && canOpenPaymentTerminal(loan) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPaymentTerminal(loan)}
+                              className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
+                            >
+                              Terminal
+                            </button>
+                          ) : null}
+                          {!isDraft && canConfirmMonthlyPayment(loan) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDirectMonthlyPayment(loan)}
+                              disabled={isPaymentPending && directMonthlyPaymentLoanId === loan.id}
+                              className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-60"
+                            >
+                              {isPaymentPending && directMonthlyPaymentLoanId === loan.id ? 'Confirmando...' : 'Confirmar mês'}
+                            </button>
+                          ) : null}
+                          {!isDraft && (loan.cobrancaAtiva ?? false) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenChargeDelivery(loan.id)}
+                              className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100"
+                            >
+                              Cobrança
+                            </button>
+                          ) : null}
+                          {!isDraft ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDetail(loan)}
+                              className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100"
+                            >
+                              Ver
+                            </button>
+                          ) : null}
+                          {!isDraft ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenModal(loan)}
+                              className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200"
+                            >
+                              Editar
+                            </button>
+                          ) : null}
+                          {!isDraft && userRole === 'ADMIN' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(loan.id)}
+                              className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100"
+                            >
+                              Excluir
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Paginação */}
       {totalPages > 1 && (
