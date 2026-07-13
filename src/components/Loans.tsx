@@ -421,7 +421,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       });
       setInstallmentsManuallyEdited(Boolean(loan.quantidadeParcelas))
       setInstallmentsEnabled(Boolean(loan.quantidadeParcelas))
-      setParcelingMode('integral')
+      setParcelingMode('remaining')
       setExpectedInterestPercent('100')
       setCurrentInstallmentSelection(1)
       setDiscountPaidInstallments(false)
@@ -492,7 +492,11 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     setInstallmentsManuallyEdited(false)
     setCurrentInstallmentSelection(1)
     setDiscountPaidInstallments(false)
+    if (checked && editingLoan) {
+      setParcelingMode('remaining')
+    }
     if (!checked) {
+      setParcelingMode('integral')
       setFormData((prev) => ({ ...prev, quantidadeParcelas: 0 }))
     }
   }
