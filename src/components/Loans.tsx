@@ -305,6 +305,18 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     return 'text-slate-500'
   }
 
+  const getOverdueLabel = (state: string | null) => {
+    if (state === 'no') return 'Não vencidos no filtro'
+    if (state === 'yes') return 'Vencidos no filtro'
+    return 'Vencidos no filtro'
+  }
+
+  const getLifecycleLabel = (state: string | null) => {
+    if (state === 'open') return `${summary.aberto + summary.negociacao} em aberto e negociação`
+    if (state === 'closed') return `${summary.quitado} quitados e ${summary.cancelado} cancelados`
+    return `${summary.quitado} quitados e ${summary.cancelado} cancelados`
+  }
+
   const cycleLoanSummaryFilter = (param: 'overdue' | 'lifecycle') => {
     const current = searchParams.get(param)
     const nextValue =
@@ -940,28 +952,28 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
           <p className="mt-3 text-3xl font-black text-slate-900">{formatCurrency(summary.valorTotal)}</p>
           <p className="mt-1 text-sm text-slate-500">Valor total filtrado</p>
         </div>
-        <div className={`rounded-3xl border bg-white p-5 shadow-sm ${getSummaryCardClass(overdueFilter)}`}>
+        <button
+          type="button"
+          onClick={() => cycleLoanSummaryFilter('overdue')}
+          className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(overdueFilter)}`}
+        >
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Em aberto</p>
           <p className="mt-3 text-3xl font-black text-slate-900">{summary.aberto + summary.negociacao}</p>
-          <button
-            type="button"
-            onClick={() => cycleLoanSummaryFilter('overdue')}
-            className={`mt-1 text-sm ${getSummaryHintClass(overdueFilter)}`}
-          >
-            {summary.vencidos} vencidos no filtro
-          </button>
-        </div>
-        <div className={`rounded-3xl border bg-white p-5 shadow-sm ${getSummaryCardClass(lifecycleFilter)}`}>
+          <p className={`mt-1 text-sm ${getSummaryHintClass(overdueFilter)}`}>
+            {overdueFilter === 'yes' ? `${summary.vencidos} ${getOverdueLabel(overdueFilter).toLowerCase()}` : getOverdueLabel(overdueFilter)}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => cycleLoanSummaryFilter('lifecycle')}
+          className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(lifecycleFilter)}`}
+        >
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Cobrança ativa</p>
           <p className="mt-3 text-3xl font-black text-slate-900">{summary.cobrancaAtiva}</p>
-          <button
-            type="button"
-            onClick={() => cycleLoanSummaryFilter('lifecycle')}
-            className={`mt-1 text-sm ${getSummaryHintClass(lifecycleFilter)}`}
-          >
-            {summary.quitado} quitados e {summary.cancelado} cancelados
-          </button>
-        </div>
+          <p className={`mt-1 text-sm ${getSummaryHintClass(lifecycleFilter)}`}>
+            {getLifecycleLabel(lifecycleFilter)}
+          </p>
+        </button>
       </div>
 
       <ColaboradorAnalytics 

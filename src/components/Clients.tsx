@@ -280,6 +280,12 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
     return 'text-slate-500'
   }
 
+  const getPresenceLabel = (state: string | null, filledLabel: string, missingLabel: string) => {
+    if (state === 'missing') return missingLabel
+    if (state === 'filled') return filledLabel
+    return filledLabel
+  }
+
   const cyclePresenceFilter = (param: 'emailStatus' | 'whatsappStatus' | 'cpfStatus') => {
     const current = searchParams.get(param)
     const nextValue = current === 'missing' ? 'filled' : current === 'filled' ? null : 'missing'
@@ -988,39 +994,39 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
           <p className="mt-3 text-3xl font-bold text-slate-900">{summary.total}</p>
           <p className="mt-1 text-sm text-slate-500">Clientes no resultado atual</p>
         </div>
-        <div className={`rounded-3xl border bg-white p-5 shadow-sm ${getSummaryCardClass(whatsappStatusFilter)}`}>
+        <button
+          type="button"
+          onClick={() => cyclePresenceFilter('whatsappStatus')}
+          className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(whatsappStatusFilter)}`}
+        >
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">WhatsApp</p>
           <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withWhatsapp}</p>
-          <button
-            type="button"
-            onClick={() => cyclePresenceFilter('whatsappStatus')}
-            className={`mt-1 text-sm ${getSummaryHintClass(whatsappStatusFilter)}`}
-          >
-            Com contato disponível
-          </button>
-        </div>
-        <div className={`rounded-3xl border bg-white p-5 shadow-sm ${getSummaryCardClass(emailStatusFilter)}`}>
+          <p className={`mt-1 text-sm ${getSummaryHintClass(whatsappStatusFilter)}`}>
+            {getPresenceLabel(whatsappStatusFilter, 'Com contato disponível', 'Sem contato disponível')}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => cyclePresenceFilter('emailStatus')}
+          className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(emailStatusFilter)}`}
+        >
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">E-mail</p>
           <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withEmail}</p>
-          <button
-            type="button"
-            onClick={() => cyclePresenceFilter('emailStatus')}
-            className={`mt-1 text-sm ${getSummaryHintClass(emailStatusFilter)}`}
-          >
-            Com e-mail preenchido
-          </button>
-        </div>
-        <div className={`rounded-3xl border bg-white p-5 shadow-sm ${getSummaryCardClass(cpfStatusFilter)}`}>
+          <p className={`mt-1 text-sm ${getSummaryHintClass(emailStatusFilter)}`}>
+            {getPresenceLabel(emailStatusFilter, 'Com e-mail preenchido', 'Sem e-mail preenchido')}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => cyclePresenceFilter('cpfStatus')}
+          className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(cpfStatusFilter)}`}
+        >
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">CPF</p>
           <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withCpf}</p>
-          <button
-            type="button"
-            onClick={() => cyclePresenceFilter('cpfStatus')}
-            className={`mt-1 text-sm ${getSummaryHintClass(cpfStatusFilter)}`}
-          >
-            Com CPF cadastrado
-          </button>
-        </div>
+          <p className={`mt-1 text-sm ${getSummaryHintClass(cpfStatusFilter)}`}>
+            {getPresenceLabel(cpfStatusFilter, 'Com CPF cadastrado', 'Sem CPF cadastrado')}
+          </p>
+        </button>
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Cidades</p>
           <p className="mt-3 text-3xl font-bold text-slate-900">{summary.cities}</p>
