@@ -5,17 +5,11 @@ const {
   mockRevalidatePath,
   mockLogSystemAction,
   mockFindMany,
-  mockCount,
-  mockGroupBy,
-  mockAggregate,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockRevalidatePath: vi.fn(),
   mockLogSystemAction: vi.fn(),
   mockFindMany: vi.fn(),
-  mockCount: vi.fn(),
-  mockGroupBy: vi.fn(),
-  mockAggregate: vi.fn(),
 }))
 
 vi.mock('@/auth', () => ({ auth: mockAuth }))
@@ -25,9 +19,9 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     emprestimo: {
       findMany: mockFindMany,
-      count: mockCount,
-      groupBy: mockGroupBy,
-      aggregate: mockAggregate,
+      count: vi.fn(),
+      groupBy: vi.fn(),
+      aggregate: vi.fn(),
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
@@ -44,6 +38,44 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
 
   it('ordena por A-Z e consolida dashboard no fluxo padrao', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } })
+    mockFindMany.mockResolvedValueOnce([
+      {
+        id: 'l0',
+        status: 'CANCELADO',
+        valor: 300,
+        cobrancaAtiva: false,
+        vencimento: new Date('2026-07-10T12:00:00.000Z'),
+        createdAt: new Date('2026-07-06T12:00:00.000Z'),
+        cliente: { nome: 'Aline', whatsapp: '71911111111' },
+      },
+      {
+        id: 'l1',
+        status: 'ABERTO',
+        valor: 1000,
+        cobrancaAtiva: true,
+        vencimento: new Date('2026-07-20T12:00:00.000Z'),
+        createdAt: new Date('2026-07-01T12:00:00.000Z'),
+        cliente: { nome: 'Ana', whatsapp: '71999999999' },
+      },
+      {
+        id: 'l2',
+        status: 'NEGOCIACAO',
+        valor: 2000,
+        cobrancaAtiva: true,
+        vencimento: new Date('2000-07-10T12:00:00.000Z'),
+        createdAt: new Date('2026-07-02T12:00:00.000Z'),
+        cliente: { nome: 'Bruno', whatsapp: '71988888888' },
+      },
+      {
+        id: 'l3',
+        status: 'QUITADO',
+        valor: 1500,
+        cobrancaAtiva: true,
+        vencimento: new Date('2026-07-03T12:00:00.000Z'),
+        createdAt: new Date('2026-07-03T12:00:00.000Z'),
+        cliente: { nome: 'Carlos', whatsapp: '71977777777' },
+      },
+    ])
     mockFindMany.mockResolvedValueOnce([
       {
         id: 'l1',
@@ -65,50 +97,91 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
         usuario: { nome: 'Gerente 1' },
         historico: [],
       },
+      {
+        id: 'l2',
+        clienteId: 'c2',
+        usuarioId: 'u1',
+        valor: 2000,
+        quantidadeParcelas: null,
+        valorPago: 0,
+        jurosMes: 10,
+        jurosAtrasoDia: 0,
+        vencimento: new Date('2000-07-10T12:00:00.000Z'),
+        quitadoEm: null,
+        status: 'NEGOCIACAO',
+        observacao: null,
+        createdAt: new Date('2026-07-02T12:00:00.000Z'),
+        cobrancaAtiva: true,
+        jurosPagos: 0,
+        cliente: { nome: 'Bruno', email: 'bruno@x.com', whatsapp: '71988888888' },
+        usuario: { nome: 'Gerente 1' },
+        historico: [],
+      },
+      {
+        id: 'l3',
+        clienteId: 'c3',
+        usuarioId: 'u1',
+        valor: 1500,
+        quantidadeParcelas: null,
+        valorPago: 1500,
+        jurosMes: 10,
+        jurosAtrasoDia: 0,
+        vencimento: new Date('2026-07-03T12:00:00.000Z'),
+        quitadoEm: new Date('2026-07-04T12:00:00.000Z'),
+        status: 'QUITADO',
+        observacao: null,
+        createdAt: new Date('2026-07-03T12:00:00.000Z'),
+        cobrancaAtiva: true,
+        jurosPagos: 0,
+        cliente: { nome: 'Carlos', email: 'carlos@x.com', whatsapp: '71977777777' },
+        usuario: { nome: 'Gerente 1' },
+        historico: [],
+      },
     ])
-    mockCount
-      .mockResolvedValueOnce(4)
-      .mockResolvedValueOnce(2)
-      .mockResolvedValueOnce(3)
-    mockGroupBy.mockResolvedValue([
-      { status: 'ABERTO', _count: { _all: 2 } },
-      { status: 'NEGOCIACAO', _count: { _all: 1 } },
-      { status: 'QUITADO', _count: { _all: 1 } },
-    ])
-    mockAggregate.mockResolvedValue({ _sum: { valor: 4500 } })
 
     const result = await getEmprestimos({
       sort: 'az',
-      status: 'ABERTO',
-      page: 2,
+      page: 1,
       pageSize: 5,
     })
 
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        skip: 5,
-        take: 5,
         orderBy: [{ cliente: { nome: 'asc' } }, { createdAt: 'desc' }],
-        where: { status: 'ABERTO' },
+        select: expect.objectContaining({
+          id: true,
+          status: true,
+        }),
+        where: {
+          AND: [{}, { status: { not: 'CANCELADO' } }],
+        },
+      }),
+    )
+
+    expect(mockFindMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { id: { in: ['l1', 'l2', 'l3'] } },
       }),
     )
 
     expect(result).toMatchObject({
-      total: 4,
-      page: 2,
+      total: 3,
+      page: 1,
       pageSize: 5,
       sort: 'az',
       summary: {
-        total: 4,
+        total: 3,
         valorTotal: 4500,
-        aberto: 2,
+        aberto: 1,
         negociacao: 1,
         quitado: 1,
         cancelado: 0,
-        vencidos: 2,
+        vencidos: 1,
         cobrancaAtiva: 3,
       },
     })
+    expect(result.items.map((item) => item.id)).toEqual(['l1', 'l2', 'l3'])
   })
 
   it('gera dashboard a partir dos candidatos filtrados quando usa contactOnly', async () => {
@@ -213,12 +286,6 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
   it('aplica filtro de lifecycle fechado no fluxo padrao', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } })
     mockFindMany.mockResolvedValueOnce([])
-    mockCount
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
-    mockGroupBy.mockResolvedValue([])
-    mockAggregate.mockResolvedValue({ _sum: { valor: 0 } })
 
     await getEmprestimos({
       lifecycle: 'closed',
@@ -229,7 +296,7 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          status: { in: ['QUITADO', 'CANCELADO'] },
+          AND: [{ status: { in: ['QUITADO', 'CANCELADO'] } }, { status: { not: 'CANCELADO' } }],
         },
       }),
     )

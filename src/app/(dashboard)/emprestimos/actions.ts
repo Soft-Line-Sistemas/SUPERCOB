@@ -84,6 +84,8 @@ export async function getEmprestimos(filters?: {
       ? ([{ cliente: { nome: 'asc' as const } }, { createdAt: 'desc' as const }] satisfies Prisma.EmprestimoOrderByWithRelationInput[])
       : ([{ createdAt: 'desc' as const }] satisfies Prisma.EmprestimoOrderByWithRelationInput[])
 
+  const effectiveWhere = { AND: [where, { status: { not: 'CANCELADO' as const } }] }
+
   const selectFields = Prisma.validator<Prisma.EmprestimoSelect>()({
     id: true,
     clienteId: true,
@@ -114,6 +116,18 @@ export async function getEmprestimos(filters?: {
     },
   })
   type EmprestimoListItem = Prisma.EmprestimoGetPayload<{ select: typeof selectFields }>
+  const candidateFields = Prisma.validator<Prisma.EmprestimoSelect>()({
+    id: true,
+    status: true,
+    valor: true,
+    cobrancaAtiva: true,
+    vencimento: true,
+    createdAt: true,
+    cliente: {
+      select: { nome: true, whatsapp: true },
+    },
+  })
+  type EmprestimoCandidate = Prisma.EmprestimoGetPayload<{ select: typeof candidateFields }>
 
   const hasVencimentoDayFilter = (() => {
     const day = Number(filters?.vencimentoDay)
@@ -162,6 +176,35 @@ export async function getEmprestimos(filters?: {
     return true
   }
 
+  const orderQuitadosLast = <T extends { status: string }>(loans: T[]) => {
+    const abertas = loans.filter((loan) => loan.status !== 'QUITADO')
+    const quitadas = loans.filter((loan) => loan.status === 'QUITADO')
+    return [...abertas, ...quitadas]
+  }
+
+  const buildSummary = (loans: EmprestimoCandidate[]) => {
+    const now = new Date()
+    return loans.reduce(
+      (acc, loan) => {
+        acc.total += 1
+        acc.valorTotal += Number(loan.valor) || 0
+        if (loan.status === 'ABERTO') acc.aberto += 1
+        if (loan.status === 'NEGOCIACAO') acc.negociacao += 1
+        if (loan.status === 'QUITADO') acc.quitado += 1
+        if (loan.cobrancaAtiva) acc.cobrancaAtiva += 1
+        if (
+          loan.status !== 'QUITADO' &&
+          loan.vencimento &&
+          new Date(loan.vencimento).getTime() < now.getTime()
+        ) {
+          acc.vencidos += 1
+        }
+        return acc
+      },
+      { total: 0, valorTotal: 0, aberto: 0, negociacao: 0, quitado: 0, cancelado: 0, vencidos: 0, cobrancaAtiva: 0 },
+    )
+  }
+
   let items: EmprestimoListItem[] = []
   let total = 0
   let summary = {
@@ -175,114 +218,32 @@ export async function getEmprestimos(filters?: {
     cobrancaAtiva: 0,
   }
 
-  if (hasVencimentoDayFilter || hasContactOnlyFilter || overdueFilter === 'yes' || overdueFilter === 'no') {
-    const filteredCandidates = await prisma.emprestimo.findMany({
-      where,
-      select: {
-        id: true,
-        status: true,
-        valor: true,
-        cobrancaAtiva: true,
-        vencimento: true,
-        createdAt: true,
-        cliente: {
-          select: { nome: true, whatsapp: true },
-        },
-      },
-      orderBy,
+  const candidates = await prisma.emprestimo.findMany({
+    where: effectiveWhere,
+    select: candidateFields,
+    orderBy,
+  })
+
+  const visibleCandidates = candidates.filter((loan) => loan.status !== 'CANCELADO')
+
+  const filteredCandidates =
+    hasVencimentoDayFilter || hasContactOnlyFilter || overdueFilter === 'yes' || overdueFilter === 'no'
+      ? visibleCandidates.filter(matchesSpecialFilters)
+      : visibleCandidates
+
+  const orderedCandidates = orderQuitadosLast(filteredCandidates)
+  const pagedIds = orderedCandidates.slice(skip, skip + pageSize).map((loan) => loan.id)
+
+  total = orderedCandidates.length
+  summary = buildSummary(orderedCandidates)
+
+  if (pagedIds.length > 0) {
+    const pageItems = await prisma.emprestimo.findMany({
+      where: { id: { in: pagedIds } },
+      select: selectFields,
     })
-
-    const now = new Date()
-    const filteredLoans = filteredCandidates.filter(matchesSpecialFilters)
-    const filteredIds = filteredLoans.map((loan) => loan.id)
-    total = filteredIds.length
-    summary = filteredLoans.reduce(
-      (acc, loan) => {
-        acc.total += 1
-        acc.valorTotal += Number(loan.valor) || 0
-        if (loan.status === 'ABERTO') acc.aberto += 1
-        if (loan.status === 'NEGOCIACAO') acc.negociacao += 1
-        if (loan.status === 'QUITADO') acc.quitado += 1
-        if (loan.status === 'CANCELADO') acc.cancelado += 1
-        if (loan.cobrancaAtiva) acc.cobrancaAtiva += 1
-        if (
-          loan.status !== 'QUITADO' &&
-          loan.status !== 'CANCELADO' &&
-          loan.vencimento &&
-          new Date(loan.vencimento).getTime() < now.getTime()
-        ) {
-          acc.vencidos += 1
-        }
-        return acc
-      },
-      { total: 0, valorTotal: 0, aberto: 0, negociacao: 0, quitado: 0, cancelado: 0, vencidos: 0, cobrancaAtiva: 0 },
-    )
-
-    const pagedIds = filteredIds.slice(skip, skip + pageSize)
-    if (pagedIds.length === 0) {
-      items = []
-    } else {
-      const pageItems = await prisma.emprestimo.findMany({
-        where: { id: { in: pagedIds } },
-        select: selectFields,
-      })
-      const order = new Map(pagedIds.map((id, index) => [id, index]))
-      items = pageItems.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
-    }
-  } else {
-    const now = new Date()
-    const [pageItems, totalCount, grouped, aggregate, overdueCount, activeChargeCount] = await Promise.all([
-      prisma.emprestimo.findMany({
-        where,
-        select: selectFields,
-        orderBy,
-        skip,
-        take: pageSize,
-      }),
-      prisma.emprestimo.count({ where }),
-      prisma.emprestimo.groupBy({
-        by: ['status'],
-        where,
-        _count: { _all: true },
-      }),
-      prisma.emprestimo.aggregate({
-        where,
-        _sum: { valor: true },
-      }),
-      prisma.emprestimo.count({
-        where: {
-          AND: [
-            where,
-            { status: { in: ['ABERTO', 'NEGOCIACAO'] } },
-            { vencimento: { lt: now } },
-          ],
-        },
-      }),
-      prisma.emprestimo.count({
-        where: {
-          AND: [where, { cobrancaAtiva: true }],
-        },
-      }),
-    ])
-
-    items = pageItems
-    total = totalCount
-
-    const byStatus = grouped.reduce<Record<string, number>>((acc, row) => {
-      acc[row.status] = row._count._all
-      return acc
-    }, {})
-
-    summary = {
-      total: totalCount,
-      valorTotal: Number(aggregate._sum.valor ?? 0),
-      aberto: byStatus.ABERTO ?? 0,
-      negociacao: byStatus.NEGOCIACAO ?? 0,
-      quitado: byStatus.QUITADO ?? 0,
-      cancelado: byStatus.CANCELADO ?? 0,
-      vencidos: overdueCount,
-      cobrancaAtiva: activeChargeCount,
-    }
+    const order = new Map(pagedIds.map((id, index) => [id, index]))
+    items = pageItems.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
   }
 
   return { items, total, page, pageSize, sort, summary }
@@ -291,6 +252,7 @@ export async function getEmprestimos(filters?: {
 export async function createEmprestimo(data: {
   clienteId: string;
   valor: number;
+  valorPago?: number | null;
   quantidadeParcelas?: number | null;
   jurosMes?: number;
   jurosAtrasoDia?: number;
@@ -311,13 +273,16 @@ export async function createEmprestimo(data: {
   if (data.quantidadeParcelas != null && (!Number.isInteger(Number(data.quantidadeParcelas)) || Number(data.quantidadeParcelas) <= 0)) {
     throw new Error('Quantidade de parcelas inválida')
   }
+  if (data.valorPago != null && (!Number.isFinite(Number(data.valorPago)) || Number(data.valorPago) < 0 || Number(data.valorPago) > Number(data.valor))) {
+    throw new Error('Valor pago inválido para a cobrança')
+  }
 
   const role = (session.user as any).role
   const userId = (session.user as any).id
 
   let status: 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' = 'ABERTO'
   
-  if (data.quitadoEm) {
+  if (data.quitadoEm || Number(data.valorPago ?? 0) >= Number(data.valor)) {
     status = 'QUITADO'
   } else if (data.observacao && data.observacao.trim() !== '') {
     status = 'NEGOCIACAO'
@@ -327,12 +292,22 @@ export async function createEmprestimo(data: {
   // Se for ADMIN/ADM, ele pode atribuir a qualquer um (passado no data.usuarioId)
   const usuarioId = role === 'GERENTE' ? userId : data.usuarioId
 
+  const createData: Prisma.EmprestimoUncheckedCreateInput = {
+    clienteId: data.clienteId,
+    usuarioId: usuarioId ?? undefined,
+    valor: Number(data.valor),
+    valorPago: data.valorPago == null ? undefined : Number(data.valorPago),
+    quantidadeParcelas: data.quantidadeParcelas == null ? undefined : Number(data.quantidadeParcelas),
+    jurosMes: Number(data.jurosMes ?? 0),
+    jurosAtrasoDia: Number(data.jurosAtrasoDia ?? 0),
+    vencimento: data.vencimento ?? undefined,
+    observacao: data.observacao?.trim() || undefined,
+    quitadoEm: data.quitadoEm ?? undefined,
+    status,
+  }
+
   const emprestimo = await prisma.emprestimo.create({
-    data: {
-      ...data,
-      usuarioId,
-      status,
-    },
+    data: createData,
   })
 
   await logSystemAction({
@@ -350,6 +325,7 @@ export async function createEmprestimo(data: {
 
 export async function updateEmprestimo(id: string, data: {
   valor: number;
+  valorPago?: number | null;
   quantidadeParcelas?: number | null;
   jurosMes?: number;
   jurosAtrasoDia?: number;
@@ -370,10 +346,13 @@ export async function updateEmprestimo(id: string, data: {
   if (data.quantidadeParcelas != null && (!Number.isInteger(Number(data.quantidadeParcelas)) || Number(data.quantidadeParcelas) <= 0)) {
     throw new Error('Quantidade de parcelas inválida')
   }
+  if (data.valorPago != null && (!Number.isFinite(Number(data.valorPago)) || Number(data.valorPago) < 0 || Number(data.valorPago) > Number(data.valor))) {
+    throw new Error('Valor pago inválido para a cobrança')
+  }
 
   let status: 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' = 'ABERTO'
   
-  if (data.quitadoEm) {
+  if (data.quitadoEm || Number(data.valorPago ?? 0) >= Number(data.valor)) {
     status = 'QUITADO'
   } else if (data.observacao && data.observacao.trim() !== '') {
     status = 'NEGOCIACAO'
@@ -381,12 +360,25 @@ export async function updateEmprestimo(id: string, data: {
 
   const before = await prisma.emprestimo.findUnique({ where: { id } })
 
+  const updateData: Prisma.EmprestimoUncheckedUpdateInput = {
+    valor: Number(data.valor),
+    valorPago: data.valorPago == null ? undefined : Number(data.valorPago),
+    quantidadeParcelas: data.quantidadeParcelas == null ? null : Number(data.quantidadeParcelas),
+    jurosMes: Number(data.jurosMes ?? 0),
+    jurosAtrasoDia: Number(data.jurosAtrasoDia ?? 0),
+    vencimento: data.vencimento ?? null,
+    observacao: data.observacao?.trim() || null,
+    quitadoEm: data.quitadoEm ?? null,
+    status,
+  }
+
+  if (data.usuarioId !== undefined) {
+    updateData.usuarioId = data.usuarioId
+  }
+
   const emprestimo = await prisma.emprestimo.update({
     where: { id },
-    data: {
-      ...data,
-      status,
-    },
+    data: updateData,
   })
 
   await logSystemAction({

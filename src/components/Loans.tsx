@@ -10,7 +10,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChargeModal } from './ChargeModal';
 import { parseDateInputToUTCNoon } from '@/lib/date-utils'
-import { calculateEstimatedInstallments, calculateEstimatedMonthlyPayment } from '@/lib/installments'
+import {
+  calculateCurrentInstallment,
+  calculateEstimatedInstallments,
+  calculateEstimatedMonthlyPayment,
+  calculatePaidPrincipalFromCurrentInstallment,
+} from '@/lib/installments'
 import { calculateLoanInterest } from '@/lib/loan-interest';
 import { LoanCard } from './LoanCard';
 import { LoanHeader } from './loans/LoanHeader'
@@ -204,37 +209,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     )
   }
 
-  const getSettledMonthCount = (loan: Loan) => {
-    const monthlyAmount = getMonthlyChargeAmount(loan)
-    if (monthlyAmount <= 0) return 0
-
-    const paidByMonth = new Map<string, number>()
-    for (const entry of loan.historico || []) {
-      const createdAt = new Date(entry.createdAt)
-      const key = `${createdAt.getUTCFullYear()}-${createdAt.getUTCMonth()}`
-      paidByMonth.set(key, (paidByMonth.get(key) || 0) + parsePaymentAmountFromDescription(entry.descricao))
-    }
-
-    let settledMonths = 0
-    for (const paid of paidByMonth.values()) {
-      if (paid + 0.01 >= monthlyAmount) settledMonths += 1
-    }
-
-    return settledMonths
-  }
-
   const getCurrentInstallment = (loan: Loan) => {
-    const total = Number(loan.quantidadeParcelas || 0)
-    if (!Number.isInteger(total) || total <= 0) return null
-
-    if (loan.status === 'QUITADO') {
-      return { current: total, total }
-    }
-
-    return {
-      current: Math.min(total, getSettledMonthCount(loan) + 1),
-      total,
-    }
+    return calculateCurrentInstallment(loan)
   }
 
   const formatDate = (date: Date | string | null | undefined) => {
@@ -423,7 +399,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       setInstallmentsEnabled(Boolean(loan.quantidadeParcelas))
       setParcelingMode('remaining')
       setExpectedInterestPercent('100')
-      setCurrentInstallmentSelection(1)
+      setCurrentInstallmentSelection(calculateCurrentInstallment(loan)?.current ?? 1)
       setDiscountPaidInstallments(false)
     } else {
       setEditingLoan(null);
@@ -893,6 +869,14 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       const data = {
         ...formData,
         usuarioId: formData.usuarioId || null,
+        valorPago:
+          installmentsEnabled && Number.isInteger(formData.quantidadeParcelas) && formData.quantidadeParcelas > 0
+            ? calculatePaidPrincipalFromCurrentInstallment({
+                valor: formData.valor,
+                quantidadeParcelas: formData.quantidadeParcelas,
+                currentInstallment: currentInstallmentSelection,
+              })
+            : 0,
         quantidadeParcelas: Number.isInteger(formData.quantidadeParcelas) && formData.quantidadeParcelas > 0 ? formData.quantidadeParcelas : null,
         jurosMes: Number(formData.jurosMes) || 0,
         jurosAtrasoDia: Number(formData.jurosAtrasoDia) || 0,

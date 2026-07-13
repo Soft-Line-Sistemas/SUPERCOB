@@ -56,14 +56,15 @@ describe('emprestimos actions - quantidadeParcelas', () => {
     expect(mockCreate.mock.calls[0][0].data).toMatchObject({
       clienteId: 'c1',
       valor: 1000,
+      quantidadeParcelas: undefined,
     })
-    expect(mockCreate.mock.calls[0][0].data).not.toHaveProperty('quantidadeParcelas')
   })
 
   it('permite criar contrato com quantidadeParcelas válida', async () => {
     await createEmprestimo({
       clienteId: 'c1',
       valor: 1000,
+      valorPago: 500,
       quantidadeParcelas: 20,
       jurosMes: 30,
       jurosAtrasoDia: 0,
@@ -73,6 +74,7 @@ describe('emprestimos actions - quantidadeParcelas', () => {
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          valorPago: 500,
           quantidadeParcelas: 20,
         }),
       }),
@@ -127,5 +129,21 @@ describe('emprestimos actions - quantidadeParcelas', () => {
     ).rejects.toThrow('Quantidade de parcelas inválida')
 
     expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('rejeita valorPago maior que o valor do contrato', async () => {
+    await expect(
+      createEmprestimo({
+        clienteId: 'c1',
+        valor: 1000,
+        valorPago: 1200,
+        quantidadeParcelas: 10,
+        jurosMes: 30,
+        jurosAtrasoDia: 0,
+        vencimento: new Date('2026-07-08T12:00:00.000Z'),
+      }),
+    ).rejects.toThrow('Valor pago inválido para a cobrança')
+
+    expect(mockCreate).not.toHaveBeenCalled()
   })
 })

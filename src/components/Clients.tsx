@@ -8,7 +8,11 @@ import { createCliente, updateCliente, deleteCliente, validateClienteCpf } from 
 import { createEmprestimo } from '@/app/(dashboard)/emprestimos/actions'
 import { parseDateInputToUTCNoon, sanitizeDigits, validateBirthDateParts } from '@/lib/date-utils'
 import { buildEmergencyContact, parseEmergencyContact } from '@/lib/client-emergency'
-import { calculateEstimatedInstallments, calculateEstimatedMonthlyPayment } from '@/lib/installments'
+import {
+  calculateEstimatedInstallments,
+  calculateEstimatedMonthlyPayment,
+  calculatePaidPrincipalFromCurrentInstallment,
+} from '@/lib/installments'
 import { clientFormDefaults, clientSchema, formatCEP, formatCPF, formatPhoneBR, isValidCPF, normalizeClientPayload, normalizeDigits, tabRequiredFields } from './client-modal/form-schema'
 import { ClientStepAnexos } from './client-modal/StepAnexos'
 import { ClientStepBasic } from './client-modal/StepBasic'
@@ -499,6 +503,14 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
           await createEmprestimo({
             clienteId: editingClient.id,
             valor: Number(chargeData.valor),
+            valorPago:
+              chargeInstallmentsEnabled && Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0
+                ? calculatePaidPrincipalFromCurrentInstallment({
+                    valor: Number(chargeData.valor),
+                    quantidadeParcelas: Number(chargeData.quantidadeParcelas),
+                    currentInstallment: chargeCurrentInstallment,
+                  })
+                : 0,
             quantidadeParcelas: Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0 ? Number(chargeData.quantidadeParcelas) : null,
             jurosMes: Number(chargeData.jurosMes) || 0,
             jurosAtrasoDia: Number(chargeData.jurosAtrasoDia) || 0,
@@ -525,6 +537,14 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
           await createEmprestimo({
             clienteId: created.id,
             valor: Number(chargeData.valor),
+            valorPago:
+              chargeInstallmentsEnabled && Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0
+                ? calculatePaidPrincipalFromCurrentInstallment({
+                    valor: Number(chargeData.valor),
+                    quantidadeParcelas: Number(chargeData.quantidadeParcelas),
+                    currentInstallment: chargeCurrentInstallment,
+                  })
+                : 0,
             quantidadeParcelas: Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0 ? Number(chargeData.quantidadeParcelas) : null,
             jurosMes: Number(chargeData.jurosMes) || 0,
             jurosAtrasoDia: Number(chargeData.jurosAtrasoDia) || 0,

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { calculateEstimatedInstallments, calculateEstimatedMonthlyPayment } from './installments'
+import {
+  calculateCurrentInstallment,
+  calculateEstimatedInstallments,
+  calculateEstimatedMonthlyPayment,
+  calculatePaidPrincipalFromCurrentInstallment,
+} from './installments'
 
 describe('calculateEstimatedInstallments', () => {
   it('calcula a quantidade estimada de parcelas com base no valor e no juros mensal', () => {
@@ -64,5 +69,26 @@ describe('calculateEstimatedInstallments', () => {
         quantidadeParcelas: 20,
       }),
     ).toBe(300)
+  })
+
+  it('deriva a parcela atual a partir do principal amortizado', () => {
+    expect(
+      calculateCurrentInstallment({
+        valor: 1000,
+        valorPago: 250,
+        quantidadeParcelas: 4,
+        status: 'NEGOCIACAO',
+      }),
+    ).toEqual({ current: 2, total: 4 })
+  })
+
+  it('calcula o valor pago correspondente a uma parcela atual selecionada', () => {
+    expect(
+      calculatePaidPrincipalFromCurrentInstallment({
+        valor: 1000,
+        quantidadeParcelas: 4,
+        currentInstallment: 3,
+      }),
+    ).toBe(500)
   })
 })
