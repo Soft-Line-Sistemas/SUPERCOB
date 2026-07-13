@@ -286,6 +286,11 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
     return filledLabel
   }
 
+  const getPresenceCount = (state: string | null, filledCount: number) => {
+    if (state === 'missing') return Math.max(summary.total - filledCount, 0)
+    return filledCount
+  }
+
   const cyclePresenceFilter = (param: 'emailStatus' | 'whatsappStatus' | 'cpfStatus') => {
     const current = searchParams.get(param)
     const nextValue = current === 'missing' ? 'filled' : current === 'filled' ? null : 'missing'
@@ -1000,7 +1005,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
           className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(whatsappStatusFilter)}`}
         >
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">WhatsApp</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withWhatsapp}</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">{getPresenceCount(whatsappStatusFilter, summary.withWhatsapp)}</p>
           <p className={`mt-1 text-sm ${getSummaryHintClass(whatsappStatusFilter)}`}>
             {getPresenceLabel(whatsappStatusFilter, 'Com contato disponível', 'Sem contato disponível')}
           </p>
@@ -1011,7 +1016,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
           className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(emailStatusFilter)}`}
         >
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">E-mail</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withEmail}</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">{getPresenceCount(emailStatusFilter, summary.withEmail)}</p>
           <p className={`mt-1 text-sm ${getSummaryHintClass(emailStatusFilter)}`}>
             {getPresenceLabel(emailStatusFilter, 'Com e-mail preenchido', 'Sem e-mail preenchido')}
           </p>
@@ -1022,7 +1027,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
           className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(cpfStatusFilter)}`}
         >
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">CPF</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">{summary.withCpf}</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">{getPresenceCount(cpfStatusFilter, summary.withCpf)}</p>
           <p className={`mt-1 text-sm ${getSummaryHintClass(cpfStatusFilter)}`}>
             {getPresenceLabel(cpfStatusFilter, 'Com CPF cadastrado', 'Sem CPF cadastrado')}
           </p>

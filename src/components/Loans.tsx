@@ -317,6 +317,17 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     return `${summary.quitado} quitados e ${summary.cancelado} cancelados`
   }
 
+  const getOverdueCount = (state: string | null) => {
+    if (state === 'no') return Math.max(summary.total - summary.vencidos, 0)
+    return summary.vencidos
+  }
+
+  const getLifecycleCount = (state: string | null) => {
+    if (state === 'open') return summary.aberto + summary.negociacao
+    if (state === 'closed') return summary.quitado + summary.cancelado
+    return summary.cobrancaAtiva
+  }
+
   const cycleLoanSummaryFilter = (param: 'overdue' | 'lifecycle') => {
     const current = searchParams.get(param)
     const nextValue =
@@ -960,7 +971,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Em aberto</p>
           <p className="mt-3 text-3xl font-black text-slate-900">{summary.aberto + summary.negociacao}</p>
           <p className={`mt-1 text-sm ${getSummaryHintClass(overdueFilter)}`}>
-            {overdueFilter === 'yes' ? `${summary.vencidos} ${getOverdueLabel(overdueFilter).toLowerCase()}` : getOverdueLabel(overdueFilter)}
+            {`${getOverdueCount(overdueFilter)} ${getOverdueLabel(overdueFilter).toLowerCase()}`}
           </p>
         </button>
         <button
@@ -969,7 +980,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
           className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(lifecycleFilter)}`}
         >
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Cobrança ativa</p>
-          <p className="mt-3 text-3xl font-black text-slate-900">{summary.cobrancaAtiva}</p>
+          <p className="mt-3 text-3xl font-black text-slate-900">{getLifecycleCount(lifecycleFilter)}</p>
           <p className={`mt-1 text-sm ${getSummaryHintClass(lifecycleFilter)}`}>
             {getLifecycleLabel(lifecycleFilter)}
           </p>
