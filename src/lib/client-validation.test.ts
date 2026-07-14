@@ -60,6 +60,41 @@ describe('client-validation', () => {
     ).toThrow('Nome é obrigatório')
   })
 
+  it('aceita contatos de emergência no formato legado com hífens', () => {
+    expect(() =>
+      validateClienteInput({
+        nome: 'Diana Francisca da Silva',
+        cpf: '04860115341',
+        whatsapp: '7183591062',
+        cep: '40430130',
+        endereco: 'Rua Copacabana',
+        numeroEndereco: 19,
+        bairro: 'Vila Rui Barbosa',
+        cidade: 'Salvador',
+        estado: 'BA',
+        contatoEmergencia1: 'Esposo - Uilliam - 7193756430',
+        contatoEmergencia2: 'Tia - Tânia - 71999104546',
+      }),
+    ).not.toThrow()
+
+    const normalized = normalizeClienteInput({
+      nome: 'Diana Francisca da Silva',
+      cpf: '04860115341',
+      whatsapp: '7183591062',
+      cep: '40430130',
+      endereco: 'Rua Copacabana',
+      numeroEndereco: 19,
+      bairro: 'Vila Rui Barbosa',
+      cidade: 'Salvador',
+      estado: 'BA',
+      contatoEmergencia1: 'Esposo - Uilliam - 7193756430',
+      contatoEmergencia2: 'Tia - Tânia - 71999104546',
+    })
+
+    expect(normalized.contatoEmergencia1).toBe('Esposo - Uilliam|7193756430')
+    expect(normalized.contatoEmergencia2).toBe('Tia - Tânia|71999104546')
+  })
+
   it('permite CPF inexistente', async () => {
     mockFindFirst.mockResolvedValue(null)
 

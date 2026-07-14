@@ -25,9 +25,12 @@ export function parseEmergencyContact(value: string | null | undefined): Emergen
 
   const legacyParts = raw.split('-')
   if (legacyParts.length >= 2) {
+    const trimmedParts = legacyParts.map((part) => part.trim()).filter(Boolean)
+    const phone = trimmedParts.pop() ?? ''
+
     return {
-      nome: legacyParts[0]?.trim() ?? '',
-      telefone: legacyParts.slice(1).join('-').trim(),
+      nome: trimmedParts.join(' - '),
+      telefone: phone,
     }
   }
 
