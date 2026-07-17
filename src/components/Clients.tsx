@@ -976,7 +976,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              className={`rounded-xl p-2 transition-colors ${viewMode === 'grid' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              className={`rounded-xl p-2 transition-colors ${viewMode === 'grid' ? 'bg-slate-900 text-white' : 'text-slate-100 hover:bg-slate-100'}`}
               aria-label="Visualização em grade"
             >
               <LayoutGrid className="h-4 w-4" />
@@ -1139,7 +1139,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {initialClients.map((client) => (
-                  <tr key={client.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={client.id} className="hover:bg-slate-900 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-sm font-bold text-blue-600">

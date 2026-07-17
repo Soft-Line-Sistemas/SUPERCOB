@@ -154,7 +154,7 @@ export function Dashboard({ data }: DashboardProps) {
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Evolução de Cobranças</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">Volume recuperado nos últimos 6 meses</p>
             </div>
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-950 dark:bg-white/5 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-white/10">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10">
               <Calendar className="w-4 h-4 text-gold-500" />
               Últimos 6 meses
             </div>
@@ -252,7 +252,7 @@ export function Dashboard({ data }: DashboardProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {agentData.map((agent, i) => (
               <div key={i} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-slate-950 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center font-bold text-white shadow-sm">
+                <div className="w-10 h-10 rounded-full bg-slate-800 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center font-bold text-white shadow-sm">
                   {agent.name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">

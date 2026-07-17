@@ -104,7 +104,7 @@ export function LoanCard({
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.2, delay: idx * 0.02 }}
-      className={`bg-white rounded-3xl border-2 ${borderColor} shadow-sm hover:shadow-md transition-all group overflow-hidden flex flex-col`}
+      className={`bg-white rounded-3xl border-2 ${borderColor} shadow-sm hover:shadow-lg hover:border-gold-300 transition-all group overflow-hidden flex flex-col`}
     >
       {/* Card Header */}
       <div className={`p-4 md:p-6 border-b border-slate-50 flex items-center justify-between ${headerBg} transition-colors`}>
@@ -269,7 +269,7 @@ export function LoanCard({
               e.stopPropagation();
               onDetail(loan);
             }}
-            className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 text-xs font-black rounded-xl hover:bg-slate-50 dark:hover:bg-white/10 transition-colors shadow-sm"
+            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-black rounded-xl hover:bg-blue-50 hover:border-blue-200 hover:text-blue-800 hover:shadow-md transition-all"
           >
             Detalhes
           </button>
@@ -281,7 +281,7 @@ export function LoanCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-md active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 hover:shadow-lg transition-all active:scale-95"
               >
                 <Send className="w-3.5 h-3.5" />
                 Cobrar

@@ -40,12 +40,13 @@ export async function getEmprestimos(filters?: {
 
   if (filters?.status) {
     where.status = filters.status
-  }
-
-  if (filters?.lifecycle === 'open') {
+  } else if (filters?.lifecycle === 'open') {
     where.status = { in: ['ABERTO', 'NEGOCIACAO'] }
   } else if (filters?.lifecycle === 'closed') {
     where.status = { in: ['QUITADO', 'CANCELADO'] }
+  } else {
+    // Default: only show open/active contracts by default
+    where.status = { in: ['ABERTO', 'NEGOCIACAO'] }
   }
 
   if (filters?.q && filters.q.trim() !== '') {
@@ -84,7 +85,10 @@ export async function getEmprestimos(filters?: {
       ? ([{ cliente: { nome: 'asc' as const } }, { createdAt: 'desc' as const }] satisfies Prisma.EmprestimoOrderByWithRelationInput[])
       : ([{ createdAt: 'desc' as const }] satisfies Prisma.EmprestimoOrderByWithRelationInput[])
 
-  const effectiveWhere = { AND: [where, { status: { not: 'CANCELADO' as const } }] }
+  // Only filter out CANCELADO by default, unless lifecycle is 'closed'
+  const effectiveWhere = filters?.lifecycle === 'closed' 
+    ? where 
+    : { AND: [where, { status: { not: 'CANCELADO' as const } }] }
 
   const selectFields = Prisma.validator<Prisma.EmprestimoSelect>()({
     id: true,
@@ -224,7 +228,9 @@ export async function getEmprestimos(filters?: {
     orderBy,
   })
 
-  const visibleCandidates = candidates.filter((loan) => loan.status !== 'CANCELADO')
+  const visibleCandidates = filters?.lifecycle === 'closed' 
+    ? candidates 
+    : candidates.filter((loan) => loan.status !== 'CANCELADO')
 
   const filteredCandidates =
     hasVencimentoDayFilter || hasContactOnlyFilter || overdueFilter === 'yes' || overdueFilter === 'no'

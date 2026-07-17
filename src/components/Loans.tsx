@@ -1033,7 +1033,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                   const saldo = getLoanSaldo(loan)
                   const installmentProgress = getCurrentInstallment(loan)
                   return (
-                    <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={loan.id} className="hover:bg-gold-50 transition-colors">
                       <td className="px-6 py-4">
                         <button
                           type="button"
@@ -1076,7 +1076,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                             <button
                               type="button"
                               onClick={() => handleOpenPaymentTerminal(loan)}
-                              className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
+                              className="rounded-xl bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-800 transition-all hover:bg-emerald-200 hover:shadow-md hover:-translate-y-0.5"
                             >
                               Terminal
                             </button>
@@ -1086,7 +1086,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                               type="button"
                               onClick={() => handleDirectMonthlyPayment(loan)}
                               disabled={isPaymentPending && directMonthlyPaymentLoanId === loan.id}
-                              className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-60"
+                              className="rounded-xl bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-800 transition-all hover:bg-emerald-200 hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none"
                             >
                               {isPaymentPending && directMonthlyPaymentLoanId === loan.id ? 'Confirmando...' : 'Confirmar mês'}
                             </button>
@@ -1095,7 +1095,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                             <button
                               type="button"
                               onClick={() => handleOpenChargeDelivery(loan.id)}
-                              className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100"
+                              className="rounded-xl bg-red-100 px-3 py-2 text-xs font-bold text-red-800 transition-all hover:bg-red-200 hover:shadow-md hover:-translate-y-0.5"
                             >
                               Cobrança
                             </button>
@@ -1104,7 +1104,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                             <button
                               type="button"
                               onClick={() => handleOpenDetail(loan)}
-                              className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100"
+                              className="rounded-xl bg-blue-100 px-3 py-2 text-xs font-bold text-blue-800 transition-all hover:bg-blue-200 hover:shadow-md hover:-translate-y-0.5"
                             >
                               Ver
                             </button>
@@ -1113,7 +1113,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                             <button
                               type="button"
                               onClick={() => handleOpenModal(loan)}
-                              className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200"
+                              className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition-all hover:bg-slate-200 hover:shadow-md hover:-translate-y-0.5"
                             >
                               Editar
                             </button>
@@ -1122,7 +1122,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                             <button
                               type="button"
                               onClick={() => handleDelete(loan.id)}
-                              className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100"
+                              className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700 transition-all hover:bg-red-100 hover:shadow-md hover:-translate-y-0.5"
                             >
                               Excluir
                             </button>
