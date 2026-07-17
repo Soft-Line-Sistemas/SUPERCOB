@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useTransition } from 'react';
-import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download, ChevronLeft, ChevronRight, Terminal as TerminalIcon, CheckCircle, MessageSquare, Eye, Pencil, Trash2 } from 'lucide-react';
 import { createEmprestimo, updateEmprestimo, deleteEmprestimo, toggleCobrancaAtiva } from '@/app/(dashboard)/emprestimos/actions';
 import { addPagamentoParcial } from '@/app/(dashboard)/emprestimos/[id]/actions';
 import { format } from 'date-fns';
@@ -941,23 +941,23 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Filtrados</p>
-          <p className="mt-3 text-3xl font-black text-slate-900">{summary.total}</p>
-          <p className="mt-1 text-sm text-slate-500">Contratos no resultado atual</p>
+        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Filtrados</p>
+          <p className="mt-3 text-3xl font-black text-card-foreground">{summary.total}</p>
+          <p className="mt-1 text-sm text-muted-foreground">Contratos no resultado atual</p>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Volume</p>
-          <p className="mt-3 text-3xl font-black text-slate-900">{formatCurrency(summary.valorTotal)}</p>
-          <p className="mt-1 text-sm text-slate-500">Valor total filtrado</p>
+        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Volume</p>
+          <p className="mt-3 text-3xl font-black text-card-foreground">{formatCurrency(summary.valorTotal)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">Valor total filtrado</p>
         </div>
         <button
           type="button"
           onClick={() => cycleLoanSummaryFilter('overdue')}
-          className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(overdueFilter)}`}
+          className={`rounded-3xl border bg-card p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(overdueFilter)}`}
         >
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Em aberto</p>
-          <p className="mt-3 text-3xl font-black text-slate-900">{summary.aberto + summary.negociacao}</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Em aberto</p>
+          <p className="mt-3 text-3xl font-black text-card-foreground">{summary.aberto + summary.negociacao}</p>
           <p className={`mt-1 text-sm ${getSummaryHintClass(overdueFilter)}`}>
             {`${getOverdueCount(overdueFilter)} ${getOverdueLabel(overdueFilter).toLowerCase()}`}
           </p>
@@ -965,10 +965,10 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         <button
           type="button"
           onClick={() => cycleLoanSummaryFilter('lifecycle')}
-          className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(lifecycleFilter)}`}
+          className={`rounded-3xl border bg-card p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(lifecycleFilter)}`}
         >
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Cobrança ativa</p>
-          <p className="mt-3 text-3xl font-black text-slate-900">{getLifecycleCount(lifecycleFilter)}</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Cobrança ativa</p>
+          <p className="mt-3 text-3xl font-black text-card-foreground">{getLifecycleCount(lifecycleFilter)}</p>
           <p className={`mt-1 text-sm ${getSummaryHintClass(lifecycleFilter)}`}>
             {getLifecycleLabel(lifecycleFilter)}
           </p>
@@ -1011,37 +1011,37 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
           </AnimatePresence>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
                 <tr>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Cliente</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Status</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Saldo</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Valor</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Vencimento</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Consultor</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Cobrança</th>
-                  <th className="px-6 py-4 text-right text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Ações</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Cliente</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Status</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Saldo</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Valor</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Vencimento</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Consultor</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Cobrança</th>
+                  <th className="px-6 py-4 text-right text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {loansToRender.map((loan) => {
                   const config = statusConfig[loan.status]
                   const isDraft = loan.id.startsWith('draft-')
                   const saldo = getLoanSaldo(loan)
                   const installmentProgress = getCurrentInstallment(loan)
                   return (
-                    <tr key={loan.id} className="hover:bg-gold-50 transition-colors">
+                    <tr key={loan.id} className="hover:bg-amber-50 dark:hover:bg-slate-800 hover:shadow-lg hover:border-l-4 hover:border-l-amber-400 dark:hover:border-l-amber-600 transition-all">
                       <td className="px-6 py-4">
                         <button
                           type="button"
                           onClick={() => handleOpenDetail(loan)}
                           className="text-left"
                         >
-                          <p className="font-bold text-slate-900">{loan.cliente.nome}</p>
-                          <p className="text-xs text-slate-500">{loan.cliente.email || loan.cliente.whatsapp || '-'}</p>
+                          <p className="font-bold text-card-foreground">{loan.cliente.nome}</p>
+                          <p className="text-xs text-muted-foreground">{loan.cliente.email || loan.cliente.whatsapp || '-'}</p>
                         </button>
                       </td>
                       <td className="px-6 py-4">
@@ -1049,8 +1049,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                           {isDraft ? 'Cobrança inicial' : config.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm font-bold text-slate-900">{formatCurrency(saldo)}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
+                      <td className="px-6 py-4 text-sm font-bold text-card-foreground">{formatCurrency(saldo)}</td>
+                      <td className="px-6 py-4 text-sm text-card-foreground">
                         <div>{formatCurrency(loan.valor)}</div>
                         {installmentProgress ? (
                           <div className="text-xs text-blue-600">
@@ -1058,8 +1058,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                           </div>
                         ) : null}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{formatDate(loan.vencimento)}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{loan.usuario?.nome || 'Não atribuído'}</td>
+                      <td className="px-6 py-4 text-sm text-card-foreground">{formatDate(loan.vencimento)}</td>
+                      <td className="px-6 py-4 text-sm text-card-foreground">{loan.usuario?.nome || 'Não atribuído'}</td>
                       <td className="px-6 py-4">
                         <button
                           type="button"
@@ -1071,14 +1071,15 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                         </button>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-4">
                           {!isDraft && canOpenPaymentTerminal(loan) ? (
                             <button
                               type="button"
                               onClick={() => handleOpenPaymentTerminal(loan)}
-                              className="rounded-xl bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-800 transition-all hover:bg-emerald-200 hover:shadow-md hover:-translate-y-0.5"
+                              className="group inline-flex flex-col items-center gap-1 text-xs transition-all hover:-translate-y-0.5"
                             >
-                              Terminal
+                              <TerminalIcon className="w-5 h-5 text-emerald-600 group-hover:text-emerald-800 dark:text-emerald-400 dark:group-hover:text-emerald-300 transition-colors" />
+                              <span className="font-medium text-slate-600 dark:text-slate-300">Terminal</span>
                             </button>
                           ) : null}
                           {!isDraft && canConfirmMonthlyPayment(loan) ? (
@@ -1086,45 +1087,52 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                               type="button"
                               onClick={() => handleDirectMonthlyPayment(loan)}
                               disabled={isPaymentPending && directMonthlyPaymentLoanId === loan.id}
-                              className="rounded-xl bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-800 transition-all hover:bg-emerald-200 hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                              className="group inline-flex flex-col items-center gap-1 text-xs transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
                             >
-                              {isPaymentPending && directMonthlyPaymentLoanId === loan.id ? 'Confirmando...' : 'Confirmar mês'}
+                              <CheckCircle className="w-5 h-5 text-emerald-600 group-hover:text-emerald-800 dark:text-emerald-400 dark:group-hover:text-emerald-300 transition-colors" />
+                              <span className="font-medium text-slate-600 dark:text-slate-300">
+                                {isPaymentPending && directMonthlyPaymentLoanId === loan.id ? 'Confirmando...' : 'Confirmar mês'}
+                              </span>
                             </button>
                           ) : null}
                           {!isDraft && (loan.cobrancaAtiva ?? false) ? (
                             <button
                               type="button"
                               onClick={() => handleOpenChargeDelivery(loan.id)}
-                              className="rounded-xl bg-red-100 px-3 py-2 text-xs font-bold text-red-800 transition-all hover:bg-red-200 hover:shadow-md hover:-translate-y-0.5"
+                              className="group inline-flex flex-col items-center gap-1 text-xs transition-all hover:-translate-y-0.5"
                             >
-                              Cobrança
+                              <MessageSquare className="w-5 h-5 text-red-600 group-hover:text-red-800 dark:text-red-400 dark:group-hover:text-red-300 transition-colors" />
+                              <span className="font-medium text-slate-600 dark:text-slate-300">Cobrança</span>
                             </button>
                           ) : null}
                           {!isDraft ? (
                             <button
                               type="button"
                               onClick={() => handleOpenDetail(loan)}
-                              className="rounded-xl bg-blue-100 px-3 py-2 text-xs font-bold text-blue-800 transition-all hover:bg-blue-200 hover:shadow-md hover:-translate-y-0.5"
+                              className="group inline-flex flex-col items-center gap-1 text-xs transition-all hover:-translate-y-0.5"
                             >
-                              Ver
+                              <Eye className="w-5 h-5 text-blue-600 group-hover:text-blue-800 dark:text-blue-400 dark:group-hover:text-blue-300 transition-colors" />
+                              <span className="font-medium text-slate-600 dark:text-slate-300">Ver</span>
                             </button>
                           ) : null}
                           {!isDraft ? (
                             <button
                               type="button"
                               onClick={() => handleOpenModal(loan)}
-                              className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition-all hover:bg-slate-200 hover:shadow-md hover:-translate-y-0.5"
+                              className="group inline-flex flex-col items-center gap-1 text-xs transition-all hover:-translate-y-0.5"
                             >
-                              Editar
+                              <Pencil className="w-5 h-5 text-slate-600 group-hover:text-slate-800 dark:text-slate-400 dark:group-hover:text-slate-300 transition-colors" />
+                              <span className="font-medium text-slate-600 dark:text-slate-300">Editar</span>
                             </button>
                           ) : null}
                           {!isDraft && userRole === 'ADMIN' ? (
                             <button
                               type="button"
                               onClick={() => handleDelete(loan.id)}
-                              className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700 transition-all hover:bg-red-100 hover:shadow-md hover:-translate-y-0.5"
+                              className="group inline-flex flex-col items-center gap-1 text-xs transition-all hover:-translate-y-0.5"
                             >
-                              Excluir
+                              <Trash2 className="w-5 h-5 text-red-600 group-hover:text-red-800 dark:text-red-400 dark:group-hover:text-red-300 transition-colors" />
+                              <span className="font-medium text-slate-600 dark:text-slate-300">Excluir</span>
                             </button>
                           ) : null}
                         </div>

@@ -68,51 +68,51 @@ function invalid(message: string): never {
 }
 
 export function validateClienteInput(data: ClienteInput) {
-  if (!data.nome || data.nome.trim() === '') invalid('Nome é obrigatório')
+  if (!data.nome || data.nome.trim() === '') invalid('Informe o nome do cliente.')
 
   const whatsapp = normalizeDigits(data.whatsapp)
-  if (whatsapp.length < 10) invalid('WhatsApp inválido')
+  if (whatsapp.length < 10) invalid('Informe um WhatsApp válido.')
 
   const cpf = normalizeDigits(data.cpf)
-  if (cpf.length !== 11) invalid('CPF inválido')
+  if (cpf.length !== 11) invalid('CPF inválido.')
 
   const anyBirth = data.diaNasc != null || data.mesNasc != null || data.anoNasc != null
   if (anyBirth) {
-    if (!data.diaNasc || !data.mesNasc || !data.anoNasc) invalid('Data de nascimento incompleta')
-    if (data.diaNasc < 1 || data.diaNasc > 31) invalid('Dia inválido (01-31)')
-    if (data.mesNasc < 1 || data.mesNasc > 12) invalid('Mês inválido (01-12)')
+    if (!data.diaNasc || !data.mesNasc || !data.anoNasc) invalid('Data de nascimento incompleta.')
+    if (data.diaNasc < 1 || data.diaNasc > 31) invalid('Dia inválido (01-31).')
+    if (data.mesNasc < 1 || data.mesNasc > 12) invalid('Mês inválido (01-12).')
     const anoAtual = new Date().getFullYear()
-    if (data.anoNasc < 1900 || data.anoNasc > anoAtual) invalid('Ano inválido')
+    if (data.anoNasc < 1900 || data.anoNasc > anoAtual) invalid('Ano inválido.')
     const dt = new Date(Date.UTC(data.anoNasc, data.mesNasc - 1, data.diaNasc, 12, 0, 0, 0))
     if (dt.getUTCFullYear() !== data.anoNasc || dt.getUTCMonth() !== data.mesNasc - 1 || dt.getUTCDate() !== data.diaNasc) {
-      invalid('Data de nascimento inválida')
+      invalid('Data de nascimento inválida.')
     }
   }
 
   const cep = normalizeDigits(data.cep)
-  if (cep.length !== 8) invalid('CEP inválido')
+  if (cep.length !== 8) invalid('Informe um CEP válido.')
 
-  if (!data.endereco || data.endereco.trim() === '') invalid('Endereço é obrigatório')
-  if (!data.numeroEndereco || data.numeroEndereco <= 0) invalid('Número do endereço é obrigatório')
-  if (!data.bairro || data.bairro.trim() === '') invalid('Bairro é obrigatório')
-  if (!data.cidade || data.cidade.trim() === '') invalid('Cidade é obrigatória')
-  if (!data.estado || data.estado.trim() === '') invalid('Estado é obrigatório')
+  if (!data.endereco || data.endereco.trim() === '') invalid('Informe o endereço.')
+  if (!data.numeroEndereco || data.numeroEndereco <= 0) invalid('Informe o número do endereço.')
+  if (!data.bairro || data.bairro.trim() === '') invalid('Informe o bairro.')
+  if (!data.cidade || data.cidade.trim() === '') invalid('Informe a cidade.')
+  if (!data.estado || data.estado.trim() === '') invalid('Informe o estado.')
 
   if (data.cep2) {
     const cep2 = normalizeDigits(data.cep2)
-    if (cep2.length !== 8) invalid('CEP secundário inválido')
+    if (cep2.length !== 8) invalid('CEP secundário inválido.')
   }
 
   if (!isEmergencyContactValid(data.contatoEmergencia1)) {
-    invalid(`Contato de emergência 1 deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone`)
+    invalid(`Contato de emergência deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone.`)
   }
 
   if (!isEmergencyContactValid(data.contatoEmergencia2)) {
-    invalid(`Contato de emergência 2 deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone`)
+    invalid(`Contato de emergência deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone.`)
   }
 
   if (!isEmergencyContactValid(data.contatoEmergencia3)) {
-    invalid(`Contato de emergência 3 deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone`)
+    invalid(`Contato de emergência deve ter até ${EMERGENCY_CONTACT_NAME_MAX_LENGTH} caracteres no nome e ${EMERGENCY_CONTACT_PHONE_MAX_LENGTH} no telefone.`)
   }
 }
 

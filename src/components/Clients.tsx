@@ -157,14 +157,95 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
   const lastCpfToastRef = useRef<string | null>(null)
   const [birthErrors, setBirthErrors] = useState<{ dia?: string; mes?: string; ano?: string }>({})
 
+  // Map to determine which tab a field belongs to
+  const fieldToTab: Partial<Record<keyof typeof clientFormDefaults, typeof activeTab>> = {
+    nome: 'basico',
+    indicacao: 'basico',
+    email: 'basico',
+    whatsapp: 'basico',
+    telefone2: 'basico',
+    instagram: 'basico',
+    observacoes: 'basico',
+    cpf: 'identificacao',
+    rg: 'identificacao',
+    orgao: 'identificacao',
+    diaNasc: 'identificacao',
+    mesNasc: 'identificacao',
+    anoNasc: 'identificacao',
+    cep: 'endereco',
+    endereco: 'endereco',
+    numeroEndereco: 'endereco',
+    complemento: 'endereco',
+    bairro: 'endereco',
+    cidade: 'endereco',
+    estado: 'endereco',
+    pontoReferencia: 'endereco',
+    cep2: 'endereco',
+    endereco2: 'endereco',
+    numeroEndereco2: 'endereco',
+    complemento2: 'endereco',
+    bairro2: 'endereco',
+    cidade2: 'endereco',
+    estado2: 'endereco',
+    pontoReferencia2: 'endereco',
+    profissao: 'profissao',
+    empresa: 'profissao',
+    cepEmpresa: 'profissao',
+    enderecoEmpresa: 'profissao',
+    cidadeEmpresa: 'profissao',
+    estadoEmpresa: 'profissao',
+    contatoEmergencia1: 'emergencia',
+    contatoEmergencia2: 'emergencia',
+    contatoEmergencia3: 'emergencia',
+  }
+
+  // Map error messages to the field(s) they belong to
+  const getErrorFields = (message: string): Array<keyof typeof clientFormDefaults> => {
+    const lowerMsg = message.toLowerCase()
+    if (lowerMsg.includes('nome')) return ['nome']
+    if (lowerMsg.includes('whatsapp')) return ['whatsapp']
+    if (lowerMsg.includes('cpf')) return ['cpf']
+    if (lowerMsg.includes('data de nascimento') || lowerMsg.includes('dia') || lowerMsg.includes('mês') || lowerMsg.includes('ano')) return ['diaNasc', 'mesNasc', 'anoNasc']
+    if (lowerMsg.includes('cep') && !lowerMsg.includes('secundário') && !lowerMsg.includes('secundario')) return ['cep']
+    if (lowerMsg.includes('endereço') && !lowerMsg.includes('secundário') && !lowerMsg.includes('secundario')) return ['endereco']
+    if (lowerMsg.includes('número')) return ['numeroEndereco']
+    if (lowerMsg.includes('bairro')) return ['bairro']
+    if (lowerMsg.includes('cidade')) return ['cidade']
+    if (lowerMsg.includes('estado')) return ['estado']
+    if (lowerMsg.includes('cep secundário') || lowerMsg.includes('cep secundario') || lowerMsg.includes('cep2')) return ['cep2']
+    if (lowerMsg.includes('contato de emergência 1')) return ['contatoEmergencia1']
+    if (lowerMsg.includes('contato de emergência 2')) return ['contatoEmergencia2']
+    if (lowerMsg.includes('contato de emergência 3')) return ['contatoEmergencia3']
+    return []
+  }
+
+  const handleValidationErrors = () => {
+    // If there are any form errors, switch to the first field's tab
+    const firstErrorField = Object.keys(fieldErrors)[0] as keyof typeof clientFormDefaults | undefined
+    if (firstErrorField) {
+      const tab = fieldToTab[firstErrorField]
+      if (tab) {
+        setActiveTab(tab)
+      }
+      toast.error('Há campos com erro. Por favor, verifique os dados informados.')
+    }
+  }
+
   const handleClientSaveError = (error: unknown) => {
     const message = error instanceof Error ? error.message : 'Erro ao salvar cliente. Tente novamente.'
-    if (message.toUpperCase().includes('CPF')) {
-      form.setError('cpf', { message })
-      setActiveTab('identificacao')
-      toast.error(message)
-      return
+    const fields = getErrorFields(message)
+    
+    if (fields.length > 0) {
+      fields.forEach(field => {
+        form.setError(field, { message })
+      })
+      // Switch to the first field's tab
+      const tab = fieldToTab[fields[0]]
+      if (tab) {
+        setActiveTab(tab)
+      }
     }
+    
     toast.error(message)
   }
 
@@ -467,101 +548,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
     setIsModalOpen(true);
   };
 
-  const handleSubmit = form.handleSubmit(async (values) => {
-    setLoading(true);
-    try {
-      const formData = values
-      if (chargeData.enabled) {
-        const valor = Number(chargeData.valor)
-        if (!Number.isFinite(valor) || valor <= 0) {
-          toast.error('Informe um valor válido para a cobrança inicial.')
-          setActiveTab('cobranca')
-          return
-        }
-        if (chargeData.vencimento.trim() === '') {
-          toast.error('Informe o vencimento da cobrança inicial.')
-          setActiveTab('cobranca')
-          return
-        }
-      }
 
-      const payload = normalizeClientPayload(formData)
-
-      if (editingClient) {
-        const result = await updateCliente(editingClient.id, payload);
-        if (!result.ok) {
-          handleClientSaveError(result.error)
-          return
-        }
-        toast.success('Cliente atualizado com sucesso!');
-        if (selectedFiles.length > 0) {
-          for (const file of selectedFiles) {
-            await uploadDocumento(editingClient.id, file)
-          }
-        }
-        if (chargeData.enabled) {
-          await createEmprestimo({
-            clienteId: editingClient.id,
-            valor: Number(chargeData.valor),
-            valorPago:
-              chargeInstallmentsEnabled && Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0
-                ? calculatePaidPrincipalFromCurrentInstallment({
-                    valor: Number(chargeData.valor),
-                    quantidadeParcelas: Number(chargeData.quantidadeParcelas),
-                    currentInstallment: chargeCurrentInstallment,
-                  })
-                : 0,
-            quantidadeParcelas: Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0 ? Number(chargeData.quantidadeParcelas) : null,
-            jurosMes: Number(chargeData.jurosMes) || 0,
-            jurosAtrasoDia: Number(chargeData.jurosAtrasoDia) || 0,
-            vencimento: parseDateInputToUTCNoon(chargeData.vencimento),
-            observacao: chargeData.observacao.trim(),
-          })
-          toast.success('Cobrança inicial criada.')
-        }
-        setIsModalOpen(false);
-        router.push(`/clientes/${editingClient.id}`)
-      } else {
-        const created = await createCliente(payload);
-        if (!created.ok) {
-          handleClientSaveError(created.error)
-          return
-        }
-        toast.success('Cliente cadastrado com sucesso!');
-        if (selectedFiles.length > 0) {
-          for (const file of selectedFiles) {
-            await uploadDocumento(created.id, file)
-          }
-        }
-        if (chargeData.enabled) {
-          await createEmprestimo({
-            clienteId: created.id,
-            valor: Number(chargeData.valor),
-            valorPago:
-              chargeInstallmentsEnabled && Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0
-                ? calculatePaidPrincipalFromCurrentInstallment({
-                    valor: Number(chargeData.valor),
-                    quantidadeParcelas: Number(chargeData.quantidadeParcelas),
-                    currentInstallment: chargeCurrentInstallment,
-                  })
-                : 0,
-            quantidadeParcelas: Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0 ? Number(chargeData.quantidadeParcelas) : null,
-            jurosMes: Number(chargeData.jurosMes) || 0,
-            jurosAtrasoDia: Number(chargeData.jurosAtrasoDia) || 0,
-            vencimento: parseDateInputToUTCNoon(chargeData.vencimento),
-            observacao: chargeData.observacao.trim(),
-          })
-          toast.success('Cobrança inicial criada.')
-        }
-        setIsModalOpen(false);
-        router.push(`/clientes/${created.id}`)
-      }
-    } catch (error) {
-      handleClientSaveError(error)
-    } finally {
-      setLoading(false);
-    }
-  });
 
   const handleDelete = async (id: string) => {
     toast.info('Ação de exclusão solicitada', {
@@ -1337,7 +1324,103 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                   </aside>
 
                   <div className="min-w-0">
-                    <form className="space-y-6" onSubmit={handleSubmit}>
+                    <form className="space-y-6" onSubmit={form.handleSubmit(
+                      async (values) => {
+                        // Our existing handleSubmit logic is here
+                        setLoading(true);
+                        try {
+                          const payload = normalizeClientPayload(values);
+                          if (chargeData.enabled) {
+                            const valor = Number(chargeData.valor);
+                            if (!Number.isFinite(valor) || valor <= 0) {
+                              toast.error('Informe um valor válido para a cobrança inicial.');
+                              setActiveTab('cobranca');
+                              return;
+                            }
+                            if (chargeData.vencimento.trim() === '') {
+                              toast.error('Informe o vencimento da cobrança inicial.');
+                              setActiveTab('cobranca');
+                              return;
+                            }
+                          }
+
+                          if (editingClient) {
+                            const result = await updateCliente(editingClient.id, payload);
+                            if (!result.ok) {
+                              handleClientSaveError(result.error);
+                              return;
+                            }
+                            toast.success('Cliente atualizado com sucesso!');
+                            if (selectedFiles.length > 0) {
+                              for (const file of selectedFiles) {
+                                await uploadDocumento(editingClient.id, file);
+                              }
+                            }
+                            if (chargeData.enabled) {
+                              await createEmprestimo({
+                                clienteId: editingClient.id,
+                                valor: Number(chargeData.valor),
+                                valorPago:
+                                  chargeInstallmentsEnabled && Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0
+                                    ? calculatePaidPrincipalFromCurrentInstallment({
+                                        valor: Number(chargeData.valor),
+                                        quantidadeParcelas: Number(chargeData.quantidadeParcelas),
+                                        currentInstallment: chargeCurrentInstallment,
+                                      })
+                                    : 0,
+                                quantidadeParcelas: Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0 ? Number(chargeData.quantidadeParcelas) : null,
+                                jurosMes: Number(chargeData.jurosMes) || 0,
+                                jurosAtrasoDia: Number(chargeData.jurosAtrasoDia) || 0,
+                                vencimento: parseDateInputToUTCNoon(chargeData.vencimento),
+                                observacao: chargeData.observacao.trim(),
+                              });
+                              toast.success('Cobrança inicial criada.');
+                            }
+                            setIsModalOpen(false);
+                            router.push(`/clientes/${editingClient.id}`);
+                          } else {
+                            const created = await createCliente(payload);
+                            if (!created.ok) {
+                              handleClientSaveError(created.error);
+                              return;
+                            }
+                            toast.success('Cliente cadastrado com sucesso!');
+                            if (selectedFiles.length > 0) {
+                              for (const file of selectedFiles) {
+                                await uploadDocumento(created.id, file);
+                              }
+                            }
+                            if (chargeData.enabled) {
+                              await createEmprestimo({
+                                clienteId: created.id,
+                                valor: Number(chargeData.valor),
+                                valorPago:
+                                  chargeInstallmentsEnabled && Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0
+                                    ? calculatePaidPrincipalFromCurrentInstallment({
+                                        valor: Number(chargeData.valor),
+                                        quantidadeParcelas: Number(chargeData.quantidadeParcelas),
+                                        currentInstallment: chargeCurrentInstallment,
+                                      })
+                                    : 0,
+                                quantidadeParcelas: Number.isInteger(Number(chargeData.quantidadeParcelas)) && Number(chargeData.quantidadeParcelas) > 0 ? Number(chargeData.quantidadeParcelas) : null,
+                                jurosMes: Number(chargeData.jurosMes) || 0,
+                                jurosAtrasoDia: Number(chargeData.jurosAtrasoDia) || 0,
+                                vencimento: parseDateInputToUTCNoon(chargeData.vencimento),
+                                observacao: chargeData.observacao.trim(),
+                              });
+                              toast.success('Cobrança inicial criada.');
+                            }
+                            setIsModalOpen(false);
+                            router.push(`/clientes/${created.id}`);
+                          }
+                        } catch (error) {
+                          handleClientSaveError(error);
+                        } finally {
+                          setLoading(false);
+                        }
+                      },
+                      () => handleValidationErrors() // onInvalid callback!
+                    )}>
                   {activeTab === 'basico' && <ClientStepBasic formData={formData} setFormData={setFormData} formatPhoneBR={formatPhoneBR} errors={formErrorMessages} />}
 
                   {activeTab === 'identificacao' && (
@@ -1432,6 +1515,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                       emergencia3={emergencia3}
                       buildEmergency={buildEmergency}
                       formatPhoneBR={formatPhoneBR}
+                      errors={formErrorMessages}
                     />
                   )}
 
