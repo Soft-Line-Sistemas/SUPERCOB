@@ -941,23 +941,23 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Filtrados</p>
-          <p className="mt-3 text-3xl font-black text-card-foreground">{summary.total}</p>
-          <p className="mt-1 text-sm text-muted-foreground">Contratos no resultado atual</p>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Filtrados</p>
+          <p className="mt-3 text-3xl font-black text-slate-900">{summary.total}</p>
+          <p className="mt-1 text-sm text-slate-500">Contratos no resultado atual</p>
         </div>
-        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Volume</p>
-          <p className="mt-3 text-3xl font-black text-card-foreground">{formatCurrency(summary.valorTotal)}</p>
-          <p className="mt-1 text-sm text-muted-foreground">Valor total filtrado</p>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Volume</p>
+          <p className="mt-3 text-3xl font-black text-slate-900">{formatCurrency(summary.valorTotal)}</p>
+          <p className="mt-1 text-sm text-slate-500">Valor total filtrado</p>
         </div>
         <button
           type="button"
           onClick={() => cycleLoanSummaryFilter('overdue')}
-          className={`rounded-3xl border bg-card p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(overdueFilter)}`}
+          className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(overdueFilter)}`}
         >
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Em aberto</p>
-          <p className="mt-3 text-3xl font-black text-card-foreground">{summary.aberto + summary.negociacao}</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Em aberto</p>
+          <p className="mt-3 text-3xl font-black text-slate-900">{summary.aberto + summary.negociacao}</p>
           <p className={`mt-1 text-sm ${getSummaryHintClass(overdueFilter)}`}>
             {`${getOverdueCount(overdueFilter)} ${getOverdueLabel(overdueFilter).toLowerCase()}`}
           </p>
@@ -965,10 +965,10 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         <button
           type="button"
           onClick={() => cycleLoanSummaryFilter('lifecycle')}
-          className={`rounded-3xl border bg-card p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(lifecycleFilter)}`}
+          className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(lifecycleFilter)}`}
         >
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Cobrança ativa</p>
-          <p className="mt-3 text-3xl font-black text-card-foreground">{getLifecycleCount(lifecycleFilter)}</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Cobrança ativa</p>
+          <p className="mt-3 text-3xl font-black text-slate-900">{getLifecycleCount(lifecycleFilter)}</p>
           <p className={`mt-1 text-sm ${getSummaryHintClass(lifecycleFilter)}`}>
             {getLifecycleLabel(lifecycleFilter)}
           </p>
@@ -1011,22 +1011,22 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
           </AnimatePresence>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border">
-              <thead className="bg-muted">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Cliente</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Status</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Saldo</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Valor</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Vencimento</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Consultor</th>
-                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Cobrança</th>
-                  <th className="px-6 py-4 text-right text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Ações</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Cliente</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Status</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Saldo</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Valor</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Vencimento</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Consultor</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Cobrança</th>
+                  <th className="px-6 py-4 text-right text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-slate-100">
                 {loansToRender.map((loan) => {
                   const config = statusConfig[loan.status]
                   const isDraft = loan.id.startsWith('draft-')
@@ -1040,8 +1040,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                           onClick={() => handleOpenDetail(loan)}
                           className="text-left"
                         >
-                          <p className="font-bold text-card-foreground">{loan.cliente.nome}</p>
-                          <p className="text-xs text-muted-foreground">{loan.cliente.email || loan.cliente.whatsapp || '-'}</p>
+                          <p className="font-bold text-slate-900">{loan.cliente.nome}</p>
+                          <p className="text-xs text-slate-500">{loan.cliente.email || loan.cliente.whatsapp || '-'}</p>
                         </button>
                       </td>
                       <td className="px-6 py-4">
@@ -1049,8 +1049,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                           {isDraft ? 'Cobrança inicial' : config.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm font-bold text-card-foreground">{formatCurrency(saldo)}</td>
-                      <td className="px-6 py-4 text-sm text-card-foreground">
+                      <td className="px-6 py-4 text-sm font-bold text-slate-900">{formatCurrency(saldo)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
                         <div>{formatCurrency(loan.valor)}</div>
                         {installmentProgress ? (
                           <div className="text-xs text-blue-600">
@@ -1058,8 +1058,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                           </div>
                         ) : null}
                       </td>
-                      <td className="px-6 py-4 text-sm text-card-foreground">{formatDate(loan.vencimento)}</td>
-                      <td className="px-6 py-4 text-sm text-card-foreground">{loan.usuario?.nome || 'Não atribuído'}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{formatDate(loan.vencimento)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{loan.usuario?.nome || 'Não atribuído'}</td>
                       <td className="px-6 py-4">
                         <button
                           type="button"
