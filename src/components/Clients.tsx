@@ -232,7 +232,12 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
   }
 
   const handleClientSaveError = (error: unknown) => {
-    const message = error instanceof Error ? error.message : 'Erro ao salvar cliente. Tente novamente.'
+    const message =
+      typeof error === 'string'
+        ? error
+        : error instanceof Error
+          ? error.message
+          : 'Erro ao salvar cliente. Tente novamente.'
     const fields = getErrorFields(message)
     
     if (fields.length > 0) {

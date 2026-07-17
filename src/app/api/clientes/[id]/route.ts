@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 import { isAdminRole } from '@/lib/admin-auth'
-import { assertUniqueClienteCpf, ClientValidationError, normalizeClienteInput, validateClienteInput } from '@/lib/client-validation'
+import { ClientValidationError, normalizeClienteInput, validateClienteInput } from '@/lib/client-validation'
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -12,12 +12,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const { id } = await params
     const data = normalizeClienteInput(await req.json())
     validateClienteInput(data)
-    await assertUniqueClienteCpf({
-      cpf: data.cpf,
-      currentClientId: id,
-      actorRole: session.user.role,
-      actorUserId: (session.user as any).id,
-    })
     const cliente = await prisma.cliente.update({
       where: { id },
       data,

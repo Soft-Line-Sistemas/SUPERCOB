@@ -57,7 +57,7 @@ describe('client-validation', () => {
         cidade: 'Salvador',
         estado: 'BA',
       }),
-    ).toThrow('Nome é obrigatório')
+    ).toThrow('Informe o nome do cliente.')
   })
 
   it('aceita contatos de emergência no formato legado com hífens', () => {

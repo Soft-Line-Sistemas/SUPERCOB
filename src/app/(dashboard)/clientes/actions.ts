@@ -251,9 +251,12 @@ export async function validateClienteCpf(
       return { ok: false, error: 'Sessão expirada. Faça login novamente.', code: 'UNAUTHORIZED' } satisfies ClienteCpfValidationResult
     }
 
+    if (options?.currentClientId) {
+      return { ok: true } satisfies ClienteCpfValidationResult
+    }
+
     await assertUniqueClienteCpf({
       cpf,
-      currentClientId: options?.currentClientId,
       actorRole: (session.user as any).role,
       actorUserId: (session.user as any).id,
     })
@@ -278,12 +281,6 @@ export async function updateCliente(id: string, data: ClienteInput) {
 
     const normalizedData = normalizeClienteInput(data)
     validateClienteInput(normalizedData)
-    await assertUniqueClienteCpf({
-      cpf: normalizedData.cpf,
-      currentClientId: id,
-      actorRole: (session.user as any).role,
-      actorUserId: (session.user as any).id,
-    })
 
     const cliente = await prisma.cliente.update({
       where: { id },
