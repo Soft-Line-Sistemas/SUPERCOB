@@ -7,15 +7,31 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const role = String((session.user as any).role || '').toUpperCase()
+  if (role === 'OPERADOR') {
+    return NextResponse.json({ error: 'Operadores não podem editar contratos' }, { status: 403 })
+  }
+
   try {
     const { id } = await params
     const data = await req.json()
+
+    if (role === 'GERENTE') {
+      const contrato = await prisma.emprestimo.findUnique({ where: { id }, select: { usuarioId: true } })
+      if (contrato?.usuarioId !== (session.user as any).id) {
+        return NextResponse.json({ error: 'Gerentes só podem editar contratos da própria carteira' }, { status: 403 })
+      }
+    }
     
     let status: 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' = 'ABERTO'
     if (data.quitadoEm) {
       status = 'QUITADO'
     } else if (data.observacao && data.observacao.trim() !== '') {
       status = 'NEGOCIACAO'
+    }
+
+    if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE') {
+      return NextResponse.json({ error: 'Apenas administradores ou gerentes podem concluir contratos' }, { status: 403 })
     }
 
     const emprestimo = await prisma.emprestimo.update({

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import { logSystemAction } from '@/lib/audit'
 import { isAdminRole } from '@/lib/admin-auth'
+import { archiveEmprestimo, unarchiveEmprestimo } from '@/lib/archive'
 
 export async function getEmprestimos(filters?: {
   status?: string;
@@ -30,10 +31,11 @@ export async function getEmprestimos(filters?: {
   const userId = (session.user as any).id
   const sort: 'newest' | 'az' = filters?.sort === 'az' ? 'az' : 'newest'
 
-  // Regra: GERENTE vê apenas os próprios contratos. ADM e ESCRITORIO veem tudo.
-  const where: any = role === 'GERENTE' ? { usuarioId: userId } : {}
+  // Gerência e Operador veem somente os contratos atribuídos a eles.
+  const isOwnPortfolioRole = role === 'GERENTE' || role === 'OPERADOR'
+  const where: any = isOwnPortfolioRole ? { usuarioId: userId } : {}
 
-  if (role !== 'GERENTE' && filters?.usuarioId && filters.usuarioId.trim() !== '') {
+  if (!isOwnPortfolioRole && filters?.usuarioId && filters.usuarioId.trim() !== '') {
     if (filters.usuarioId === '__UNASSIGNED__') where.usuarioId = null
     else where.usuarioId = filters.usuarioId
   }
@@ -186,6 +188,9 @@ export async function getEmprestimos(filters?: {
     return [...abertas, ...quitadas]
   }
 
+  const orderMostOverdueFirst = <T extends { vencimento: Date | null }>(loans: T[]) =>
+    [...loans].sort((a, b) => (a.vencimento?.getTime() ?? 0) - (b.vencimento?.getTime() ?? 0))
+
   const buildSummary = (loans: EmprestimoCandidate[]) => {
     const now = new Date()
     return loans.reduce(
@@ -237,7 +242,11 @@ export async function getEmprestimos(filters?: {
       ? visibleCandidates.filter(matchesSpecialFilters)
       : visibleCandidates
 
-  const orderedCandidates = orderQuitadosLast(filteredCandidates)
+  // Na fila de inadimplência, os vencimentos mais antigos vêm primeiro para
+  // priorizar quem está há mais tempo em atraso.
+  const orderedCandidates = overdueFilter === 'yes'
+    ? orderMostOverdueFirst(filteredCandidates)
+    : orderQuitadosLast(filteredCandidates)
   const pagedIds = orderedCandidates.slice(skip, skip + pageSize).map((loan) => loan.id)
 
   total = orderedCandidates.length
@@ -286,12 +295,20 @@ export async function createEmprestimo(data: {
   const role = (session.user as any).role
   const userId = (session.user as any).id
 
+  if (role === 'OPERADOR') {
+    throw new Error('Operadores não podem criar contratos.')
+  }
+
   let status: 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' = 'ABERTO'
   
   if (data.quitadoEm || Number(data.valorPago ?? 0) >= Number(data.valor)) {
     status = 'QUITADO'
   } else if (data.observacao && data.observacao.trim() !== '') {
     status = 'NEGOCIACAO'
+  }
+
+  if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE') {
+    throw new Error('Apenas administradores ou gerentes podem concluir contratos.')
   }
 
   // Se for GERENTE, o empréstimo é automaticamente atribuído a ele
@@ -343,6 +360,11 @@ export async function updateEmprestimo(id: string, data: {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const role = (session.user as any).role
+  if (role === 'OPERADOR') {
+    throw new Error('Operadores não podem editar contratos.')
+  }
+
   if (!Number.isFinite(Number(data.valor)) || Number(data.valor) <= 0) {
     throw new Error('Valor inválido para a cobrança')
   }
@@ -364,7 +386,14 @@ export async function updateEmprestimo(id: string, data: {
     status = 'NEGOCIACAO'
   }
 
+  if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE') {
+    throw new Error('Apenas administradores ou gerentes podem concluir contratos.')
+  }
+
   const before = await prisma.emprestimo.findUnique({ where: { id } })
+  if (role === 'GERENTE' && before?.usuarioId !== (session.user as any).id) {
+    throw new Error('Gerentes só podem editar contratos da própria carteira.')
+  }
 
   const updateData: Prisma.EmprestimoUncheckedUpdateInput = {
     valor: Number(data.valor),
@@ -415,9 +444,46 @@ export async function deleteEmprestimo(id: string) {
   revalidatePath('/dashboard')
 }
 
+export async function archiveEmprestimoAction(id: string, motivo?: string) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const role = (session.user as any).role
+  if (!isAdminRole(role)) throw new Error('Apenas administradores podem arquivar contratos.')
+
+  await archiveEmprestimo(id, { actorUserId: (session.user as any).id, motivo })
+  revalidatePath('/emprestimos')
+  revalidatePath('/dashboard')
+  revalidatePath('/arquivados')
+}
+
+export async function unarchiveEmprestimoAction(id: string) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const role = (session.user as any).role
+  if (!isAdminRole(role)) throw new Error('Apenas administradores podem desarquivar contratos.')
+
+  await unarchiveEmprestimo(id, { actorUserId: (session.user as any).id })
+  revalidatePath('/emprestimos')
+  revalidatePath('/dashboard')
+  revalidatePath('/arquivados')
+}
+
 export async function toggleCobrancaAtiva(id: string, active: boolean) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
+
+  if ((session.user as any).role === 'OPERADOR') {
+    throw new Error('Operadores não podem alterar contratos.')
+  }
+
+  if ((session.user as any).role === 'GERENTE') {
+    const contrato = await prisma.emprestimo.findUnique({ where: { id }, select: { usuarioId: true } })
+    if (contrato?.usuarioId !== (session.user as any).id) {
+      throw new Error('Gerentes só podem alterar contratos da própria carteira.')
+    }
+  }
 
   await prisma.emprestimo.update({
     where: { id },

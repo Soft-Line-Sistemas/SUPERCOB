@@ -4,7 +4,7 @@ import { auth } from '@/auth'
 export async function logSystemAction(input: {
   entidade: 'EMPRESTIMO' | 'CLIENTE' | 'USUARIO'
   entidadeId: string
-  acao: 'CREATE' | 'UPDATE' | 'DELETE' | 'PAYMENT' | 'JUROS_AUTO'
+  acao: 'CREATE' | 'UPDATE' | 'DELETE' | 'PAYMENT' | 'JUROS_AUTO' | 'ARCHIVE' | 'UNARCHIVE'
   detalhes?: string
   antes?: any
   depois?: any

@@ -25,6 +25,10 @@ model Usuario {
   mensagensRecebidas   MensagemInterna[]     @relation("MensagensRecebidas")
   mensagensEnviadas    MensagemInterna[]     @relation("MensagensEnviadas")
   passwordResetTokens  PasswordResetToken[]
+  clientesArquivadosPor       ClienteArquivado[]             @relation("ClienteArquivadoPor")
+  emprestimosArquivados       EmprestimoArquivado[]          @relation("EmprestimoArquivadoUsuario")
+  emprestimosArquivadosPor    EmprestimoArquivado[]          @relation("EmprestimoArquivadoPor")
+  historicosArquivadosCriados EmprestimoHistoricoArquivado[] @relation("EmprestimoHistoricoArquivadoCreatedBy")
 }
 
 model PasswordResetToken {
@@ -165,6 +169,7 @@ model WhatsappAutomationRule {
   updatedAt      DateTime                 @updatedAt
   config         WhatsappAutomationConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
   dispatches     WhatsappAutomationDispatch[]
+  dispatchesArquivados WhatsappAutomationDispatchArquivado[] @relation("WhatsappAutomationDispatchArquivadoRule")
 
   @@index([configId])
   @@index([enabled, priority])
@@ -246,4 +251,168 @@ model AuditoriaGeral {
   depois     String?  @db.Text
   createdAt  DateTime @default(now())
   autor      Usuario? @relation("AuditoriaAutor", fields: [autorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ClienteArquivado {
+  id                 String   @id
+  nome               String
+  indicacao          String?
+  cpf                String?
+  rg                 String?
+  orgao              String?
+  diaNasc            Int?
+  mesNasc            Int?
+  anoNasc            Int?
+  email              String?
+  whatsapp           String?
+  instagram          String?
+  cep                String?
+  endereco           String?
+  complemento        String?
+  bairro             String?
+  cidade             String?
+  estado             String?
+  pontoReferencia    String?
+  profissao          String?
+  empresa            String?
+  cepEmpresa         String?
+  enderecoEmpresa    String?
+  cidadeEmpresa      String?
+  estadoEmpresa      String?
+  contatoEmergencia1 String?
+  contatoEmergencia2 String?
+  contatoEmergencia3 String?
+  telefone2          String?
+  observacoes        String?  @db.Text
+  cep2               String?
+  endereco2          String?
+  numeroEndereco2    Int?
+  complemento2       String?
+  bairro2            String?
+  cidade2            String?
+  estado2            String?
+  pontoReferencia2   String?
+  numeroEndereco     Int?
+  createdAt          DateTime
+
+  arquivadoEm        DateTime @default(now())
+  arquivadoPorId     String?
+  motivoArquivamento String?  @db.Text
+
+  arquivadoPor       Usuario? @relation("ClienteArquivadoPor", fields: [arquivadoPorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  documentos         ClienteDocumentoArquivado[]
+  whatsappPrefs      WhatsappAutomationClientPreferenceArquivado?
+
+  @@index([arquivadoEm])
+  @@index([cpf])
+}
+
+model EmprestimoArquivado {
+  id                     String    @id
+  clienteId              String
+  usuarioId              String?
+  valor                  Float
+  quantidadeParcelas     Int?
+  jurosMes               Float
+  jurosAtrasoDia         Float
+  vencimento             DateTime?
+  quitadoEm              DateTime?
+  status                 String    @db.VarChar(20)
+  observacao             String?   @db.Text
+  arquivo1               String?
+  arquivo2               String?
+  arquivo3               String?
+  arquivo4               String?
+  arquivo5               String?
+  createdAt              DateTime
+  valorPago              Float
+  jurosPagos             Float
+  cobrancaAtiva          Boolean
+  lastInterestAccrual    DateTime?
+
+  arquivadoEm            DateTime @default(now())
+  arquivadoPorId         String?
+  motivoArquivamento     String?  @db.Text
+  clienteTambemArquivado Boolean  @default(false)
+
+  usuario                Usuario?  @relation("EmprestimoArquivadoUsuario", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  arquivadoPor           Usuario?  @relation("EmprestimoArquivadoPor", fields: [arquivadoPorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  historico              EmprestimoHistoricoArquivado[]
+  whatsappDispatches     WhatsappAutomationDispatchArquivado[]
+
+  @@index([clienteId])
+  @@index([arquivadoEm])
+  @@index([status])
+}
+
+model WhatsappAutomationClientPreferenceArquivado {
+  id              String    @id
+  clienteId       String    @unique
+  enabled         Boolean
+  pausedAt        DateTime?
+  pauseReason     String?   @db.VarChar(120)
+  allowRecurrence Boolean
+  createdAt       DateTime
+  updatedAt       DateTime
+
+  arquivadoEm     DateTime  @default(now())
+
+  clienteArquivado ClienteArquivado @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+}
+
+model WhatsappAutomationDispatchArquivado {
+  id                     String    @id
+  ruleId                 String
+  emprestimoId           String
+  status                 String    @db.VarChar(20)
+  scheduledFor           DateTime?
+  attemptedAt            DateTime?
+  sentAt                 DateTime?
+  errorMessage           String?   @db.Text
+  payloadPreview         String?   @db.Text
+  providerRef            String?   @db.VarChar(120)
+  triggerMode            String    @db.VarChar(20)
+  requiresManualFollowUp Boolean
+  followUpStatus         String    @db.VarChar(20)
+  followUpResolvedAt     DateTime?
+  followUpNotes          String?   @db.Text
+  createdAt              DateTime
+
+  arquivadoEm            DateTime  @default(now())
+
+  rule                   WhatsappAutomationRule @relation("WhatsappAutomationDispatchArquivadoRule", fields: [ruleId], references: [id], onDelete: Cascade)
+  emprestimoArquivado    EmprestimoArquivado    @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
+
+  @@index([emprestimoId])
+  @@index([ruleId, status])
+}
+
+model EmprestimoHistoricoArquivado {
+  id                  String   @id
+  emprestimoId        String
+  descricao           String   @db.Text
+  createdAt           DateTime
+  createdById         String?
+  tipo                String?  @db.VarChar(20)
+
+  arquivadoEm         DateTime @default(now())
+
+  createdBy           Usuario?            @relation("EmprestimoHistoricoArquivadoCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  emprestimoArquivado EmprestimoArquivado @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
+
+  @@index([emprestimoId])
+}
+
+model ClienteDocumentoArquivado {
+  id           String   @id
+  clienteId    String
+  originalName String
+  fileName     String   @unique
+  mimeType     String   @db.VarChar(100)
+  size         Int
+  createdAt    DateTime
+
+  arquivadoEm  DateTime @default(now())
+
+  clienteArquivado ClienteArquivado @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 }

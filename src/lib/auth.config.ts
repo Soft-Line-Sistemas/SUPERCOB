@@ -26,9 +26,9 @@ export const authConfig = {
     },
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
-      const protectedPrefixes = ['/dashboard', '/clientes', '/emprestimos', '/reports', '/chat', '/usuarios', '/perfil']
+      const protectedPrefixes = ['/dashboard', '/clientes', '/emprestimos', '/reports', '/chat', '/usuarios', '/perfil', '/arquivados']
       const isOnProtectedRoute = protectedPrefixes.some((prefix) => nextUrl.pathname.startsWith(prefix))
-      const isOnAdmin = nextUrl.pathname.startsWith('/usuarios')
+      const isOnAdmin = nextUrl.pathname.startsWith('/usuarios') || nextUrl.pathname.startsWith('/arquivados')
       const role = (auth?.user as any)?.role
       
       if (isOnProtectedRoute) {

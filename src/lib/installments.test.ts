@@ -79,7 +79,18 @@ describe('calculateEstimatedInstallments', () => {
         quantidadeParcelas: 4,
         status: 'NEGOCIACAO',
       }),
-    ).toEqual({ current: 2, total: 4 })
+    ).toEqual({ current: 1, total: 4 })
+  })
+
+  it('inicia na parcela 0 quando não há principal pago', () => {
+    expect(
+      calculateCurrentInstallment({
+        valor: 1000,
+        valorPago: 0,
+        quantidadeParcelas: 4,
+        status: 'NEGOCIACAO',
+      }),
+    ).toEqual({ current: 0, total: 4 })
   })
 
   it('calcula o valor pago correspondente a uma parcela atual selecionada', () => {
@@ -87,7 +98,7 @@ describe('calculateEstimatedInstallments', () => {
       calculatePaidPrincipalFromCurrentInstallment({
         valor: 1000,
         quantidadeParcelas: 4,
-        currentInstallment: 3,
+        currentInstallment: 2,
       }),
     ).toBe(500)
   })

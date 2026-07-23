@@ -65,7 +65,10 @@ export function calculateCurrentInstallment(input: {
   )
 
   return {
-    current: Math.min(quantidadeParcelas, parcelasPagas + 1),
+    // A parcela atual representa quantas parcelas já foram pagas. Assim, um
+    // acordo recém-criado começa na parcela 0 e vai para 1 após o primeiro
+    // pagamento, sem pular diretamente para 2.
+    current: parcelasPagas,
     total: quantidadeParcelas,
   }
 }
@@ -77,12 +80,12 @@ export function calculatePaidPrincipalFromCurrentInstallment(input: {
 }) {
   const valor = Number(input.valor ?? 0)
   const quantidadeParcelas = Number(input.quantidadeParcelas ?? 0)
-  const currentInstallment = Number(input.currentInstallment ?? 1)
+  const currentInstallment = Number(input.currentInstallment ?? 0)
 
   if (!Number.isFinite(valor) || valor <= 0) return 0
   if (!Number.isInteger(quantidadeParcelas) || quantidadeParcelas <= 0) return 0
-  if (!Number.isInteger(currentInstallment) || currentInstallment <= 1) return 0
+  if (!Number.isInteger(currentInstallment) || currentInstallment <= 0) return 0
 
-  const parcelasPagas = Math.min(quantidadeParcelas, currentInstallment - 1)
+  const parcelasPagas = Math.min(quantidadeParcelas, currentInstallment)
   return (valor / quantidadeParcelas) * parcelasPagas
 }

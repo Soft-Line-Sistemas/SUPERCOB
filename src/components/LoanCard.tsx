@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Edit2, Trash2, Clock, CheckCircle2, AlertCircle as AlertIcon, X, Download, Send, Wallet } from 'lucide-react';
+import { Edit2, Trash2, Archive, Clock, CheckCircle2, AlertCircle as AlertIcon, X, Download, Send, Wallet } from 'lucide-react';
 import { format } from 'date-fns';
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
@@ -34,10 +34,10 @@ interface Loan {
 }
 
 const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any; bg: string; border: string }> = {
-  ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-950', border: 'border-slate-200', icon: Clock },
+  ABERTO: { label: 'Aberto', color: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', icon: Clock },
   NEGOCIACAO: { label: 'Em Negociação', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-400', icon: AlertIcon },
   QUITADO: { label: 'Quitado', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-500', icon: CheckCircle2 },
-  CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-950', border: 'border-slate-300', icon: X },
+  CANCELADO: { label: 'Cancelado', color: 'text-slate-500', bg: 'bg-slate-100', border: 'border-slate-300', icon: X },
 };
 
 interface LoanCardProps {
@@ -45,6 +45,7 @@ interface LoanCardProps {
   idx: number;
   onEdit: (loan: Loan) => void;
   onDelete: (id: string) => void;
+  onArchive?: (id: string) => void;
   onDetail: (loan: Loan) => void;
   onToggleCobranca: (id: string, active: boolean) => void;
   onExportDossie: (id: string) => void;
@@ -55,6 +56,7 @@ interface LoanCardProps {
   generateWhatsAppLink: (loan: Loan) => string;
   contactFilter: (loan: Loan) => boolean;
   isAdmin?: boolean;
+  canEdit?: boolean;
   installmentProgress?: { current: number; total: number } | null;
   canOpenPaymentTerminal?: boolean;
   canConfirmMonthlyPayment?: boolean;
@@ -67,6 +69,7 @@ export function LoanCard({
   idx,
   onEdit,
   onDelete,
+  onArchive,
   onDetail,
   onToggleCobranca,
   onExportDossie,
@@ -77,6 +80,7 @@ export function LoanCard({
   generateWhatsAppLink,
   contactFilter,
   isAdmin,
+  canEdit = true,
   installmentProgress = null,
   canOpenPaymentTerminal = false,
   canConfirmMonthlyPayment = false,
@@ -169,21 +173,36 @@ export function LoanCard({
           </button>
         ) : !isDraft && (
           <div className="flex gap-1">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(loan);
-              }}
-              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all"
-            >
-              <Edit2 className="h-4 w-4" />
-            </button>
+            {canEdit && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(loan);
+                }}
+                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all"
+              >
+                <Edit2 className="h-4 w-4" />
+              </button>
+            )}
+            {false && isAdmin && onArchive && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onArchive?.(loan.id);
+                }}
+                title="Arquivar contrato"
+                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-white rounded-lg transition-all"
+              >
+                <Archive className="h-4 w-4" />
+              </button>
+            )}
             {isAdmin && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(loan.id);
                 }}
+                title="Excluir definitivamente"
                 className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg transition-all"
               >
                 <Trash2 className="h-4 w-4" />
@@ -199,7 +218,7 @@ export function LoanCard({
         onClick={() => onDetail(loan)}
       >
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-slate-950 flex items-center justify-center text-slate-400 font-bold border border-slate-100 shadow-inner">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 font-bold border border-slate-100 shadow-inner">
             {loan.cliente.nome.charAt(0)}
           </div>
           <div className="flex-1 min-w-0">

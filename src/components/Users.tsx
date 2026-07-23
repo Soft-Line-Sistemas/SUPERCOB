@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Search, X, User, Mail, Edit2, Trash2, Shield, Lock, MoreHorizontal, UserCheck, ShieldAlert, Key, Monitor } from 'lucide-react';
+import { Plus, Search, X, User, Mail, Edit2, Trash2, Shield, Lock, MoreHorizontal, UserCheck, ShieldAlert, Key, Monitor, Headphones, Info, CheckCircle2 } from 'lucide-react';
 import { createUsuario, updateUsuario, deleteUsuario } from '@/app/(dashboard)/usuarios/actions';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,7 +11,7 @@ interface Usuario {
   id: string;
   nome: string;
   email: string;
-  role: 'ADM' | 'ESCRITORIO' | 'GERENTE';
+  role: 'ADM' | 'ESCRITORIO' | 'GERENTE' | 'OPERADOR';
   createdAt: Date;
 }
 
@@ -26,12 +26,13 @@ export function Users({ initialUsers, myRole }: UsersProps) {
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPermissionsInfoOpen, setIsPermissionsInfoOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
     senha: '',
-    role: 'GERENTE' as 'ADM' | 'ESCRITORIO' | 'GERENTE',
+    role: 'GERENTE' as 'ADM' | 'ESCRITORIO' | 'GERENTE' | 'OPERADOR',
   });
 
   const filteredUsers = initialUsers.filter(user =>
@@ -150,14 +151,15 @@ export function Users({ initialUsers, myRole }: UsersProps) {
               <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[10px] font-black uppercase tracking-widest ${
                 user.role === 'ADM' ? 'bg-indigo-600 text-white' : 
                 user.role === 'ESCRITORIO' ? 'bg-emerald-600 text-white' :
-                'bg-slate-950 text-slate-500'
+                user.role === 'OPERADOR' ? 'bg-amber-500 text-white' :
+                'bg-slate-100 text-slate-500'
               }`}>
-                {user.role === 'GERENTE' ? 'GERÊNCIA' : user.role === 'ESCRITORIO' ? 'ESCRITÓRIO' : user.role}
+                {user.role === 'GERENTE' ? 'GERÊNCIA' : user.role === 'ESCRITORIO' ? 'ESCRITÓRIO' : user.role === 'OPERADOR' ? 'OPERADOR' : user.role}
               </div>
 
               <div className="flex items-center gap-4 mb-6">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner ${
-                  user.role === 'ADM' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-950 text-slate-400'
+                  user.role === 'ADM' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'
                 }`}>
                   {user.nome.charAt(0).toUpperCase()}
                 </div>
@@ -172,8 +174,8 @@ export function Users({ initialUsers, myRole }: UsersProps) {
 
               <div className="flex items-center justify-between pt-6 border-t border-slate-50">
                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  {user.role === 'ADM' ? <Shield className="w-3.5 h-3.5" /> : user.role === 'ESCRITORIO' ? <Monitor className="w-3.5 h-3.5 text-emerald-500" /> : <UserCheck className="w-3.5 h-3.5" />}
-                  {user.role === 'ADM' ? 'Acesso Total' : user.role === 'ESCRITORIO' ? 'Gestão e Visão' : 'Acesso Limitado'}
+                  {user.role === 'ADM' ? <Shield className="w-3.5 h-3.5" /> : user.role === 'ESCRITORIO' ? <Monitor className="w-3.5 h-3.5 text-emerald-500" /> : user.role === 'OPERADOR' ? <Headphones className="w-3.5 h-3.5 text-amber-500" /> : <UserCheck className="w-3.5 h-3.5" />}
+                  {user.role === 'ADM' ? 'Acesso Total' : user.role === 'ESCRITORIO' ? 'Gestão e Visão' : user.role === 'OPERADOR' ? 'Acesso Operacional' : 'Acesso Limitado'}
                 </div>
                 
                 <div className="flex gap-2">
@@ -225,7 +227,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                     </h3>
                     <p className="text-slate-500 text-sm">Defina as permissões e credenciais.</p>
                   </div>
-                  <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-950 rounded-full text-slate-400 transition-colors">
+                  <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors">
                     <X className="h-6 w-6" />
                   </button>
                 </div>
@@ -252,7 +254,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           required
                           value={formData.nome}
                           onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                           placeholder="Ex: Roberto Oliveira"
                         />
                       </div>
@@ -267,7 +269,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           required
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                           placeholder="email@mrcobrancas.com.br"
                         />
                       </div>
@@ -284,7 +286,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           required={!editingUser}
                           value={formData.senha}
                           onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all"
                           placeholder={editingUser ? "Deixe vazio para manter" : "Mínimo 6 caracteres"}
                         />
                       </div>
@@ -292,12 +294,12 @@ export function Users({ initialUsers, myRole }: UsersProps) {
 
                     <div className="space-y-1.5">
                       <label className="text-sm font-bold text-slate-700 ml-1">Nível de Permissão</label>
-                      <div className={`grid ${(myRole === 'ADM' || myRole === 'ADMIN') ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
+                      <div className={`grid ${(myRole === 'ADM' || myRole === 'ADMIN') ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-3`}>
                         <button
                           type="button"
                           onClick={() => setFormData({...formData, role: 'GERENTE'})}
                           className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
-                            formData.role === 'GERENTE' ? 'border-blue-500 bg-blue-50/50' : 'border-slate-100 bg-white hover:bg-slate-950'
+                            formData.role === 'GERENTE' ? 'border-blue-500 bg-blue-50/50' : 'border-slate-100 bg-white hover:bg-slate-50'
                           }`}
                         >
                           <User className={`w-6 h-6 ${formData.role === 'GERENTE' ? 'text-blue-600' : 'text-slate-400'}`} />
@@ -308,11 +310,22 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           type="button"
                           onClick={() => setFormData({...formData, role: 'ESCRITORIO'})}
                           className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
-                            formData.role === 'ESCRITORIO' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-100 bg-slate-950 hover:bg-slate-950'
+                            formData.role === 'ESCRITORIO' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-100 bg-white hover:bg-slate-50'
                           }`}
                         >
                           <Monitor className={`w-6 h-6 ${formData.role === 'ESCRITORIO' ? 'text-emerald-600' : 'text-slate-400'}`} />
                           <span className={`text-[10px] font-bold ${formData.role === 'ESCRITORIO' ? 'text-emerald-700' : 'text-slate-500'}`}>ESCRITÓRIO</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setFormData({...formData, role: 'OPERADOR'})}
+                          className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                            formData.role === 'OPERADOR' ? 'border-amber-500 bg-amber-50/60' : 'border-slate-100 bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          <Headphones className={`w-6 h-6 ${formData.role === 'OPERADOR' ? 'text-amber-600' : 'text-slate-400'}`} />
+                          <span className={`text-[10px] font-bold ${formData.role === 'OPERADOR' ? 'text-amber-700' : 'text-slate-500'}`}>OPERADOR</span>
                         </button>
 
                         {(myRole === 'ADM' || myRole === 'ADMIN') && (
@@ -320,7 +333,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                             type="button"
                             onClick={() => setFormData({...formData, role: 'ADM'})}
                             className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
-                              formData.role === 'ADM' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-100 bg-white hover:bg-slate-950'
+                              formData.role === 'ADM' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-100 bg-white hover:bg-slate-50'
                             }`}
                           >
                             <Shield className={`w-6 h-6 ${formData.role === 'ADM' ? 'text-indigo-600' : 'text-slate-400'}`} />
@@ -328,6 +341,14 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           </button>
                         )}
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsPermissionsInfoOpen(true)}
+                        className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        <Info className="h-4 w-4" />
+                        Entenda o que cada nível de permissão pode fazer
+                      </button>
                     </div>
                   </div>
 
@@ -335,7 +356,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="flex-1 py-4 bg-slate-950 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                      className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
                     >
                       Cancelar
                     </button>
@@ -348,6 +369,65 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                     </button>
                   </div>
                 </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isPermissionsInfoOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsPermissionsInfoOpen(false)}
+              className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 16 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="permissions-info-title"
+              className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-slate-100 dark:border-white/10 bg-white dark:bg-slate-950 p-6 shadow-2xl sm:p-8"
+            >
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <h3 id="permissions-info-title" className="text-xl font-bold text-slate-900 dark:text-white">O que cada perfil consegue fazer</h3>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Resumo das permissões atuais do sistema.</p>
+                </div>
+                <button onClick={() => setIsPermissionsInfoOpen(false)} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-700 dark:hover:text-white" aria-label="Fechar informações de permissões">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  { role: 'Administrador', icon: Shield, tone: 'indigo', items: ['Acesso total ao sistema', 'Gerencia usuários e responsáveis', 'Pode excluir clientes e contratos', 'Pode reabrir contratos concluídos ou cancelados'] },
+                  { role: 'Escritório', icon: Monitor, tone: 'emerald', items: ['Consulta todos os clientes e contratos', 'Cria e edita clientes e contratos', 'Registra pagamentos parciais', 'Não exclui, reabre nem conclui contratos'] },
+                  { role: 'Gerência', icon: UserCheck, tone: 'blue', items: ['Trabalha na própria carteira de contratos', 'Cria e edita clientes e contratos', 'Registra pagamentos e conclui contratos', 'Não gerencia usuários nem exclui cadastros'] },
+                  { role: 'Operador', icon: Headphones, tone: 'amber', items: ['Consulta somente a própria carteira', 'Registra pagamentos parciais e acompanha contratos', 'Não cria nem edita contratos', 'Não exclui, restaura, reabre nem conclui contratos'] },
+                ].map(({ role, icon: RoleIcon, tone, items }) => (
+                  <div key={role} className={`rounded-2xl border p-4 ${tone === 'indigo' ? 'border-indigo-100 dark:border-indigo-500/20 bg-indigo-50/60 dark:bg-indigo-500/10' : tone === 'emerald' ? 'border-emerald-100 dark:border-emerald-500/20 bg-emerald-50/60 dark:bg-emerald-500/10' : tone === 'amber' ? 'border-amber-100 dark:border-amber-500/20 bg-amber-50/60 dark:bg-amber-500/10' : 'border-blue-100 dark:border-blue-500/20 bg-blue-50/60 dark:bg-blue-500/10'}`}>
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${tone === 'indigo' ? 'bg-indigo-600 text-white' : tone === 'emerald' ? 'bg-emerald-600 text-white' : tone === 'amber' ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'}`}>
+                        <RoleIcon className="h-4 w-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">{role}</h4>
+                    </div>
+                    <ul className="space-y-2">
+                      {items.map((item) => (
+                        <li key={item} className="flex gap-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500 dark:text-slate-400" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
               </div>
             </motion.div>
           </div>

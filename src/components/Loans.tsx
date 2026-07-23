@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useTransition } from 'react';
-import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download, ChevronLeft, ChevronRight, Terminal as TerminalIcon, CheckCircle, MessageSquare, Eye, Pencil, Trash2 } from 'lucide-react';
-import { createEmprestimo, updateEmprestimo, deleteEmprestimo, toggleCobrancaAtiva } from '@/app/(dashboard)/emprestimos/actions';
+import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download, ChevronLeft, ChevronRight, Terminal as TerminalIcon, CheckCircle, MessageSquare, Eye, Pencil, Trash2, Archive } from 'lucide-react';
+import { createEmprestimo, updateEmprestimo, deleteEmprestimo, archiveEmprestimoAction, toggleCobrancaAtiva } from '@/app/(dashboard)/emprestimos/actions';
 import { addPagamentoParcial } from '@/app/(dashboard)/emprestimos/[id]/actions';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -131,7 +131,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const [installmentsEnabled, setInstallmentsEnabled] = useState(false)
   const [parcelingMode, setParcelingMode] = useState<'integral' | 'remaining'>('integral')
   const [expectedInterestPercent, setExpectedInterestPercent] = useState('100')
-  const [currentInstallmentSelection, setCurrentInstallmentSelection] = useState(1)
+  const [currentInstallmentSelection, setCurrentInstallmentSelection] = useState(0)
   const [discountPaidInstallments, setDiscountPaidInstallments] = useState(false)
   const parcelingModeOptions = [
     { value: 'integral' as const, label: 'Saldo integral' },
@@ -152,6 +152,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const [contactOnly, setContactOnly] = useState(() => (initialSearch?.get('contactOnly') ?? '') === '1')
   const [sortOrder, setSortOrder] = useState<'newest' | 'az'>(sort)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false)
 
   const [formData, setFormData] = useState(() => ({
     clienteId: shouldAutoOpenNew ? initialClienteId : '',
@@ -232,24 +233,33 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+
+    const currentSortParam = searchParams.get('sort')
+    if (preferencesLoaded) {
+      if (currentSortParam) {
+        setSortOrder(currentSortParam === 'az' ? 'az' : 'newest')
+      }
+      return
+    }
+
     const storedViewMode = window.localStorage.getItem(viewStorageKey)
     if (storedViewMode === 'grid' || storedViewMode === 'list') {
       setViewMode(storedViewMode)
     }
 
-    const currentSortParam = searchParams.get('sort')
-    if (!currentSortParam) {
+    if (currentSortParam) {
+      setSortOrder(currentSortParam === 'az' ? 'az' : 'newest')
+    } else {
       const storedSort = window.localStorage.getItem(sortStorageKey)
       if (storedSort === 'az' || storedSort === 'newest') {
         setSortOrder(storedSort)
       }
-    } else {
-      setSortOrder(currentSortParam === 'az' ? 'az' : 'newest')
     }
-  }, [searchParams, sortStorageKey, viewStorageKey])
+    setPreferencesLoaded(true)
+  }, [preferencesLoaded, searchParams, sortStorageKey, viewStorageKey])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || !preferencesLoaded) return
     window.localStorage.setItem(sortStorageKey, sortOrder)
     const currentSortParam = (searchParams.get('sort') ?? 'newest') === 'az' ? 'az' : 'newest'
     if (currentSortParam === sortOrder) return
@@ -259,12 +269,12 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     next.delete('page')
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
-  }, [pathname, router, searchParams, sortOrder, sortStorageKey])
+  }, [pathname, preferencesLoaded, router, searchParams, sortOrder, sortStorageKey])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || !preferencesLoaded) return
     window.localStorage.setItem(viewStorageKey, viewMode)
-  }, [viewMode, viewStorageKey])
+  }, [preferencesLoaded, viewMode, viewStorageKey])
 
   const overdueFilter = searchParams.get('overdue')
   const lifecycleFilter = searchParams.get('lifecycle')
@@ -281,21 +291,10 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     return 'text-slate-500'
   }
 
-  const getOverdueLabel = (state: string | null) => {
-    if (state === 'no') return 'Não vencidos no filtro'
-    if (state === 'yes') return 'Vencidos no filtro'
-    return 'Vencidos no filtro'
-  }
-
   const getLifecycleLabel = (state: string | null) => {
     if (state === 'open') return `${summary.aberto + summary.negociacao} em aberto e negociação`
     if (state === 'closed') return `${summary.quitado} quitados e ${summary.cancelado} cancelados`
     return `${summary.quitado} quitados e ${summary.cancelado} cancelados`
-  }
-
-  const getOverdueCount = (state: string | null) => {
-    if (state === 'no') return Math.max(summary.total - summary.vencidos, 0)
-    return summary.vencidos
   }
 
   const getLifecycleCount = (state: string | null) => {
@@ -322,6 +321,15 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     const next = new URLSearchParams(searchParams.toString())
     if (nextValue) next.set(param, nextValue)
     else next.delete(param)
+    next.delete('page')
+    router.replace(`${pathname}?${next.toString()}`)
+    router.refresh()
+  }
+
+  const toggleOverdueFilter = () => {
+    const next = new URLSearchParams(searchParams.toString())
+    if (overdueFilter === 'yes') next.delete('overdue')
+    else next.set('overdue', 'yes')
     next.delete('page')
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
@@ -399,7 +407,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       setInstallmentsEnabled(Boolean(loan.quantidadeParcelas))
       setParcelingMode('remaining')
       setExpectedInterestPercent('100')
-      setCurrentInstallmentSelection(calculateCurrentInstallment(loan)?.current ?? 1)
+      setCurrentInstallmentSelection(calculateCurrentInstallment(loan)?.current ?? 0)
       setDiscountPaidInstallments(false)
     } else {
       setEditingLoan(null);
@@ -417,7 +425,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       setInstallmentsEnabled(false)
       setParcelingMode('integral')
       setExpectedInterestPercent('100')
-      setCurrentInstallmentSelection(1)
+      setCurrentInstallmentSelection(0)
       setDiscountPaidInstallments(false)
     }
     setIsModalOpen(true);
@@ -466,7 +474,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const handleInstallmentsEnabledChange = (checked: boolean) => {
     setInstallmentsEnabled(checked)
     setInstallmentsManuallyEdited(false)
-    setCurrentInstallmentSelection(1)
+    setCurrentInstallmentSelection(0)
     setDiscountPaidInstallments(false)
     if (checked && editingLoan) {
       setParcelingMode('remaining')
@@ -480,14 +488,14 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const currentInstallmentOptions = useMemo(
     () =>
       Number.isInteger(formData.quantidadeParcelas) && formData.quantidadeParcelas > 0
-        ? Array.from({ length: formData.quantidadeParcelas }, (_, index) => index + 1)
+        ? Array.from({ length: formData.quantidadeParcelas + 1 }, (_, index) => index)
         : [],
     [formData.quantidadeParcelas],
   )
 
   useEffect(() => {
     if (currentInstallmentOptions.length === 0) {
-      if (currentInstallmentSelection !== 1) setCurrentInstallmentSelection(1)
+      if (currentInstallmentSelection !== 0) setCurrentInstallmentSelection(0)
       if (discountPaidInstallments) setDiscountPaidInstallments(false)
       return
     }
@@ -496,7 +504,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       setCurrentInstallmentSelection(currentInstallmentOptions.length)
     }
 
-    if (currentInstallmentSelection <= 1 && discountPaidInstallments) {
+    if (currentInstallmentSelection <= 0 && discountPaidInstallments) {
       setDiscountPaidInstallments(false)
     }
   }, [currentInstallmentOptions, currentInstallmentSelection, discountPaidInstallments])
@@ -540,7 +548,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const discountedPaidInstallmentsLabel = (() => {
     if (!installmentsEnabled || !discountPaidInstallments) return null
     const installments = Number(formData.quantidadeParcelas)
-    const paidInstallments = Math.max(currentInstallmentSelection - 1, 0)
+    const paidInstallments = Math.max(currentInstallmentSelection, 0)
     if (!Number.isInteger(installments) || installments <= 0 || paidInstallments <= 0) return null
 
     const remainingGrossAmount = editingLoan
@@ -917,9 +925,27 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     });
   };
 
+  const handleArchive = (id: string) => {
+    toast.info('Arquivar este contrato?', {
+      description: 'O contrato sai de listagens, dashboard, relatórios e fila de cobrança, mas pode ser restaurado depois em Arquivados.',
+      action: {
+        label: 'Arquivar',
+        onClick: async () => {
+          try {
+            await archiveEmprestimoAction(id);
+            toast.success('Contrato arquivado com sucesso!');
+            router.refresh()
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Erro ao arquivar contrato.');
+          }
+        }
+      }
+    });
+  };
+
   return (
     <div className="space-y-4 md:space-y-8">
-      <LoanHeader onNewLoan={() => handleOpenModal()} />
+      <LoanHeader onNewLoan={() => handleOpenModal()} canCreate={userRole !== 'OPERADOR'} />
 
       <LoanFilters 
         filters={filters}
@@ -953,13 +979,13 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         </div>
         <button
           type="button"
-          onClick={() => cycleLoanSummaryFilter('overdue')}
+          onClick={toggleOverdueFilter}
           className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(overdueFilter)}`}
         >
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Em aberto</p>
-          <p className="mt-3 text-3xl font-black text-slate-900">{summary.aberto + summary.negociacao}</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Inadimplentes</p>
+          <p className="mt-3 text-3xl font-black text-slate-900">{summary.vencidos}</p>
           <p className={`mt-1 text-sm ${getSummaryHintClass(overdueFilter)}`}>
-            {`${getOverdueCount(overdueFilter)} ${getOverdueLabel(overdueFilter).toLowerCase()}`}
+            {overdueFilter === 'yes' ? 'Mostrando atrasos primeiro' : 'Clique para filtrar contratos vencidos'}
           </p>
         </button>
         <button
@@ -991,6 +1017,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 idx={idx}
                 onEdit={handleOpenModal}
                 onDelete={handleDelete}
+                onArchive={handleArchive}
                 onDetail={handleOpenDetail}
                 onToggleCobranca={handleToggleCobranca}
                 onExportDossie={handleOpenChargeDelivery}
@@ -1001,6 +1028,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 generateWhatsAppLink={generateWhatsAppLink}
                 contactFilter={contactFilter}
                 isAdmin={userRole === 'ADMIN'}
+                canEdit={userRole !== 'OPERADOR'}
                 installmentProgress={getCurrentInstallment(loan)}
                 canOpenPaymentTerminal={canOpenPaymentTerminal(loan)}
                 canConfirmMonthlyPayment={canConfirmMonthlyPayment(loan)}
@@ -1115,7 +1143,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                               <span className="font-medium text-slate-600 dark:text-slate-300">Ver</span>
                             </button>
                           ) : null}
-                          {!isDraft ? (
+                          {!isDraft && userRole !== 'OPERADOR' ? (
                             <button
                               type="button"
                               onClick={() => handleOpenModal(loan)}
@@ -1125,10 +1153,22 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                               <span className="font-medium text-slate-600 dark:text-slate-300">Editar</span>
                             </button>
                           ) : null}
+                          {false && !isDraft && userRole === 'ADMIN' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleArchive(loan.id)}
+                              title="Arquivar contrato"
+                              className="group inline-flex flex-col items-center gap-1 text-xs transition-all hover:-translate-y-0.5"
+                            >
+                              <Archive className="w-5 h-5 text-amber-600 group-hover:text-amber-800 dark:text-amber-400 dark:group-hover:text-amber-300 transition-colors" />
+                              <span className="font-medium text-slate-600 dark:text-slate-300">Arquivar</span>
+                            </button>
+                          ) : null}
                           {!isDraft && userRole === 'ADMIN' ? (
                             <button
                               type="button"
                               onClick={() => handleDelete(loan.id)}
+                              title="Excluir definitivamente"
                               className="group inline-flex flex-col items-center gap-1 text-xs transition-all hover:-translate-y-0.5"
                             >
                               <Trash2 className="w-5 h-5 text-red-600 group-hover:text-red-800 dark:text-red-400 dark:group-hover:text-red-300 transition-colors" />

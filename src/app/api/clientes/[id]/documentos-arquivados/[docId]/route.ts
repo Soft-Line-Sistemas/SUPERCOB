@@ -8,9 +8,11 @@ import { clienteDocumentPath as filePath, buildContentDisposition } from '@/lib/
 export async function GET(req: Request, { params }: { params: Promise<{ id: string; docId: string }> }) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdminRole(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   const { id, docId } = await params
   try {
-    const doc = await prisma.clienteDocumento.findFirst({ where: { id: docId, clienteId: id } })
+    const doc = await prisma.clienteDocumentoArquivado.findFirst({ where: { id: docId, clienteId: id } })
     if (!doc) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
     const p = filePath(id, doc.fileName)
     const data = await fs.readFile(p)
@@ -26,26 +28,5 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     })
   } catch {
     return NextResponse.json({ error: 'Erro ao carregar documento' }, { status: 500 })
-  }
-}
-
-export async function DELETE(_: Request, { params }: { params: Promise<{ id: string; docId: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  if (!isAdminRole(session.user.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  const { id, docId } = await params
-  try {
-    const doc = await prisma.clienteDocumento.findFirst({ where: { id: docId, clienteId: id } })
-    if (!doc) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-    const p = filePath(id, doc.fileName)
-    await prisma.clienteDocumento.delete({ where: { id: doc.id } })
-    await fs.rm(p, { force: true })
-    return NextResponse.json({ ok: true })
-  } catch {
-    return NextResponse.json({ error: 'Erro ao excluir documento' }, { status: 500 })
   }
 }

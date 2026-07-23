@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { LayoutDashboard, Users, CreditCard, LogOut, ShieldCheck, UserCog, BarChart3, Settings, MessageCircle } from 'lucide-react'
+import { LayoutDashboard, Users, CreditCard, LogOut, ShieldCheck, UserCog, BarChart3, Settings, MessageCircle, Archive } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -56,6 +56,7 @@ export function Sidebar() {
     navItems.push({ id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, href: '/dashboard/whatsapp' })
     navItems.push({ id: 'reports', label: 'Relatórios', icon: BarChart3, href: '/reports' })
     navItems.push({ id: 'users', label: 'Equipe', icon: UserCog, href: '/usuarios' })
+    // navItems.push({ id: 'archived', label: 'Arquivados', icon: Archive, href: '/arquivados' })
   }
 
   const mobileItems = [

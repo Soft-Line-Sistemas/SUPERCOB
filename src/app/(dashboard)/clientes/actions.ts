@@ -12,10 +12,22 @@ import {
   normalizeClienteInput,
   validateClienteInput,
 } from '@/lib/client-validation'
+import { archiveCliente, ArchiveError, unarchiveCliente } from '@/lib/archive'
 
 type ClienteMutationResult =
   | { ok: true; id: string }
-  | { ok: false; error: string; code?: 'INVALID_INPUT' | 'DUPLICATE_CPF' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'INTERNAL_ERROR' }
+  | {
+      ok: false
+      error: string
+      code?:
+        | 'INVALID_INPUT'
+        | 'DUPLICATE_CPF'
+        | 'UNAUTHORIZED'
+        | 'FORBIDDEN'
+        | 'INTERNAL_ERROR'
+        | 'NOT_FOUND'
+        | 'CLIENT_MISSING'
+    }
 
 type ClienteCpfValidationResult =
   | { ok: true }
@@ -28,7 +40,7 @@ export async function getClientes(options?: { includeIds?: string[] }) {
   const role = (session.user as any).role
   const userId = (session.user as any).id
 
-  if (role === 'GERENTE') {
+  if (role === 'GERENTE' || role === 'OPERADOR') {
     const includeIds = (options?.includeIds ?? []).filter((id) => typeof id === 'string' && id.trim() !== '')
     const orConditions: Prisma.ClienteWhereInput[] = [
       { loans: { some: { usuarioId: userId } } },
@@ -66,6 +78,7 @@ export async function getClientesPage(options?: {
   emailStatus?: 'filled' | 'missing'
   whatsappStatus?: 'filled' | 'missing'
   cpfStatus?: 'filled' | 'missing'
+  inadimplente?: boolean
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -86,10 +99,11 @@ export async function getClientesPage(options?: {
   const emailStatus = options?.emailStatus
   const whatsappStatus = options?.whatsappStatus
   const cpfStatus = options?.cpfStatus
+  const inadimplente = options?.inadimplente === true
 
   let where: Prisma.ClienteWhereInput | undefined
 
-  if (role === 'GERENTE') {
+  if (role === 'GERENTE' || role === 'OPERADOR') {
     const orConditions: Prisma.ClienteWhereInput[] = [{ loans: { some: { usuarioId: userId } } }]
 
     if (includeIds.length > 0) {
@@ -162,6 +176,20 @@ export async function getClientesPage(options?: {
   } else if (cpfStatus === 'missing') {
     andConditions.push({
       OR: [{ cpf: null }, { cpf: '' }],
+    })
+  }
+
+  // Um cliente é inadimplente quando possui ao menos um contrato ainda aberto
+  // cujo vencimento já passou. A regra fica no banco para preservar paginação
+  // e permissões da carteira do usuário.
+  if (inadimplente) {
+    andConditions.push({
+      loans: {
+        some: {
+          status: { in: ['ABERTO', 'NEGOCIACAO'] },
+          vencimento: { lt: new Date() },
+        },
+      },
     })
   }
 
@@ -320,5 +348,55 @@ export async function deleteCliente(id: string) {
   } catch (error) {
     console.error('[clientes/deleteCliente] unexpected error', error)
     return { ok: false, error: 'Erro ao excluir cliente. Verifique se há contratos ativos.', code: 'INTERNAL_ERROR' } satisfies ClienteMutationResult
+  }
+}
+
+export async function archiveClienteAction(id: string, motivo?: string) {
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      return { ok: false, error: 'Sessão expirada. Faça login novamente.', code: 'UNAUTHORIZED' } satisfies ClienteMutationResult
+    }
+
+    const role = (session.user as any).role
+    if (!isAdminRole(role)) {
+      return { ok: false, error: 'Apenas administradores podem arquivar clientes.', code: 'FORBIDDEN' } satisfies ClienteMutationResult
+    }
+
+    await archiveCliente(id, { actorUserId: (session.user as any).id, motivo })
+    revalidatePath('/clientes')
+    revalidatePath('/arquivados')
+    return { ok: true, id } satisfies ClienteMutationResult
+  } catch (error) {
+    if (error instanceof ArchiveError) {
+      return { ok: false, error: error.message, code: error.code } satisfies ClienteMutationResult
+    }
+    console.error('[clientes/archiveClienteAction] unexpected error', error)
+    return { ok: false, error: 'Erro ao arquivar cliente.', code: 'INTERNAL_ERROR' } satisfies ClienteMutationResult
+  }
+}
+
+export async function unarchiveClienteAction(id: string) {
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      return { ok: false, error: 'Sessão expirada. Faça login novamente.', code: 'UNAUTHORIZED' } satisfies ClienteMutationResult
+    }
+
+    const role = (session.user as any).role
+    if (!isAdminRole(role)) {
+      return { ok: false, error: 'Apenas administradores podem desarquivar clientes.', code: 'FORBIDDEN' } satisfies ClienteMutationResult
+    }
+
+    await unarchiveCliente(id, { actorUserId: (session.user as any).id })
+    revalidatePath('/clientes')
+    revalidatePath('/arquivados')
+    return { ok: true, id } satisfies ClienteMutationResult
+  } catch (error) {
+    if (error instanceof ArchiveError) {
+      return { ok: false, error: error.message, code: error.code } satisfies ClienteMutationResult
+    }
+    console.error('[clientes/unarchiveClienteAction] unexpected error', error)
+    return { ok: false, error: 'Erro ao desarquivar cliente.', code: 'INTERNAL_ERROR' } satisfies ClienteMutationResult
   }
 }

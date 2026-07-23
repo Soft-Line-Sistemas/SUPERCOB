@@ -435,7 +435,7 @@ export function ChargeModal({
                           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
                           disabled={currentInstallmentOptions.length === 0}
                         >
-                          {(currentInstallmentOptions.length > 0 ? currentInstallmentOptions : [1]).map((option) => (
+                          {(currentInstallmentOptions.length > 0 ? currentInstallmentOptions : [0]).map((option) => (
                             <option key={option} value={option}>
                               {option}
                             </option>
@@ -448,7 +448,7 @@ export function ChargeModal({
                           checked={discountPaidInstallments}
                           onChange={(e) => onDiscountPaidInstallmentsChange(e.target.checked)}
                           className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                          disabled={currentInstallment <= 1}
+                          disabled={currentInstallment <= 0}
                         />
                         Descontar as parcelas ja pagas?
                       </label>

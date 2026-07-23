@@ -5,11 +5,13 @@ const {
   mockRevalidatePath,
   mockClienteFindMany,
   mockClienteCount,
+  mockClienteDelete,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockRevalidatePath: vi.fn(),
   mockClienteFindMany: vi.fn(),
   mockClienteCount: vi.fn(),
+  mockClienteDelete: vi.fn(),
 }))
 
 vi.mock('@/auth', () => ({ auth: mockAuth }))
@@ -20,11 +22,12 @@ vi.mock('@/lib/prisma', () => ({
       findMany: mockClienteFindMany,
       count: mockClienteCount,
       findFirst: vi.fn(),
+      delete: mockClienteDelete,
     },
   },
 }))
 
-import { getClientesPage } from './actions'
+import { deleteCliente, getClientesPage } from './actions'
 
 describe('clientes actions - listagem e dashboard', () => {
   beforeEach(() => {
@@ -157,5 +160,24 @@ describe('clientes actions - listagem e dashboard', () => {
         },
       }),
     )
+  })
+
+  it.each(['ESCRITORIO', 'GERENTE', 'OPERADOR'])('bloqueia %s ao excluir cliente', async (role) => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role } })
+
+    await expect(deleteCliente('c1')).resolves.toEqual({
+      ok: false,
+      error: 'Apenas administradores podem excluir clientes.',
+      code: 'FORBIDDEN',
+    })
+    expect(mockClienteDelete).not.toHaveBeenCalled()
+  })
+
+  it.each(['ADM', 'ADMIN'])('permite %s excluir cliente', async (role) => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role } })
+    mockClienteDelete.mockResolvedValue({ id: 'c1' })
+
+    await expect(deleteCliente('c1')).resolves.toEqual({ ok: true, id: 'c1' })
+    expect(mockClienteDelete).toHaveBeenCalledWith({ where: { id: 'c1' } })
   })
 })

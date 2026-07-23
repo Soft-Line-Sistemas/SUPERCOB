@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
+import { isAdminRole } from '@/lib/admin-auth'
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -46,6 +47,11 @@ export async function POST(req: Request) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const role = String((session.user as any).role || '').toUpperCase()
+  if (role === 'OPERADOR') {
+    return NextResponse.json({ error: 'Operadores não podem criar contratos' }, { status: 403 })
+  }
+
   try {
     const data = await req.json()
     
@@ -56,9 +62,14 @@ export async function POST(req: Request) {
       status = 'NEGOCIACAO'
     }
 
+    if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE') {
+      return NextResponse.json({ error: 'Apenas administradores ou gerentes podem concluir contratos' }, { status: 403 })
+    }
+
     const emprestimo = await prisma.emprestimo.create({
       data: {
         ...data,
+        usuarioId: role === 'GERENTE' ? (session.user as any).id : data.usuarioId,
         status,
         quitadoEm: data.quitadoEm ? new Date(data.quitadoEm) : null,
       },

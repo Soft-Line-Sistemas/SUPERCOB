@@ -27,6 +27,7 @@ export default async function ClientesPage({
     emailStatus: getSingleParam(params.emailStatus) === 'missing' ? 'missing' : getSingleParam(params.emailStatus) === 'filled' ? 'filled' : undefined,
     whatsappStatus: getSingleParam(params.whatsappStatus) === 'missing' ? 'missing' : getSingleParam(params.whatsappStatus) === 'filled' ? 'filled' : undefined,
     cpfStatus: getSingleParam(params.cpfStatus) === 'missing' ? 'missing' : getSingleParam(params.cpfStatus) === 'filled' ? 'filled' : undefined,
+    inadimplente: getSingleParam(params.inadimplente) === '1',
   })
 
   return (

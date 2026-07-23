@@ -7,6 +7,7 @@ const {
   mockCreate,
   mockFindUnique,
   mockUpdate,
+  mockDelete,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockRevalidatePath: vi.fn(),
@@ -14,6 +15,7 @@ const {
   mockCreate: vi.fn(),
   mockFindUnique: vi.fn(),
   mockUpdate: vi.fn(),
+  mockDelete: vi.fn(),
 }))
 
 vi.mock('@/auth', () => ({ auth: mockAuth }))
@@ -25,18 +27,19 @@ vi.mock('@/lib/prisma', () => ({
       create: mockCreate,
       findUnique: mockFindUnique,
       update: mockUpdate,
+      delete: mockDelete,
     },
   },
 }))
 
-import { createEmprestimo, updateEmprestimo } from './actions'
+import { createEmprestimo, deleteEmprestimo, updateEmprestimo } from './actions'
 
 describe('emprestimos actions - quantidadeParcelas', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.mockResolvedValue({ user: { id: 'u1', role: 'GERENTE' } })
     mockCreate.mockResolvedValue({ id: 'loan-1' })
-    mockFindUnique.mockResolvedValue({ id: 'loan-1', quantidadeParcelas: 12 })
+    mockFindUnique.mockResolvedValue({ id: 'loan-1', quantidadeParcelas: 12, usuarioId: 'u1' })
     mockUpdate.mockResolvedValue({ id: 'loan-1' })
     mockLogSystemAction.mockResolvedValue(undefined)
   })
@@ -145,5 +148,54 @@ describe('emprestimos actions - quantidadeParcelas', () => {
     ).rejects.toThrow('Valor pago inválido para a cobrança')
 
     expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it('bloqueia Operador ao criar ou editar contratos', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'op-1', role: 'OPERADOR' } })
+
+    await expect(createEmprestimo({
+      clienteId: 'c1', valor: 1000, vencimento: new Date('2026-07-08T12:00:00.000Z'),
+    })).rejects.toThrow('Operadores não podem criar contratos.')
+
+    await expect(updateEmprestimo('loan-1', {
+      valor: 1000, vencimento: new Date('2026-07-08T12:00:00.000Z'),
+    })).rejects.toThrow('Operadores não podem editar contratos.')
+  })
+
+  it('bloqueia Escritório ao criar ou editar um contrato já quitado', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
+
+    await expect(createEmprestimo({
+      clienteId: 'c1', valor: 1000, valorPago: 1000, vencimento: new Date('2026-07-08T12:00:00.000Z'),
+    })).rejects.toThrow('Apenas administradores ou gerentes podem concluir contratos.')
+
+    await expect(updateEmprestimo('loan-1', {
+      valor: 1000, valorPago: 1000, vencimento: new Date('2026-07-08T12:00:00.000Z'),
+    })).rejects.toThrow('Apenas administradores ou gerentes podem concluir contratos.')
+  })
+
+  it.each(['ESCRITORIO', 'GERENTE', 'OPERADOR'])('bloqueia %s ao excluir contratos', async (role) => {
+    mockAuth.mockResolvedValue({ user: { id: 'u1', role } })
+
+    await expect(deleteEmprestimo('loan-1')).rejects.toThrow('Apenas administradores podem excluir contratos.')
+    expect(mockDelete).not.toHaveBeenCalled()
+  })
+
+  it.each(['ADM', 'ADMIN'])('permite %s excluir contratos', async (role) => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role } })
+    mockDelete.mockResolvedValue({ id: 'loan-1' })
+
+    await expect(deleteEmprestimo('loan-1')).resolves.toBeUndefined()
+    expect(mockDelete).toHaveBeenCalledWith({ where: { id: 'loan-1' } })
+  })
+
+  it('bloqueia Gerente ao editar contrato de outra carteira', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'ger-1', role: 'GERENTE' } })
+    mockFindUnique.mockResolvedValue({ id: 'loan-1', usuarioId: 'ger-2' })
+
+    await expect(updateEmprestimo('loan-1', {
+      valor: 1000, vencimento: new Date('2026-07-08T12:00:00.000Z'),
+    })).rejects.toThrow('Gerentes só podem editar contratos da própria carteira.')
+    expect(mockUpdate).not.toHaveBeenCalled()
   })
 })

@@ -3,8 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, MoreVertical, Filter, Download, UserPlus, LayoutGrid, List } from 'lucide-react';
-import { createCliente, updateCliente, deleteCliente, validateClienteCpf } from '@/app/(dashboard)/clientes/actions';
+import { Plus, Search, X, User, Phone, Mail, Edit2, Trash2, Archive, MoreVertical, Filter, Download, UserPlus, LayoutGrid, List } from 'lucide-react';
+import { createCliente, updateCliente, deleteCliente, archiveClienteAction, validateClienteCpf } from '@/app/(dashboard)/clientes/actions';
 import { createEmprestimo } from '@/app/(dashboard)/emprestimos/actions'
 import { parseDateInputToUTCNoon, sanitizeDigits, validateBirthDateParts } from '@/lib/date-utils'
 import { buildEmergencyContact, parseEmergencyContact } from '@/lib/client-emergency'
@@ -104,12 +104,14 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '');
   const [sortOrder, setSortOrder] = useState<'newest' | 'az'>(sort);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false)
   const [filters, setFilters] = useState(() => ({
     email: searchParams.get('email') ?? '',
     whatsapp: searchParams.get('whatsapp') ?? '',
     cidade: searchParams.get('cidade') ?? '',
     estado: searchParams.get('estado') ?? '',
     cpf: searchParams.get('cpf') ?? '',
+    inadimplente: searchParams.get('inadimplente') === '1',
   }));
   const [editingClient, setEditingClient] = useState<Cliente | null>(null);
   const [activeTab, setActiveTab] = useState<'basico' | 'identificacao' | 'endereco' | 'profissao' | 'emergencia' | 'cobranca' | 'anexos' | 'revisao'>('basico');
@@ -143,7 +145,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
   const [chargeInstallmentsEnabled, setChargeInstallmentsEnabled] = useState(false)
   const [chargeParcelingMode, setChargeParcelingMode] = useState<'integral' | 'remaining'>('integral')
   const [chargeExpectedInterestPercent, setChargeExpectedInterestPercent] = useState('100')
-  const [chargeCurrentInstallment, setChargeCurrentInstallment] = useState(1)
+  const [chargeCurrentInstallment, setChargeCurrentInstallment] = useState(0)
   const [chargeDiscountPaidInstallments, setChargeDiscountPaidInstallments] = useState(false)
   const [docs, setDocs] = useState<Array<{ id: string; originalName: string; mimeType: string; size: number; createdAt: string; url: string }>>([])
   const [uploading, setUploading] = useState(false)
@@ -314,21 +316,30 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+
+    const currentSortParam = searchParams.get('sort')
+    if (preferencesLoaded) {
+      if (currentSortParam) {
+        setSortOrder(currentSortParam === 'az' ? 'az' : 'newest')
+      }
+      return
+    }
+
     const storedViewMode = window.localStorage.getItem(viewStorageKey)
     if (storedViewMode === 'grid' || storedViewMode === 'list') {
       setViewMode(storedViewMode)
     }
 
-    const currentSortParam = searchParams.get('sort')
-    if (!currentSortParam) {
+    if (currentSortParam) {
+      setSortOrder(currentSortParam === 'az' ? 'az' : 'newest')
+    } else {
       const storedSort = window.localStorage.getItem(sortStorageKey)
       if (storedSort === 'az' || storedSort === 'newest') {
         setSortOrder(storedSort)
       }
-    } else {
-      setSortOrder(currentSortParam === 'az' ? 'az' : 'newest')
     }
-  }, [searchParams, sortStorageKey, viewStorageKey])
+    setPreferencesLoaded(true)
+  }, [preferencesLoaded, searchParams, sortStorageKey, viewStorageKey])
 
   useEffect(() => {
     setSearchTerm(searchParams.get('search') ?? '')
@@ -338,21 +349,21 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
       cidade: searchParams.get('cidade') ?? '',
       estado: searchParams.get('estado') ?? '',
       cpf: searchParams.get('cpf') ?? '',
+      inadimplente: searchParams.get('inadimplente') === '1',
     })
   }, [searchParams])
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(sortStorageKey, sortOrder)
-    }
+    if (!preferencesLoaded) return
+    window.localStorage.setItem(sortStorageKey, sortOrder)
     if (sortOrder === sort) return
     updateQueryParams({ sort: sortOrder === 'newest' ? null : sortOrder })
-  }, [sort, sortOrder, sortStorageKey, updateQueryParams])
+  }, [preferencesLoaded, sort, sortOrder, sortStorageKey, updateQueryParams])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || !preferencesLoaded) return
     window.localStorage.setItem(viewStorageKey, viewMode)
-  }, [viewMode, viewStorageKey])
+  }, [preferencesLoaded, viewMode, viewStorageKey])
 
   const emailStatusFilter = searchParams.get('emailStatus')
   const whatsappStatusFilter = searchParams.get('whatsappStatus')
@@ -497,7 +508,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
       setChargeInstallmentsEnabled(false)
       setChargeParcelingMode('integral')
       setChargeExpectedInterestPercent('100')
-      setChargeCurrentInstallment(1)
+      setChargeCurrentInstallment(0)
       setChargeDiscountPaidInstallments(false)
     } else {
       setEditingClient(null);
@@ -546,7 +557,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
       setChargeInstallmentsEnabled(false)
       setChargeParcelingMode('integral')
       setChargeExpectedInterestPercent('100')
-      setChargeCurrentInstallment(1)
+      setChargeCurrentInstallment(0)
       setChargeDiscountPaidInstallments(false)
     }
     setActiveTab('basico');
@@ -565,6 +576,23 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
             toast.success('Cliente excluído com sucesso!');
           } else {
             toast.error('Erro ao excluir cliente. Verifique se há contratos ativos.');
+          }
+        },
+      },
+    });
+  };
+
+  const handleArchive = async (id: string) => {
+    toast.info('Arquivar este cliente e todos os seus contratos?', {
+      description: 'O cliente sai de listagens, dashboard, relatórios e fila de cobrança, mas pode ser restaurado depois em Arquivados.',
+      action: {
+        label: 'Arquivar',
+        onClick: async () => {
+          const result = await archiveClienteAction(id);
+          if (result.ok) {
+            toast.success('Cliente arquivado com sucesso!');
+          } else {
+            toast.error(result.error || 'Erro ao arquivar cliente.');
           }
         },
       },
@@ -850,7 +878,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
   const handleChargeInstallmentsEnabledChange = (checked: boolean) => {
     setChargeInstallmentsEnabled(checked)
     setChargeInstallmentsManuallyEdited(false)
-    setChargeCurrentInstallment(1)
+    setChargeCurrentInstallment(0)
     setChargeDiscountPaidInstallments(false)
     if (!checked) {
       setChargeData((prev) => ({ ...prev, quantidadeParcelas: '' }))
@@ -871,14 +899,14 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
   const chargeCurrentInstallmentOptions = useMemo(
     () =>
       Number.isInteger(chargeInstallmentCount) && chargeInstallmentCount > 0
-        ? Array.from({ length: chargeInstallmentCount }, (_, index) => index + 1)
+        ? Array.from({ length: chargeInstallmentCount + 1 }, (_, index) => index)
         : [],
     [chargeInstallmentCount],
   )
 
   useEffect(() => {
     if (chargeCurrentInstallmentOptions.length === 0) {
-      if (chargeCurrentInstallment !== 1) setChargeCurrentInstallment(1)
+      if (chargeCurrentInstallment !== 0) setChargeCurrentInstallment(0)
       if (chargeDiscountPaidInstallments) setChargeDiscountPaidInstallments(false)
       return
     }
@@ -887,7 +915,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
       setChargeCurrentInstallment(chargeCurrentInstallmentOptions.length)
     }
 
-    if (chargeCurrentInstallment <= 1 && chargeDiscountPaidInstallments) {
+    if (chargeCurrentInstallment <= 0 && chargeDiscountPaidInstallments) {
       setChargeDiscountPaidInstallments(false)
     }
   }, [chargeCurrentInstallment, chargeCurrentInstallmentOptions, chargeDiscountPaidInstallments])
@@ -914,7 +942,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
   const chargeDiscountedPaidInstallmentsLabel = (() => {
     if (!chargeInstallmentsEnabled || !chargeDiscountPaidInstallments) return null
     const installments = Number(chargeData.quantidadeParcelas)
-    const paidInstallments = Math.max(chargeCurrentInstallment - 1, 0)
+    const paidInstallments = Math.max(chargeCurrentInstallment, 0)
     if (!Number.isInteger(installments) || installments <= 0 || paidInstallments <= 0) return null
 
     const chargeValue = Number(chargeData.valor)
@@ -986,12 +1014,12 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
           <button
             type="button"
             onClick={() => setIsFiltersOpen(true)}
-            className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-950 transition-colors shadow-sm"
+            className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
           >
             <Filter className="h-5 w-5" />
           </button>
           
-          <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-950 transition-colors shadow-sm">
+          <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
             <Download className="h-5 w-5" />
           </button>
 
@@ -1076,9 +1104,19 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
+                    {false && isAdmin && (
+                      <button
+                        onClick={() => handleArchive(client.id)}
+                        title="Arquivar cliente"
+                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                      >
+                        <Archive className="h-4 w-4" />
+                      </button>
+                    )}
                     {isAdmin && (
-                      <button 
+                      <button
                         onClick={() => handleDelete(client.id)}
+                        title="Excluir definitivamente"
                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -1165,10 +1203,21 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
+                        {false && isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleArchive(client.id)}
+                            title="Arquivar cliente"
+                            className="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600"
+                          >
+                            <Archive className="h-4 w-4" />
+                          </button>
+                        )}
                         {isAdmin && (
                           <button
                             type="button"
                             onClick={() => handleDelete(client.id)}
+                            title="Excluir definitivamente"
                             className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1186,7 +1235,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
 
       {initialClients.length === 0 && (
         <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-300">
-          <div className="w-16 h-16 bg-slate-950 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <User className="h-8 w-8 text-slate-300" />
           </div>
           <p className="text-slate-500 font-medium">Nenhum cliente encontrado com os filtros atuais.</p>
@@ -1270,7 +1319,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                   </div>
                   <button 
                     onClick={() => setIsModalOpen(false)} 
-                    className="p-2 hover:bg-slate-950 rounded-full text-slate-400 transition-colors"
+                    className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
                   >
                     <X className="h-6 w-6" />
                   </button>
@@ -1278,7 +1327,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
 
                 <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6">
                   <aside className="space-y-4">
-                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-200">
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-black text-slate-500">Progresso</p>
                         <p className="text-xs font-black text-slate-700">{flowProgress}%</p>
@@ -1313,7 +1362,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                             className={`w-full flex items-center gap-3 px-3 py-2 rounded-2xl border transition-colors ${
                               isActive
                                 ? 'bg-white border-slate-200 text-slate-900 shadow-sm'
-                                : 'bg-slate-950 border-slate-200 text-slate-600 hover:bg-slate-950'
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                             }`}
                           >
                             <span
@@ -1544,7 +1593,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="flex-1 py-3.5 px-4 bg-slate-950 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                      className="flex-1 py-3.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
                     >
                       Cancelar
                     </button>
@@ -1610,7 +1659,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                   <button
                     type="button"
                     onClick={() => setIsFiltersOpen(false)}
-                    className="p-2 hover:bg-slate-950 rounded-full text-slate-400 transition-colors"
+                    className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
                   >
                     <X className="h-6 w-6" />
                   </button>
@@ -1669,13 +1718,22 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                       placeholder="Somente números"
                     />
                   </div>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:border-red-200 hover:bg-red-50">
+                    <input
+                      type="checkbox"
+                      checked={filters.inadimplente}
+                      onChange={(e) => setFilters({ ...filters, inadimplente: e.target.checked })}
+                      className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                    />
+                    Somente inadimplentes
+                  </label>
                 </div>
 
                 <div className="pt-6 flex gap-3">
                   <button
                     type="button"
                     onClick={() => {
-                      const cleared = { email: '', whatsapp: '', cidade: '', estado: '', cpf: '' }
+                      const cleared = { email: '', whatsapp: '', cidade: '', estado: '', cpf: '', inadimplente: false }
                       setFilters(cleared)
                       updateQueryParams({
                         email: null,
@@ -1683,9 +1741,10 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                         cidade: null,
                         estado: null,
                         cpf: null,
+                        inadimplente: null,
                       })
                     }}
-                    className="flex-1 py-3.5 px-4 bg-slate-950 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                    className="flex-1 py-3.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
                   >
                     Limpar
                   </button>
@@ -1698,6 +1757,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                         cidade: filters.cidade,
                         estado: filters.estado,
                         cpf: filters.cpf,
+                        inadimplente: filters.inadimplente ? '1' : null,
                       })
                       setIsFiltersOpen(false)
                     }}

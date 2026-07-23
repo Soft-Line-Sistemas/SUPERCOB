@@ -14,9 +14,13 @@ export async function addEmprestimoHistorico(input: { emprestimoId: string; desc
   if (!descricao) throw new Error('Descrição é obrigatória')
 
   const createdById = (session.user as any).id as string | undefined
+  const userRole = (session.user as any).role?.toUpperCase()
   
   // Transição automática de status: ABERTO -> NEGOCIACAO ao registrar histórico (contato feito)
   const currentLoan = await prisma.emprestimo.findUnique({ where: { id: input.emprestimoId } })
+  if ((userRole === 'OPERADOR' || userRole === 'GERENTE') && currentLoan?.usuarioId !== createdById) {
+    throw new Error('Você só pode registrar ações nos contratos da própria carteira.')
+  }
   if (currentLoan?.status === 'ABERTO') {
     await prisma.emprestimo.update({
       where: { id: input.emprestimoId },
@@ -53,11 +57,24 @@ export async function setEmprestimoStatus(input: {
   const userRole = (session.user as any).role?.toUpperCase()
   const createdById = (session.user as any).id as string | undefined
 
+  if (userRole === 'OPERADOR' || userRole === 'GERENTE') {
+    const contrato = await prisma.emprestimo.findUnique({
+      where: { id: input.emprestimoId },
+      select: { usuarioId: true },
+    })
+    if (contrato?.usuarioId !== createdById) {
+      throw new Error('Você só pode alterar contratos da própria carteira.')
+    }
+  }
+
   if (input.status === 'ABERTO' && userRole !== 'ADM' && userRole !== 'ADMIN') {
     throw new Error('Apenas administradores podem reabrir contratos.')
   }
 
   if (input.status === 'QUITADO') {
+    if (userRole === 'ESCRITORIO' || userRole === 'OPERADOR') {
+      throw new Error('Apenas administradores ou gerentes podem concluir contratos.')
+    }
     const atual = await prisma.emprestimo.findUnique({
       where: { id: input.emprestimoId },
       select: {
@@ -122,9 +139,13 @@ export async function addPagamentoParcial(input: { emprestimoId: string; valor: 
   if (!Number.isFinite(valor) || valor <= 0) throw new Error('Valor inválido')
 
   const createdById = (session.user as any).id as string | undefined
+  const userRole = (session.user as any).role?.toUpperCase()
 
   const emprestimoAtual = await prisma.emprestimo.findUnique({ where: { id: input.emprestimoId } })
   if (!emprestimoAtual) throw new Error('Contrato não encontrado')
+  if ((userRole === 'OPERADOR' || userRole === 'GERENTE') && emprestimoAtual.usuarioId !== createdById) {
+    throw new Error('Você só pode registrar pagamentos nos contratos da própria carteira.')
+  }
   if (emprestimoAtual.status === 'CANCELADO') throw new Error('Contrato cancelado')
 
   const { jurosPendente } = calculateLoanInterest(emprestimoAtual)
@@ -145,6 +166,10 @@ export async function addPagamentoParcial(input: { emprestimoId: string; valor: 
   const novoJurosPagos = (emprestimoAtual.jurosPagos || 0) + pagamentoParaJuros
   const novoValorPago = (emprestimoAtual.valorPago || 0) + pagamentoParaPrincipal
   const quitado = novoValorPago >= emprestimoAtual.valor
+
+  if (quitado && (userRole === 'ESCRITORIO' || userRole === 'OPERADOR')) {
+    throw new Error('Este pagamento quitaria o contrato. A conclusão deve ser feita por um administrador ou gerente.')
+  }
   
   // Transição automática para NEGOCIACAO se estava ABERTO e foi recebido pagamento
   let nextStatus = emprestimoAtual.status

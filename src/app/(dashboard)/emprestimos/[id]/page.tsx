@@ -43,8 +43,8 @@ export default async function EmprestimoDetailsPage({ params }: { params: Promis
 
   if (!loan) notFound()
 
-  // Verificação de permissão (Gerente só vê os seus)
-  if (role === 'GERENTE' && loan.usuarioId !== userId) redirect('/emprestimos')
+  // Gerência e Operador só veem os próprios contratos.
+  if ((role === 'GERENTE' || role === 'OPERADOR') && loan.usuarioId !== userId) redirect('/emprestimos')
 
   // Mapeamento para o tipo esperado pelo componente de UI
   const eventosWhatsapp = loan.whatsappDispatches.map((d) => ({
