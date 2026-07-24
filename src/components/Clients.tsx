@@ -100,6 +100,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { data: session } = useSession();
   const isAdmin = isAdminRole(session?.user?.role);
+  const canDeleteClient = isAdmin || session?.user?.role === 'GERENTE';
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '');
   const [sortOrder, setSortOrder] = useState<'newest' | 'az'>(sort);
@@ -1018,6 +1019,13 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
           >
             <Filter className="h-5 w-5" />
           </button>
+          <button
+            type="button"
+            onClick={() => updateQueryParams({ inadimplente: searchParams.get('inadimplente') === '1' ? null : '1' })}
+            className={`rounded-xl border px-3 py-2.5 text-xs font-black transition-colors shadow-sm ${searchParams.get('inadimplente') === '1' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}
+          >
+            Inadimplentes
+          </button>
           
           <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
             <Download className="h-5 w-5" />
@@ -1113,7 +1121,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                         <Archive className="h-4 w-4" />
                       </button>
                     )}
-                    {isAdmin && (
+                    {canDeleteClient && (
                       <button
                         onClick={() => handleDelete(client.id)}
                         title="Excluir definitivamente"
@@ -1213,7 +1221,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                             <Archive className="h-4 w-4" />
                           </button>
                         )}
-                        {isAdmin && (
+                        {canDeleteClient && (
                           <button
                             type="button"
                             onClick={() => handleDelete(client.id)}

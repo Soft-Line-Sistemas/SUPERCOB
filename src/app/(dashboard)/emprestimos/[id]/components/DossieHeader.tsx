@@ -59,7 +59,7 @@ export function DossieHeader({
       </div>
 
       <div className="flex items-center gap-3">
-        {(status === 'QUITADO' || status === 'CANCELADO') && myRole === 'ADMIN' && (
+        {(status === 'QUITADO' || status === 'CANCELADO') && ['ADM', 'ADMIN', 'ESCRITORIO'].includes(String(myRole).toUpperCase()) && (
           <button
             type="button"
             disabled={isPending}

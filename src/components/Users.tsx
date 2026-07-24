@@ -294,7 +294,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
 
                     <div className="space-y-1.5">
                       <label className="text-sm font-bold text-slate-700 ml-1">Nível de Permissão</label>
-                      <div className={`grid ${(myRole === 'ADM' || myRole === 'ADMIN') ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-3`}>
+                      <div className={`grid ${(myRole === 'ADM' || myRole === 'ADMIN') ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
                         <button
                           type="button"
                           onClick={() => setFormData({...formData, role: 'GERENTE'})}
@@ -317,6 +317,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           <span className={`text-[10px] font-bold ${formData.role === 'ESCRITORIO' ? 'text-emerald-700' : 'text-slate-500'}`}>ESCRITÓRIO</span>
                         </button>
 
+                        {false && (
                         <button
                           type="button"
                           onClick={() => setFormData({...formData, role: 'OPERADOR'})}
@@ -327,6 +328,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                           <Headphones className={`w-6 h-6 ${formData.role === 'OPERADOR' ? 'text-amber-600' : 'text-slate-400'}`} />
                           <span className={`text-[10px] font-bold ${formData.role === 'OPERADOR' ? 'text-amber-700' : 'text-slate-500'}`}>OPERADOR</span>
                         </button>
+                        )}
 
                         {(myRole === 'ADM' || myRole === 'ADMIN') && (
                           <button
@@ -407,9 +409,8 @@ export function Users({ initialUsers, myRole }: UsersProps) {
               <div className="grid gap-3 sm:grid-cols-2">
                 {[
                   { role: 'Administrador', icon: Shield, tone: 'indigo', items: ['Acesso total ao sistema', 'Gerencia usuários e responsáveis', 'Pode excluir clientes e contratos', 'Pode reabrir contratos concluídos ou cancelados'] },
-                  { role: 'Escritório', icon: Monitor, tone: 'emerald', items: ['Consulta todos os clientes e contratos', 'Cria e edita clientes e contratos', 'Registra pagamentos parciais', 'Não exclui, reabre nem conclui contratos'] },
-                  { role: 'Gerência', icon: UserCheck, tone: 'blue', items: ['Trabalha na própria carteira de contratos', 'Cria e edita clientes e contratos', 'Registra pagamentos e conclui contratos', 'Não gerencia usuários nem exclui cadastros'] },
-                  { role: 'Operador', icon: Headphones, tone: 'amber', items: ['Consulta somente a própria carteira', 'Registra pagamentos parciais e acompanha contratos', 'Não cria nem edita contratos', 'Não exclui, restaura, reabre nem conclui contratos'] },
+                  { role: 'Escritório', icon: Monitor, tone: 'emerald', items: ['Consulta todos os clientes e contratos', 'Cria e edita clientes e contratos', 'Registra pagamentos, dá baixa e reabre contratos', 'Não exclui nem arquiva clientes ou contratos'] },
+                  { role: 'Gerência', icon: UserCheck, tone: 'blue', items: ['Trabalha na própria carteira de contratos', 'Cria, edita e dá baixa nos próprios contratos', 'Pode excluir clientes da própria carteira', 'Não gerencia usuários, nem arquiva contratos ou clientes'] },
                 ].map(({ role, icon: RoleIcon, tone, items }) => (
                   <div key={role} className={`rounded-2xl border p-4 ${tone === 'indigo' ? 'border-indigo-100 dark:border-indigo-500/20 bg-indigo-50/60 dark:bg-indigo-500/10' : tone === 'emerald' ? 'border-emerald-100 dark:border-emerald-500/20 bg-emerald-50/60 dark:bg-emerald-500/10' : tone === 'amber' ? 'border-amber-100 dark:border-amber-500/20 bg-amber-50/60 dark:bg-amber-500/10' : 'border-blue-100 dark:border-blue-500/20 bg-blue-50/60 dark:bg-blue-500/10'}`}>
                     <div className="mb-3 flex items-center gap-2">

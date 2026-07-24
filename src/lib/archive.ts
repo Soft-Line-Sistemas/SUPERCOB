@@ -138,6 +138,7 @@ export async function archiveCliente(clienteId: string, opts: { actorUserId?: st
           valorPago: loan.valorPago,
           jurosPagos: loan.jurosPagos,
           cobrancaAtiva: loan.cobrancaAtiva,
+          inadimplente: loan.inadimplente,
           lastInterestAccrual: loan.lastInterestAccrual,
           arquivadoPorId: opts.actorUserId ?? null,
           motivoArquivamento: opts.motivo ?? null,
@@ -225,6 +226,7 @@ export async function archiveEmprestimo(emprestimoId: string, opts: { actorUserI
         valorPago: loan.valorPago,
         jurosPagos: loan.jurosPagos,
         cobrancaAtiva: loan.cobrancaAtiva,
+        inadimplente: loan.inadimplente,
         lastInterestAccrual: loan.lastInterestAccrual,
         arquivadoPorId: opts.actorUserId ?? null,
         motivoArquivamento: opts.motivo ?? null,
@@ -405,6 +407,7 @@ export async function unarchiveCliente(clienteId: string, opts: { actorUserId?: 
           valorPago: loan.valorPago,
           jurosPagos: loan.jurosPagos,
           cobrancaAtiva: loan.cobrancaAtiva,
+          inadimplente: loan.inadimplente,
           lastInterestAccrual: loan.lastInterestAccrual,
         },
       })
@@ -501,6 +504,7 @@ export async function unarchiveEmprestimo(emprestimoId: string, opts: { actorUse
         valorPago: loan.valorPago,
         jurosPagos: loan.jurosPagos,
         cobrancaAtiva: loan.cobrancaAtiva,
+        inadimplente: loan.inadimplente,
         lastInterestAccrual: loan.lastInterestAccrual,
       },
     })

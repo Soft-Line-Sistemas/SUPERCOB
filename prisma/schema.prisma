@@ -125,6 +125,7 @@ model Emprestimo {
   valorPago           Float                 @default(0)
   jurosPagos          Float                 @default(0)
   cobrancaAtiva       Boolean               @default(false)
+  inadimplente        Boolean               @default(false)
   lastInterestAccrual DateTime?
   cliente             Cliente               @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   usuario             Usuario?              @relation(fields: [usuarioId], references: [id])
@@ -328,6 +329,7 @@ model EmprestimoArquivado {
   valorPago              Float
   jurosPagos             Float
   cobrancaAtiva          Boolean
+  inadimplente            Boolean
   lastInterestAccrual    DateTime?
 
   arquivadoEm            DateTime @default(now())

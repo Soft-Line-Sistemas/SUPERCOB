@@ -22,6 +22,7 @@ export async function getEmprestimos(filters?: {
   pageSize?: number;
   sort?: 'newest' | 'az';
   overdue?: 'yes' | 'no';
+  inadimplenteOnly?: boolean;
   lifecycle?: 'open' | 'closed';
 }) {
   const session = await auth()
@@ -79,6 +80,10 @@ export async function getEmprestimos(filters?: {
     where.cobrancaAtiva = true
   }
 
+  if (filters?.inadimplenteOnly) {
+    where.inadimplente = true
+  }
+
   const pageSize = filters?.pageSize ?? 50
   const page = filters?.page ?? 1
   const skip = (page - 1) * pageSize
@@ -107,6 +112,7 @@ export async function getEmprestimos(filters?: {
     observacao: true,
     createdAt: true,
     cobrancaAtiva: true,
+    inadimplente: true,
     jurosPagos: true,
     cliente: {
       select: { nome: true, email: true, whatsapp: true },
@@ -127,6 +133,7 @@ export async function getEmprestimos(filters?: {
     status: true,
     valor: true,
     cobrancaAtiva: true,
+    inadimplente: true,
     vencimento: true,
     createdAt: true,
     cliente: {
@@ -242,7 +249,7 @@ export async function getEmprestimos(filters?: {
       ? visibleCandidates.filter(matchesSpecialFilters)
       : visibleCandidates
 
-  // Na fila de inadimplência, os vencimentos mais antigos vêm primeiro para
+  // Na fila de atrasados, os vencimentos mais antigos vêm primeiro para
   // priorizar quem está há mais tempo em atraso.
   const orderedCandidates = overdueFilter === 'yes'
     ? orderMostOverdueFirst(filteredCandidates)
@@ -307,8 +314,8 @@ export async function createEmprestimo(data: {
     status = 'NEGOCIACAO'
   }
 
-  if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE') {
-    throw new Error('Apenas administradores ou gerentes podem concluir contratos.')
+  if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE' && role !== 'ESCRITORIO') {
+    throw new Error('Apenas administradores, gerentes ou Escritório podem concluir contratos.')
   }
 
   // Se for GERENTE, o empréstimo é automaticamente atribuído a ele
@@ -386,8 +393,8 @@ export async function updateEmprestimo(id: string, data: {
     status = 'NEGOCIACAO'
   }
 
-  if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE') {
-    throw new Error('Apenas administradores ou gerentes podem concluir contratos.')
+  if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE' && role !== 'ESCRITORIO') {
+    throw new Error('Apenas administradores, gerentes ou Escritório podem concluir contratos.')
   }
 
   const before = await prisma.emprestimo.findUnique({ where: { id } })
@@ -490,4 +497,30 @@ export async function toggleCobrancaAtiva(id: string, active: boolean) {
     data: { cobrancaAtiva: active }
   })
   revalidatePath('/emprestimos')
+}
+
+export async function toggleInadimplente(id: string, active: boolean) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const role = (session.user as any).role
+  if (role === 'OPERADOR') {
+    throw new Error('Operadores não podem alterar contratos.')
+  }
+
+  if (role === 'GERENTE') {
+    const contrato = await prisma.emprestimo.findUnique({ where: { id }, select: { usuarioId: true } })
+    if (contrato?.usuarioId !== (session.user as any).id) {
+      throw new Error('Gerentes só podem alterar contratos da própria carteira.')
+    }
+  }
+
+  await prisma.emprestimo.update({
+    where: { id },
+    data: { inadimplente: active },
+  })
+
+  revalidatePath('/emprestimos')
+  revalidatePath('/clientes')
+  revalidatePath('/dashboard')
 }

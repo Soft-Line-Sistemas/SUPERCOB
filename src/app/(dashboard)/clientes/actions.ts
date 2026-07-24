@@ -179,15 +179,13 @@ export async function getClientesPage(options?: {
     })
   }
 
-  // Um cliente é inadimplente quando possui ao menos um contrato ainda aberto
-  // cujo vencimento já passou. A regra fica no banco para preservar paginação
-  // e permissões da carteira do usuário.
+  // Inadimplência é uma marcação manual do contrato; ela não altera o status
+  // financeiro e nem depende da data de vencimento.
   if (inadimplente) {
     andConditions.push({
       loans: {
         some: {
-          status: { in: ['ABERTO', 'NEGOCIACAO'] },
-          vencimento: { lt: new Date() },
+          inadimplente: true,
         },
       },
     })
@@ -336,8 +334,19 @@ export async function deleteCliente(id: string) {
     }
 
     const role = (session.user as any).role
-    if (!isAdminRole(role)) {
+    const userId = (session.user as any).id
+    if (!isAdminRole(role) && role !== 'GERENTE') {
       return { ok: false, error: 'Apenas administradores podem excluir clientes.', code: 'FORBIDDEN' } satisfies ClienteMutationResult
+    }
+
+    if (role === 'GERENTE') {
+      const clienteDaCarteira = await prisma.cliente.findFirst({
+        where: { id, loans: { some: { usuarioId: userId } } },
+        select: { id: true },
+      })
+      if (!clienteDaCarteira) {
+        return { ok: false, error: 'Gerentes só podem excluir clientes da própria carteira.', code: 'FORBIDDEN' } satisfies ClienteMutationResult
+      }
     }
 
     await prisma.cliente.delete({

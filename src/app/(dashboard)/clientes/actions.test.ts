@@ -4,12 +4,14 @@ const {
   mockAuth,
   mockRevalidatePath,
   mockClienteFindMany,
+  mockClienteFindFirst,
   mockClienteCount,
   mockClienteDelete,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockRevalidatePath: vi.fn(),
   mockClienteFindMany: vi.fn(),
+  mockClienteFindFirst: vi.fn(),
   mockClienteCount: vi.fn(),
   mockClienteDelete: vi.fn(),
 }))
@@ -21,7 +23,7 @@ vi.mock('@/lib/prisma', () => ({
     cliente: {
       findMany: mockClienteFindMany,
       count: mockClienteCount,
-      findFirst: vi.fn(),
+      findFirst: mockClienteFindFirst,
       delete: mockClienteDelete,
     },
   },
@@ -162,7 +164,7 @@ describe('clientes actions - listagem e dashboard', () => {
     )
   })
 
-  it.each(['ESCRITORIO', 'GERENTE', 'OPERADOR'])('bloqueia %s ao excluir cliente', async (role) => {
+  it.each(['ESCRITORIO', 'OPERADOR'])('bloqueia %s ao excluir cliente', async (role) => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role } })
 
     await expect(deleteCliente('c1')).resolves.toEqual({
@@ -179,5 +181,29 @@ describe('clientes actions - listagem e dashboard', () => {
 
     await expect(deleteCliente('c1')).resolves.toEqual({ ok: true, id: 'c1' })
     expect(mockClienteDelete).toHaveBeenCalledWith({ where: { id: 'c1' } })
+  })
+
+  it('permite Gerente excluir cliente da própria carteira', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'ger-1', role: 'GERENTE' } })
+    mockClienteFindFirst.mockResolvedValue({ id: 'c1' })
+    mockClienteDelete.mockResolvedValue({ id: 'c1' })
+
+    await expect(deleteCliente('c1')).resolves.toEqual({ ok: true, id: 'c1' })
+    expect(mockClienteFindFirst).toHaveBeenCalledWith({
+      where: { id: 'c1', loans: { some: { usuarioId: 'ger-1' } } },
+      select: { id: true },
+    })
+  })
+
+  it('bloqueia Gerente ao excluir cliente de outra carteira', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'ger-1', role: 'GERENTE' } })
+    mockClienteFindFirst.mockResolvedValue(null)
+
+    await expect(deleteCliente('c2')).resolves.toEqual({
+      ok: false,
+      error: 'Gerentes só podem excluir clientes da própria carteira.',
+      code: 'FORBIDDEN',
+    })
+    expect(mockClienteDelete).not.toHaveBeenCalled()
   })
 })

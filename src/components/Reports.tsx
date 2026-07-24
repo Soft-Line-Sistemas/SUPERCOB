@@ -427,7 +427,7 @@ export function Reports({
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
-                Relatório de Inadimplência
+                Relatório de Atrasados
               </h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">Contratos com atraso superior a 5 dias</p>
             </div>
@@ -465,7 +465,7 @@ export function Reports({
             </table>
           </div>
           <div className="p-4 bg-slate-950 dark:bg-white/5 mt-auto text-center border-t border-slate-100 dark:border-white/10">
-            <button className="text-xs font-bold text-gold-500 hover:underline">Ver todos os inadimplentes</button>
+            <button className="text-xs font-bold text-gold-500 hover:underline">Ver todos os atrasados</button>
           </div>
         </motion.div>
       </div>

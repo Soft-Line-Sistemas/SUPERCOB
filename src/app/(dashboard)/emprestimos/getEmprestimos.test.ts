@@ -40,15 +40,6 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
     mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } })
     mockFindMany.mockResolvedValueOnce([
       {
-        id: 'l0',
-        status: 'CANCELADO',
-        valor: 300,
-        cobrancaAtiva: false,
-        vencimento: new Date('2026-07-10T12:00:00.000Z'),
-        createdAt: new Date('2026-07-06T12:00:00.000Z'),
-        cliente: { nome: 'Aline', whatsapp: '71911111111' },
-      },
-      {
         id: 'l1',
         status: 'ABERTO',
         valor: 1000,
@@ -65,15 +56,6 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
         vencimento: new Date('2000-07-10T12:00:00.000Z'),
         createdAt: new Date('2026-07-02T12:00:00.000Z'),
         cliente: { nome: 'Bruno', whatsapp: '71988888888' },
-      },
-      {
-        id: 'l3',
-        status: 'QUITADO',
-        valor: 1500,
-        cobrancaAtiva: true,
-        vencimento: new Date('2026-07-03T12:00:00.000Z'),
-        createdAt: new Date('2026-07-03T12:00:00.000Z'),
-        cliente: { nome: 'Carlos', whatsapp: '71977777777' },
       },
     ])
     mockFindMany.mockResolvedValueOnce([
@@ -117,26 +99,6 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
         usuario: { nome: 'Gerente 1' },
         historico: [],
       },
-      {
-        id: 'l3',
-        clienteId: 'c3',
-        usuarioId: 'u1',
-        valor: 1500,
-        quantidadeParcelas: null,
-        valorPago: 1500,
-        jurosMes: 10,
-        jurosAtrasoDia: 0,
-        vencimento: new Date('2026-07-03T12:00:00.000Z'),
-        quitadoEm: new Date('2026-07-04T12:00:00.000Z'),
-        status: 'QUITADO',
-        observacao: null,
-        createdAt: new Date('2026-07-03T12:00:00.000Z'),
-        cobrancaAtiva: true,
-        jurosPagos: 0,
-        cliente: { nome: 'Carlos', email: 'carlos@x.com', whatsapp: '71977777777' },
-        usuario: { nome: 'Gerente 1' },
-        historico: [],
-      },
     ])
 
     const result = await getEmprestimos({
@@ -153,7 +115,10 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
           status: true,
         }),
         where: {
-          AND: [{}, { status: { not: 'CANCELADO' } }],
+          AND: [
+            { status: { in: ['ABERTO', 'NEGOCIACAO'] } },
+            { status: { not: 'CANCELADO' } },
+          ],
         },
       }),
     )
@@ -161,27 +126,27 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
     expect(mockFindMany).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        where: { id: { in: ['l1', 'l2', 'l3'] } },
+        where: { id: { in: ['l1', 'l2'] } },
       }),
     )
 
     expect(result).toMatchObject({
-      total: 3,
+      total: 2,
       page: 1,
       pageSize: 5,
       sort: 'az',
       summary: {
-        total: 3,
-        valorTotal: 4500,
+        total: 2,
+        valorTotal: 3000,
         aberto: 1,
         negociacao: 1,
-        quitado: 1,
+        quitado: 0,
         cancelado: 0,
-        vencidos: 1,
-        cobrancaAtiva: 3,
+        vencidos: 2,
+        cobrancaAtiva: 2,
       },
     })
-    expect(result.items.map((item) => item.id)).toEqual(['l1', 'l2', 'l3'])
+    expect(result.items.map((item) => item.id)).toEqual(['l1', 'l2'])
   })
 
   it('gera dashboard a partir dos candidatos filtrados quando usa contactOnly', async () => {
@@ -295,9 +260,7 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
 
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          AND: [{ status: { in: ['QUITADO', 'CANCELADO'] } }, { status: { not: 'CANCELADO' } }],
-        },
+        where: { status: { in: ['QUITADO', 'CANCELADO'] } },
       }),
     )
   })

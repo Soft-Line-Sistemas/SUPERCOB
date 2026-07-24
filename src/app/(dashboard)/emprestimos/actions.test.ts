@@ -162,16 +162,16 @@ describe('emprestimos actions - quantidadeParcelas', () => {
     })).rejects.toThrow('Operadores não podem editar contratos.')
   })
 
-  it('bloqueia Escritório ao criar ou editar um contrato já quitado', async () => {
+  it('permite Escritório criar ou editar um contrato já quitado', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
 
     await expect(createEmprestimo({
       clienteId: 'c1', valor: 1000, valorPago: 1000, vencimento: new Date('2026-07-08T12:00:00.000Z'),
-    })).rejects.toThrow('Apenas administradores ou gerentes podem concluir contratos.')
+    })).resolves.toEqual({ id: 'loan-1' })
 
     await expect(updateEmprestimo('loan-1', {
       valor: 1000, valorPago: 1000, vencimento: new Date('2026-07-08T12:00:00.000Z'),
-    })).rejects.toThrow('Apenas administradores ou gerentes podem concluir contratos.')
+    })).resolves.toEqual({ id: 'loan-1' })
   })
 
   it.each(['ESCRITORIO', 'GERENTE', 'OPERADOR'])('bloqueia %s ao excluir contratos', async (role) => {

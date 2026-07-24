@@ -32,12 +32,23 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!isAdminRole(session.user.role)) {
+  const role = (session.user as any).role
+  const userId = (session.user as any).id
+  if (!isAdminRole(role) && role !== 'GERENTE') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   try {
     const { id } = await params
+    if (role === 'GERENTE') {
+      const clienteDaCarteira = await prisma.cliente.findFirst({
+        where: { id, loans: { some: { usuarioId: userId } } },
+        select: { id: true },
+      })
+      if (!clienteDaCarteira) {
+        return NextResponse.json({ error: 'Gerentes só podem excluir clientes da própria carteira' }, { status: 403 })
+      }
+    }
     await prisma.cliente.delete({
       where: { id },
     })

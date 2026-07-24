@@ -33,6 +33,7 @@ export default async function EmprestimosPage({
     pageSize,
     sort,
     overdue,
+    inadimplenteOnly: params.inadimplente === '1',
     lifecycle,
   }
   const clienteId = params.clienteId as string

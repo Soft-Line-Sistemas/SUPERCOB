@@ -138,7 +138,7 @@ export async function POST(req: Request) {
   }
 
   // SECTION 2: INADIMPLÊNCIA
-  drawText('2. RELATÓRIO DE INADIMPLÊNCIA (MAIORES ATRASOS)', { bold: true, size: 11, color: rgb(0.8, 0, 0) })
+  drawText('2. RELATÓRIO DE ATRASADOS (MAIORES ATRASOS)', { bold: true, size: 11, color: rgb(0.8, 0, 0) })
   y -= 15
   const defaulters: any[] = Array.isArray(report?.defaultersData) ? report.defaultersData : []
   if (defaulters.length === 0) {

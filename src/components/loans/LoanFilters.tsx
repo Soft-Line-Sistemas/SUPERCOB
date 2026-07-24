@@ -32,6 +32,8 @@ interface LoanFiltersProps {
   setSortOrder: React.Dispatch<React.SetStateAction<'newest' | 'az'>>
   viewMode: 'grid' | 'list'
   setViewMode: React.Dispatch<React.SetStateAction<'grid' | 'list'>>
+  inadimplenteOnly: boolean
+  onToggleInadimplente: () => void
 }
 
 export function LoanFilters({
@@ -51,6 +53,8 @@ export function LoanFilters({
   setSortOrder,
   viewMode,
   setViewMode,
+  inadimplenteOnly,
+  onToggleInadimplente,
 }: LoanFiltersProps) {
   return (
     <div className="w-full">
@@ -108,6 +112,18 @@ export function LoanFilters({
         >
           <Filter className={`h-4 w-4 ${isFiltersOpen ? 'text-white' : 'text-gold-500'}`} />
           Filtros
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggleInadimplente}
+          className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-black transition-all shadow-sm border ${
+            inadimplenteOnly
+              ? 'border-amber-600 bg-amber-600 text-white'
+              : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+          }`}
+        >
+          Inadimplentes
         </button>
 
         <button

@@ -30,8 +30,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       status = 'NEGOCIACAO'
     }
 
-    if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE') {
-      return NextResponse.json({ error: 'Apenas administradores ou gerentes podem concluir contratos' }, { status: 403 })
+    if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE' && role !== 'ESCRITORIO') {
+      return NextResponse.json({ error: 'Apenas administradores, gerentes ou Escritório podem concluir contratos' }, { status: 403 })
     }
 
     const emprestimo = await prisma.emprestimo.update({

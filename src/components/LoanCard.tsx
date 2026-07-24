@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Edit2, Trash2, Archive, Clock, CheckCircle2, AlertCircle as AlertIcon, X, Download, Send, Wallet } from 'lucide-react';
+import { Edit2, Trash2, Archive, Clock, CheckCircle2, AlertCircle as AlertIcon, X, Download, Send, Wallet, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
@@ -30,6 +30,7 @@ interface Loan {
   createdAt: Date;
   jurosPagos?: number | null;
   cobrancaAtiva?: boolean;
+  inadimplente?: boolean;
   historico?: { createdAt: Date | string; descricao?: string | null }[];
 }
 
@@ -48,6 +49,7 @@ interface LoanCardProps {
   onArchive?: (id: string) => void;
   onDetail: (loan: Loan) => void;
   onToggleCobranca: (id: string, active: boolean) => void;
+  onToggleInadimplente: (id: string, active: boolean) => void;
   onExportDossie: (id: string) => void;
   onOpenPaymentTerminal: (loan: Loan) => void;
   onConfirmMonthlyPayment: (loan: Loan) => void;
@@ -72,6 +74,7 @@ export function LoanCard({
   onArchive,
   onDetail,
   onToggleCobranca,
+  onToggleInadimplente,
   onExportDossie,
   onOpenPaymentTerminal,
   onConfirmMonthlyPayment,
@@ -90,6 +93,7 @@ export function LoanCard({
   const config = statusConfig[loan.status];
   const StatusIcon = config.icon;
   const cobrancaActive = loan.cobrancaAtiva ?? false;
+  const inadimplente = loan.inadimplente ?? false;
   const isDraft = loan.id.startsWith('draft-');
 
   // Cor da borda e cabeçalho dinâmicos
@@ -156,6 +160,13 @@ export function LoanCard({
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               Pago
+            </div>
+          ) : null}
+
+          {inadimplente ? (
+            <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-100 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-amber-800 shadow-sm" title="Marcado manualmente como inadimplente">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Inadimplente
             </div>
           ) : null}
         </div>
@@ -278,6 +289,21 @@ export function LoanCard({
                 className="w-3 h-3 rounded-full bg-white shadow-sm"
               />
             </div>
+          </div>
+          <div className="flex items-center gap-1.5 py-1 px-2 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Inadimplente</span>
+            <button
+              type="button"
+              disabled={isDraft || !canEdit}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleInadimplente(loan.id, !inadimplente);
+              }}
+              className={`w-8 h-4 rounded-full flex items-center transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${inadimplente ? 'bg-amber-500' : 'bg-slate-300'}`}
+              aria-label={inadimplente ? 'Remover marca de inadimplente' : 'Marcar como inadimplente'}
+            >
+              <motion.span animate={{ x: inadimplente ? 16 : 2 }} className="w-3 h-3 rounded-full bg-white shadow-sm" />
+            </button>
           </div>
         </div>
 

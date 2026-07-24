@@ -67,13 +67,13 @@ export async function setEmprestimoStatus(input: {
     }
   }
 
-  if (input.status === 'ABERTO' && userRole !== 'ADM' && userRole !== 'ADMIN') {
-    throw new Error('Apenas administradores podem reabrir contratos.')
+  if (input.status === 'ABERTO' && userRole !== 'ADM' && userRole !== 'ADMIN' && userRole !== 'ESCRITORIO') {
+    throw new Error('Apenas administradores ou Escritório podem reabrir contratos.')
   }
 
   if (input.status === 'QUITADO') {
-    if (userRole === 'ESCRITORIO' || userRole === 'OPERADOR') {
-      throw new Error('Apenas administradores ou gerentes podem concluir contratos.')
+    if (userRole === 'OPERADOR') {
+      throw new Error('Apenas administradores, gerentes ou Escritório podem concluir contratos.')
     }
     const atual = await prisma.emprestimo.findUnique({
       where: { id: input.emprestimoId },
@@ -167,8 +167,8 @@ export async function addPagamentoParcial(input: { emprestimoId: string; valor: 
   const novoValorPago = (emprestimoAtual.valorPago || 0) + pagamentoParaPrincipal
   const quitado = novoValorPago >= emprestimoAtual.valor
 
-  if (quitado && (userRole === 'ESCRITORIO' || userRole === 'OPERADOR')) {
-    throw new Error('Este pagamento quitaria o contrato. A conclusão deve ser feita por um administrador ou gerente.')
+  if (quitado && userRole === 'OPERADOR') {
+    throw new Error('Este pagamento quitaria o contrato. A conclusão deve ser feita por um administrador, gerente ou Escritório.')
   }
   
   // Transição automática para NEGOCIACAO se estava ABERTO e foi recebido pagamento

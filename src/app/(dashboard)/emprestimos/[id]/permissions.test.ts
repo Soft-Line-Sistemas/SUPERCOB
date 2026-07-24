@@ -51,15 +51,16 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
     mockCalculateLoanInterest.mockReturnValue({ principalRestante: 0, jurosPendente: 0 })
   })
 
-  it.each(['ESCRITORIO', 'OPERADOR'])('bloqueia %s ao concluir o contrato', async (role) => {
+  it('bloqueia Operador ao concluir o contrato', async () => {
+    const role = 'OPERADOR'
     mockAuth.mockResolvedValue({ user: { id: role === 'OPERADOR' ? 'op-1' : 'esc-1', role } })
 
     await expect(setEmprestimoStatus({ emprestimoId: 'loan-1', status: 'QUITADO' }))
-      .rejects.toThrow('Apenas administradores ou gerentes podem concluir contratos.')
+      .rejects.toThrow('Apenas administradores, gerentes ou Escritório podem concluir contratos.')
     expect(mockUpdate).not.toHaveBeenCalled()
   })
 
-  it.each(['ADM', 'ADMIN', 'GERENTE'])('permite %s concluir contrato sem saldo pendente', async (role) => {
+  it.each(['ADM', 'ADMIN', 'ESCRITORIO', 'GERENTE'])('permite %s concluir contrato sem saldo pendente', async (role) => {
     mockAuth.mockResolvedValue({ user: { id: role === 'GERENTE' ? 'op-1' : 'u1', role } })
 
     await expect(setEmprestimoStatus({ emprestimoId: 'loan-1', status: 'QUITADO' })).resolves.toBeTruthy()
@@ -69,12 +70,27 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
     }))
   })
 
-  it.each(['ESCRITORIO', 'OPERADOR'])('bloqueia %s ao registrar pagamento que quitaria o contrato', async (role) => {
+  it('bloqueia Operador ao registrar pagamento que quitaria o contrato', async () => {
+    const role = 'OPERADOR'
     mockAuth.mockResolvedValue({ user: { id: role === 'OPERADOR' ? 'op-1' : 'esc-1', role } })
 
     await expect(addPagamentoParcial({ emprestimoId: 'loan-1', valor: 100 }))
       .rejects.toThrow('Este pagamento quitaria o contrato.')
     expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('permite Escritório registrar pagamento que quita o contrato', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
+
+    await expect(addPagamentoParcial({ emprestimoId: 'loan-1', valor: 100 })).resolves.toBeTruthy()
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'QUITADO' }) }))
+  })
+
+  it('permite Escritório reabrir contrato', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
+
+    await expect(setEmprestimoStatus({ emprestimoId: 'loan-1', status: 'ABERTO' })).resolves.toBeTruthy()
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'ABERTO' }) }))
   })
 
   it('bloqueia Operador em contrato de outra carteira', async () => {

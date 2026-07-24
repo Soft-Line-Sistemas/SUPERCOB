@@ -62,8 +62,8 @@ export async function POST(req: Request) {
       status = 'NEGOCIACAO'
     }
 
-    if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE') {
-      return NextResponse.json({ error: 'Apenas administradores ou gerentes podem concluir contratos' }, { status: 403 })
+    if (status === 'QUITADO' && !isAdminRole(role) && role !== 'GERENTE' && role !== 'ESCRITORIO') {
+      return NextResponse.json({ error: 'Apenas administradores, gerentes ou Escritório podem concluir contratos' }, { status: 403 })
     }
 
     const emprestimo = await prisma.emprestimo.create({

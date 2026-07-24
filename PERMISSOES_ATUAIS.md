@@ -19,14 +19,14 @@ Documento de referência das permissões **atualmente implementadas** no sistema
 | Acessar Usuários e Arquivados pela tela | Sim | Não | Não | Não |
 | Ver lista de clientes | Todos | Todos | Somente clientes da própria carteira | Todos* |
 | Criar ou editar cliente | Sim | Sim | Sim | Sim |
-| Excluir cliente definitivamente | Sim | Não | Não | Não |
+| Excluir cliente definitivamente | Sim | Não | Somente da própria carteira | Não |
 | Arquivar/restaurar cliente | Sim | Não | Não | Não |
 | Ver lista de contratos | Todos | Todos | Somente os próprios | Todos* |
 | Criar ou editar contrato | Sim | Sim | Sim | Não |
 | Registrar pagamento parcial | Sim | Sim | Sim | Sim |
-| Concluir contrato (dar baixa / marcar quitado) | Sim | Não | Sim | Não |
+| Concluir contrato (dar baixa / marcar quitado) | Sim | Sim | Somente da própria carteira | Não |
 | Cancelar contrato | Sim | Sim | Sim | Sim |
-| Reabrir contrato cancelado ou quitado | Sim | Não | Não | Não |
+| Reabrir contrato cancelado ou quitado | Sim | Sim | Não | Não |
 | Excluir contrato definitivamente | Sim | Não | Não | Não |
 | Arquivar/restaurar contrato | Sim | Não | Não | Não |
 | Alterar responsável do contrato | Sim | Não | Não | Não |
@@ -40,9 +40,9 @@ Documento de referência das permissões **atualmente implementadas** no sistema
 
 Neste sistema, o termo deve ser entendido como **concluir/quitar um contrato**, e não como apagar o cadastro do cliente.
 
-Escritório e Operador podem registrar pagamentos parciais, mas não podem lançar um pagamento que quite o contrato. A baixa final e o botão **Concluir Cobrança** são restritos a administradores e, temporariamente, à Gerência.
+Escritório pode registrar pagamentos, concluir e reabrir contratos. Gerência pode fazer isso apenas na própria carteira. Operador pode registrar pagamentos parciais, mas não pode lançar um pagamento que quite o contrato.
 
-Portanto, a baixa **não exige senha adicional** e também pode ser feita pela Gerência; a regra da Gerência será revisada separadamente.
+Portanto, a baixa **não exige senha adicional** e pode ser feita por ADM/ADMIN, Escritório e Gerência (somente na própria carteira).
 
 ## Exclusão de cliente
 

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useTransition } from 'react';
 import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download, ChevronLeft, ChevronRight, Terminal as TerminalIcon, CheckCircle, MessageSquare, Eye, Pencil, Trash2, Archive } from 'lucide-react';
-import { createEmprestimo, updateEmprestimo, deleteEmprestimo, archiveEmprestimoAction, toggleCobrancaAtiva } from '@/app/(dashboard)/emprestimos/actions';
+import { createEmprestimo, updateEmprestimo, deleteEmprestimo, archiveEmprestimoAction, toggleCobrancaAtiva, toggleInadimplente } from '@/app/(dashboard)/emprestimos/actions';
 import { addPagamentoParcial } from '@/app/(dashboard)/emprestimos/[id]/actions';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -61,6 +61,7 @@ interface Loan {
   createdAt: Date;
   jurosPagos?: number | null;
   cobrancaAtiva?: boolean;
+  inadimplente?: boolean;
   historico?: { createdAt: Date | string; descricao?: string | null }[];
 }
 
@@ -277,6 +278,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   }, [preferencesLoaded, viewMode, viewStorageKey])
 
   const overdueFilter = searchParams.get('overdue')
+  const inadimplenteFilter = searchParams.get('inadimplente') === '1'
   const lifecycleFilter = searchParams.get('lifecycle')
 
   const getSummaryCardClass = (state: string | null) => {
@@ -330,6 +332,15 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     const next = new URLSearchParams(searchParams.toString())
     if (overdueFilter === 'yes') next.delete('overdue')
     else next.set('overdue', 'yes')
+    next.delete('page')
+    router.replace(`${pathname}?${next.toString()}`)
+    router.refresh()
+  }
+
+  const toggleInadimplenteFilter = () => {
+    const next = new URLSearchParams(searchParams.toString())
+    if (inadimplenteFilter) next.delete('inadimplente')
+    else next.set('inadimplente', '1')
     next.delete('page')
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
@@ -670,6 +681,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         quitadoEm: null,
         createdAt: new Date(),
         cobrancaAtiva: false,
+        inadimplente: false,
       }
     : null
 
@@ -683,6 +695,17 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       toast.error('Erro ao atualizar modo cobrança.');
     }
   };
+
+  const handleToggleInadimplente = async (id: string, active: boolean) => {
+    if (id.startsWith('draft-')) return
+    try {
+      await toggleInadimplente(id, active)
+      router.refresh()
+      toast.success(active ? 'Contrato marcado como inadimplente.' : 'Marca de inadimplente removida.')
+    } catch (e) {
+      toast.error('Erro ao atualizar inadimplência.')
+    }
+  }
 
   const loansToRender = draftLoan ? [draftLoan, ...initialLoans] : initialLoans
   const exportableLoans = loansToRender.filter((loan) => !loan.id.startsWith('draft-') && loan.cobrancaAtiva)
@@ -964,6 +987,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         setSortOrder={setSortOrder}
         viewMode={viewMode}
         setViewMode={setViewMode}
+        inadimplenteOnly={inadimplenteFilter}
+        onToggleInadimplente={toggleInadimplenteFilter}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -982,10 +1007,10 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
           onClick={toggleOverdueFilter}
           className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition-colors ${getSummaryCardClass(overdueFilter)}`}
         >
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Inadimplentes</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Atrasados</p>
           <p className="mt-3 text-3xl font-black text-slate-900">{summary.vencidos}</p>
           <p className={`mt-1 text-sm ${getSummaryHintClass(overdueFilter)}`}>
-            {overdueFilter === 'yes' ? 'Mostrando atrasos primeiro' : 'Clique para filtrar contratos vencidos'}
+            {overdueFilter === 'yes' ? 'Mostrando os mais atrasados primeiro' : 'Clique para filtrar contratos vencidos'}
           </p>
         </button>
         <button
@@ -1020,6 +1045,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 onArchive={handleArchive}
                 onDetail={handleOpenDetail}
                 onToggleCobranca={handleToggleCobranca}
+                onToggleInadimplente={handleToggleInadimplente}
                 onExportDossie={handleOpenChargeDelivery}
                 onOpenPaymentTerminal={handleOpenPaymentTerminal}
                 onConfirmMonthlyPayment={handleDirectMonthlyPayment}
@@ -1051,6 +1077,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                   <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Vencimento</th>
                   <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Consultor</th>
                   <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Cobrança</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Inadimplente</th>
                   <th className="px-6 py-4 text-right text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Ações</th>
                 </tr>
               </thead>
@@ -1096,6 +1123,16 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                           className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${(loan.cobrancaAtiva ?? false) ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'} disabled:cursor-not-allowed disabled:opacity-60`}
                         >
                           {(loan.cobrancaAtiva ?? false) ? 'Ativa' : 'Inativa'}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          disabled={isDraft || userRole === 'OPERADOR'}
+                          onClick={() => handleToggleInadimplente(loan.id, !(loan.inadimplente ?? false))}
+                          className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${(loan.inadimplente ?? false) ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'} disabled:cursor-not-allowed disabled:opacity-60`}
+                        >
+                          {(loan.inadimplente ?? false) ? 'Sim' : 'Não'}
                         </button>
                       </td>
                       <td className="px-6 py-4">
