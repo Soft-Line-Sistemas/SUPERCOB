@@ -80,9 +80,9 @@ export async function getEmprestimos(filters?: {
     where.cobrancaAtiva = true
   }
 
-  if (filters?.inadimplenteOnly) {
-    where.inadimplente = true
-  }
+  // Contratos marcados manualmente como inadimplentes ficam exclusivos da
+  // respectiva fila, sem misturá-los à listagem operacional padrão.
+  where.inadimplente = filters?.inadimplenteOnly === true
 
   const pageSize = filters?.pageSize ?? 50
   const page = filters?.page ?? 1

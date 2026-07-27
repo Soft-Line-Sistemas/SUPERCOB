@@ -179,17 +179,13 @@ export async function getClientesPage(options?: {
     })
   }
 
-  // Inadimplência é uma marcação manual do contrato; ela não altera o status
-  // financeiro e nem depende da data de vencimento.
-  if (inadimplente) {
-    andConditions.push({
-      loans: {
-        some: {
-          inadimplente: true,
-        },
-      },
-    })
-  }
+  // A listagem padrão não mistura clientes que tenham contratos marcados
+  // manualmente como inadimplentes. Eles ficam exclusivos da fila própria.
+  andConditions.push(
+    inadimplente
+      ? { loans: { some: { inadimplente: true } } }
+      : { loans: { none: { inadimplente: true } } },
+  )
 
   if (andConditions.length > 0) {
     where = where ? { AND: [where, ...andConditions] } : { AND: andConditions }

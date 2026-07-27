@@ -116,7 +116,7 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
         }),
         where: {
           AND: [
-            { status: { in: ['ABERTO', 'NEGOCIACAO'] } },
+            { status: { in: ['ABERTO', 'NEGOCIACAO'] }, inadimplente: false },
             { status: { not: 'CANCELADO' } },
           ],
         },
@@ -260,7 +260,7 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
 
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: { in: ['QUITADO', 'CANCELADO'] } },
+        where: { status: { in: ['QUITADO', 'CANCELADO'] }, inadimplente: false },
       }),
     )
   })
