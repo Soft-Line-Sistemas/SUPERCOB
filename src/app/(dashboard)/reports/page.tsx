@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { calculateLoanInterest } from '@/lib/loan-interest'
+import { calculateCurrentInstallment, calculateCurrentInstallmentAmounts } from '@/lib/installments'
 
 const SAO_PAULO_OFFSET_HOURS = 3
 
@@ -132,11 +133,86 @@ export default async function ReportsPage({
     },
   })
 
-  const colaboradores = await prisma.usuario.findMany({ 
-    where: { role: { in: ['GERENTE', 'ESCRITORIO'] } }, 
-    select: { id: true, nome: true }, 
-    orderBy: { nome: 'asc' } 
+  const colaboradores = await prisma.usuario.findMany({
+    where: { role: { in: ['GERENTE', 'ESCRITORIO'] } },
+    select: { id: true, nome: true },
+    orderBy: { nome: 'asc' }
   })
+
+  // "Dia de Vencimento": agenda de cobrança por dia do mês, ignora o filtro de período
+  // (é uma agenda recorrente, não presa ao range de datas selecionado na tela).
+  const dueDayWhere: any = {
+    status: statusParam && typeof statusParam === 'string' && statusParam.trim() !== ''
+      ? statusParam
+      : { in: ['ABERTO', 'NEGOCIACAO'] },
+    vencimento: { not: null },
+  }
+  if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
+    dueDayWhere.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
+  }
+  if ((cidadeParam && typeof cidadeParam === 'string' && cidadeParam.trim() !== '') || (estadoParam && typeof estadoParam === 'string' && estadoParam.trim() !== '')) {
+    dueDayWhere.cliente = {}
+    if (cidadeParam && typeof cidadeParam === 'string' && cidadeParam.trim() !== '') {
+      dueDayWhere.cliente.cidade = { contains: cidadeParam }
+    }
+    if (estadoParam && typeof estadoParam === 'string' && estadoParam.trim() !== '') {
+      dueDayWhere.cliente.estado = { contains: estadoParam }
+    }
+  }
+
+  const dueDayLoans = await prisma.emprestimo.findMany({
+    where: dueDayWhere,
+    select: {
+      id: true,
+      valor: true,
+      valorPago: true,
+      jurosMes: true,
+      jurosAtrasoDia: true,
+      jurosPagos: true,
+      quantidadeParcelas: true,
+      status: true,
+      vencimento: true,
+      createdAt: true,
+      cliente: { select: { nome: true } },
+    },
+  })
+
+  const dueDayGroups = new Map<number, { client: string; jurosAtual: number; isAcordo: boolean; parcelaAtual: number; parcelaTotal: number; valorParcela: number }[]>()
+  for (const loan of dueDayLoans) {
+    if (!loan.vencimento) continue
+    const day = loan.vencimento.getUTCDate()
+    const interest = calculateLoanInterest(loan)
+    const quantidadeParcelas = loan.quantidadeParcelas ?? 0
+    const isAcordo = Number.isInteger(quantidadeParcelas) && quantidadeParcelas > 0
+    let parcelaAtual = 0
+    let parcelaTotal = 0
+    let valorParcela = 0
+    if (isAcordo) {
+      const progress = calculateCurrentInstallment({ ...loan, status: loan.status })
+      const amounts = calculateCurrentInstallmentAmounts(loan)
+      parcelaAtual = progress?.current ?? 0
+      parcelaTotal = progress?.total ?? quantidadeParcelas
+      valorParcela = amounts?.valorParcela ?? 0
+    }
+    const entry = {
+      client: loan.cliente.nome,
+      jurosAtual: Math.round(interest.jurosBase),
+      isAcordo,
+      parcelaAtual,
+      parcelaTotal,
+      valorParcela: Math.round(valorParcela),
+    }
+    const list = dueDayGroups.get(day) ?? []
+    list.push(entry)
+    dueDayGroups.set(day, list)
+  }
+
+  const dueDayData = Array.from(dueDayGroups.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([day, entries]) => ({
+      day,
+      entries: entries.sort((a, b) => a.client.localeCompare(b.client, 'pt-BR')),
+    }))
   const monthId = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth()
   const startOfMonthUtc = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0, 0))
 
@@ -200,10 +276,10 @@ export default async function ReportsPage({
     if (!label) continue
     byLocation.set(label, (byLocation.get(label) ?? 0) + loan.valor)
   }
-  const volumeByLocation = Array.from(byLocation.entries())
+  const volumeByLocationFull = Array.from(byLocation.entries())
     .map(([city, volume]) => ({ city, volume }))
     .sort((a, b) => b.volume - a.volume)
-    .slice(0, 6)
+  const volumeByLocation = volumeByLocationFull.slice(0, 6)
 
   const byClient = new Map<string, { nome: string; city: string; volume: number }>()
   for (const loan of loans) {
@@ -215,24 +291,27 @@ export default async function ReportsPage({
   }
   const clientVolumes = Array.from(byClient.values()).sort((a, b) => b.volume - a.volume)
   const totalVolume = clientVolumes.reduce((acc, c) => acc + c.volume, 0) || 1
-  const topClients = clientVolumes.slice(0, 12)
-  const prefixSums = topClients.map((_, idx) => topClients.slice(0, idx + 1).reduce((acc, x) => acc + x.volume, 0))
-  const abcCurveData = topClients.map((c, idx) => {
-    const cumulative = prefixSums[idx]
-    const pct = cumulative / totalVolume
-    const cls = pct <= 0.8 ? 'A' : pct <= 0.95 ? 'B' : 'C'
-    return {
-      rank: idx + 1,
-      client: c.nome,
-      city: c.city || '-',
-      volume: Math.round(c.volume),
-      class: cls as 'A' | 'B' | 'C',
-      acc: `${Math.round(pct * 100)}%`,
-    }
-  })
+  const buildAbcCurve = (clients: typeof clientVolumes) => {
+    const prefixSums = clients.map((_, idx) => clients.slice(0, idx + 1).reduce((acc, x) => acc + x.volume, 0))
+    return clients.map((c, idx) => {
+      const cumulative = prefixSums[idx]
+      const pct = cumulative / totalVolume
+      const cls = pct <= 0.8 ? 'A' : pct <= 0.95 ? 'B' : 'C'
+      return {
+        rank: idx + 1,
+        client: c.nome,
+        city: c.city || '-',
+        volume: Math.round(c.volume),
+        class: cls as 'A' | 'B' | 'C',
+        acc: `${Math.round(pct * 100)}%`,
+      }
+    })
+  }
+  const abcCurveDataFull = buildAbcCurve(clientVolumes)
+  const abcCurveData = buildAbcCurve(clientVolumes.slice(0, 12))
 
   const now2 = new Date()
-  const defaultersData = loans
+  const defaultersDataFull = loans
     .filter((l) => l.status !== 'QUITADO' && l.status !== 'CANCELADO' && l.vencimento && l.vencimento.getTime() < now2.getTime())
     .map((l) => {
       const daysLate = Math.floor((now2.getTime() - (l.vencimento as Date).getTime()) / (1000 * 60 * 60 * 24))
@@ -248,7 +327,7 @@ export default async function ReportsPage({
     .filter((x) => x.amount > 0)
     .filter((x) => x.daysLate > 5)
     .sort((a, b) => b.daysLate - a.daysLate)
-    .slice(0, 12)
+  const defaultersData = defaultersDataFull.slice(0, 12)
 
   const dailyInterestData: { date: string; dateObj: Date; client: string; loanId: string; amount: number; isPaid: boolean }[] = []
   
@@ -313,9 +392,13 @@ export default async function ReportsPage({
     },
     interestByMonth,
     volumeByLocation,
+    volumeByLocationFull,
     abcCurveData,
+    abcCurveDataFull,
     defaultersData,
+    defaultersDataFull,
     dailyInterestData: dailyInterestData.map(({ dateObj, ...rest }) => rest),
+    dueDayData,
   }
 
   return (

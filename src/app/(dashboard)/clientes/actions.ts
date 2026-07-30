@@ -79,6 +79,7 @@ export async function getClientesPage(options?: {
   whatsappStatus?: 'filled' | 'missing'
   cpfStatus?: 'filled' | 'missing'
   inadimplente?: boolean
+  pago?: boolean
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -100,6 +101,7 @@ export async function getClientesPage(options?: {
   const whatsappStatus = options?.whatsappStatus
   const cpfStatus = options?.cpfStatus
   const inadimplente = options?.inadimplente === true
+  const pago = options?.pago === true
 
   let where: Prisma.ClienteWhereInput | undefined
 
@@ -179,13 +181,26 @@ export async function getClientesPage(options?: {
     })
   }
 
-  // A listagem padrão não mistura clientes que tenham contratos marcados
-  // manualmente como inadimplentes. Eles ficam exclusivos da fila própria.
+  // As filas de inadimplentes e pagos são exclusivas da lista principal.
   andConditions.push(
     inadimplente
       ? { loans: { some: { inadimplente: true } } }
       : { loans: { none: { inadimplente: true } } },
   )
+
+  if (pago) {
+    andConditions.push(
+      { loans: { some: {} } },
+      { loans: { every: { status: 'QUITADO' } } },
+    )
+  } else if (!inadimplente) {
+    andConditions.push({
+      OR: [
+        { loans: { none: {} } },
+        { loans: { some: { status: { not: 'QUITADO' } } } },
+      ],
+    })
+  }
 
   if (andConditions.length > 0) {
     where = where ? { AND: [where, ...andConditions] } : { AND: andConditions }
@@ -202,6 +217,11 @@ export async function getClientesPage(options?: {
       orderBy,
       skip,
       take: perPage,
+      include: {
+        loans: {
+          select: { id: true, status: true },
+        },
+      },
     }),
     prisma.cliente.count({ where }),
     prisma.cliente.count({ where: { AND: [where ?? {}, { email: { not: null } }, { email: { not: '' } }] } }),

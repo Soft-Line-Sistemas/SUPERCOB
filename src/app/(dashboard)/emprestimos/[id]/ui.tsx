@@ -20,6 +20,7 @@ import {
 import { addEmprestimoHistorico, addPagamentoParcial, setEmprestimoStatus, updateLoanUser } from './actions'
 import { WhatsAppTemplates } from '@/components/WhatsAppTemplates'
 import { calculateLoanInterest } from '@/lib/loan-interest'
+import { calculateCurrentInstallment, calculateCurrentInstallmentAmounts } from '@/lib/installments'
 import { DocumentsTab } from '@/components/loans/DocumentsTab'
 import { DossieHeader } from './components/DossieHeader'
 import { FinancialSummary } from './components/FinancialSummary'
@@ -41,6 +42,7 @@ type EmprestimoDetalhes = {
   id: string
   clienteId: string
   valor: number
+  quantidadeParcelas?: number | null
   valorPago?: number | null
   jurosMes?: number | null
   jurosAtrasoDia?: number | null
@@ -164,6 +166,8 @@ export function ContractDetails({
     usesDailyLateInterest,
     nextMonthInterest,
   } = calculateLoanInterest({ ...emprestimo, valorPago })
+  const installmentProgress = calculateCurrentInstallment({ ...emprestimo, valorPago, status })
+  const installmentAmounts = calculateCurrentInstallmentAmounts(emprestimo)
   const canFinish = status !== 'QUITADO' && status !== 'CANCELADO' && restante <= 0 && jurosPendente <= 0
 
   const priorityLevel = useMemo(() => {
@@ -263,6 +267,9 @@ export function ContractDetails({
             usesDailyLateInterest={usesDailyLateInterest}
             borderClass={borderClass}
             formatBRL={formatBRL}
+            currentInterest={status === 'QUITADO' || status === 'CANCELADO' ? 0 : jurosBase}
+            installmentProgress={installmentProgress}
+            installmentAmounts={installmentAmounts}
           />
 
           <div className="space-y-6">

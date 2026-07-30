@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   calculateCurrentInstallment,
+  calculateCurrentInstallmentAmounts,
   calculateEstimatedInstallments,
   calculateEstimatedMonthlyPayment,
   calculatePaidPrincipalFromCurrentInstallment,
@@ -50,6 +51,16 @@ describe('calculateEstimatedInstallments', () => {
         quantidadeParcelas: 10,
       }),
     ).toBe(750)
+  })
+
+  it('calcula os valores atuais da parcela e dos juros no parcelamento', () => {
+    expect(
+      calculateCurrentInstallmentAmounts({
+        valor: 3000,
+        jurosMes: 15,
+        quantidadeParcelas: 10,
+      }),
+    ).toEqual({ valorParcela: 750, jurosAtual: 450 })
   })
 
   it('retorna null para valor mensal quando a quantidade de parcelas nao foi informada', () => {

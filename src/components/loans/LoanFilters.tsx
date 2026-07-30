@@ -34,6 +34,8 @@ interface LoanFiltersProps {
   setViewMode: React.Dispatch<React.SetStateAction<'grid' | 'list'>>
   inadimplenteOnly: boolean
   onToggleInadimplente: () => void
+  pagosOnly: boolean
+  onTogglePagos: () => void
 }
 
 export function LoanFilters({
@@ -55,6 +57,8 @@ export function LoanFilters({
   setViewMode,
   inadimplenteOnly,
   onToggleInadimplente,
+  pagosOnly,
+  onTogglePagos,
 }: LoanFiltersProps) {
   return (
     <div className="w-full">
@@ -124,6 +128,18 @@ export function LoanFilters({
           }`}
         >
           Inadimplentes
+        </button>
+
+        <button
+          type="button"
+          onClick={onTogglePagos}
+          className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-black transition-all shadow-sm border ${
+            pagosOnly
+              ? 'border-emerald-600 bg-emerald-600 text-white'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+          }`}
+        >
+          Pagos
         </button>
 
         <button

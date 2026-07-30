@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Edit2, Trash2, Archive, Clock, CheckCircle2, AlertCircle as AlertIcon, X, Download, Send, Wallet, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+import { calculateCurrentInstallmentAmounts } from '@/lib/installments';
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
 
@@ -95,6 +96,10 @@ export function LoanCard({
   const cobrancaActive = loan.cobrancaAtiva ?? false;
   const inadimplente = loan.inadimplente ?? false;
   const isDraft = loan.id.startsWith('draft-');
+  const installmentAmounts = calculateCurrentInstallmentAmounts(loan)
+  const jurosAtual = loan.status === 'QUITADO' || loan.status === 'CANCELADO'
+    ? 0
+    : Math.max(Number(loan.valor) || 0, 0) * (Math.max(Number(loan.jurosMes) || 0, 0) / 100)
 
   // Cor da borda e cabeçalho dinâmicos
   const borderColor = cobrancaActive ? 'border-red-600' : config.border;
@@ -249,6 +254,7 @@ export function LoanCard({
           <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10">
             <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Juros Mensal</p>
             <p className="text-base font-black text-gold-600 dark:text-gold-500">{loan.jurosMes}%</p>
+            <p className="mt-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">Juros atual: {formatCurrency(jurosAtual)}</p>
           </div>
         </div>
 
@@ -258,6 +264,12 @@ export function LoanCard({
             <p className="mt-1 text-sm font-black text-blue-900 dark:text-blue-100">
               Parcela {installmentProgress.current}/{installmentProgress.total}
             </p>
+            {installmentAmounts ? (
+              <div className="mt-2 grid grid-cols-2 gap-3 border-t border-blue-100 pt-2 text-xs dark:border-blue-500/20">
+                <p className="text-blue-700 dark:text-blue-200">Parcela atual <strong className="block font-black">{formatCurrency(installmentAmounts.valorParcela)}</strong></p>
+                <p className="text-blue-700 dark:text-blue-200">Juros atual <strong className="block font-black">{formatCurrency(installmentAmounts.jurosAtual)}</strong></p>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

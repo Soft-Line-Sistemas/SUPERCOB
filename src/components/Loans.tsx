@@ -279,6 +279,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
 
   const overdueFilter = searchParams.get('overdue')
   const inadimplenteFilter = searchParams.get('inadimplente') === '1'
+  const pagosFilter = searchParams.get('status') === 'QUITADO'
   const lifecycleFilter = searchParams.get('lifecycle')
 
   const getSummaryCardClass = (state: string | null) => {
@@ -342,6 +343,19 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     if (inadimplenteFilter) next.delete('inadimplente')
     else next.set('inadimplente', '1')
     next.delete('page')
+    router.replace(`${pathname}?${next.toString()}`)
+    router.refresh()
+  }
+
+  const togglePagosFilter = () => {
+    const next = new URLSearchParams(searchParams.toString())
+    if (pagosFilter) next.delete('status')
+    else {
+      next.set('status', 'QUITADO')
+      next.delete('lifecycle')
+    }
+    next.delete('page')
+    setFilters((current) => ({ ...current, status: pagosFilter ? '' : 'QUITADO' }))
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
   }
@@ -989,6 +1003,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         setViewMode={setViewMode}
         inadimplenteOnly={inadimplenteFilter}
         onToggleInadimplente={toggleInadimplenteFilter}
+        pagosOnly={pagosFilter}
+        onTogglePagos={togglePagosFilter}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">

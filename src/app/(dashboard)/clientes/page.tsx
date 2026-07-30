@@ -28,6 +28,7 @@ export default async function ClientesPage({
     whatsappStatus: getSingleParam(params.whatsappStatus) === 'missing' ? 'missing' : getSingleParam(params.whatsappStatus) === 'filled' ? 'filled' : undefined,
     cpfStatus: getSingleParam(params.cpfStatus) === 'missing' ? 'missing' : getSingleParam(params.cpfStatus) === 'filled' ? 'filled' : undefined,
     inadimplente: getSingleParam(params.inadimplente) === '1',
+    pago: getSingleParam(params.pago) === '1',
   })
 
   return (

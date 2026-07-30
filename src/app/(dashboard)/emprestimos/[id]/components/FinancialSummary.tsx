@@ -7,6 +7,7 @@ interface FinancialSummaryProps {
   totalDevido: number
   restante: number
   jurosPendente: number
+  currentInterest: number
   nextMonthInterest: number
   valorPago: number
   valorOriginal: number
@@ -16,12 +17,15 @@ interface FinancialSummaryProps {
   usesDailyLateInterest: boolean
   borderClass: string
   formatBRL: (val: number) => string
+  installmentProgress?: { current: number; total: number } | null
+  installmentAmounts?: { valorParcela: number; jurosAtual: number } | null
 }
 
 export function FinancialSummary({
   totalDevido,
   restante,
   jurosPendente,
+  currentInterest,
   nextMonthInterest,
   valorPago,
   valorOriginal,
@@ -30,7 +34,9 @@ export function FinancialSummary({
   monthsAccrued,
   usesDailyLateInterest,
   borderClass,
-  formatBRL
+  formatBRL,
+  installmentProgress,
+  installmentAmounts,
 }: FinancialSummaryProps) {
   return (
     <div className={`bg-white dark:bg-slate-950 rounded-[2.5rem] border-2 ${borderClass} shadow-xl shadow-slate-200/50 dark:shadow-none overflow-hidden relative group`}>
@@ -59,7 +65,7 @@ export function FinancialSummary({
         </div>
       </div>
 
-      <div className="relative z-10 grid grid-cols-1 sm:grid-cols-4 gap-px bg-slate-100 dark:bg-white/5">
+      <div className={`relative z-10 grid grid-cols-1 gap-px bg-slate-100 dark:bg-white/5 ${installmentAmounts ? 'sm:grid-cols-3 xl:grid-cols-6' : 'sm:grid-cols-4'}`}>
         <div className="bg-white dark:bg-slate-950 p-8 group/item">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-gold-500 transition-colors">Principal Aberto</p>
           <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{formatBRL(restante)}</p>
@@ -79,6 +85,13 @@ export function FinancialSummary({
             {usesDailyLateInterest ? `${daysLate} dias em atraso` : `${monthsAccrued} meses acumulados`}
           </p>
         </div>
+        {!installmentAmounts ? (
+          <div className="bg-white dark:bg-slate-950 p-8 group/item">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-blue-500 transition-colors">Juros Atual</p>
+            <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{formatBRL(currentInterest)}</p>
+            <p className="text-[10px] font-bold text-slate-400 mt-2">Valor mensal pela taxa contratada</p>
+          </div>
+        ) : null}
         <div className="bg-white dark:bg-slate-950 p-8 group/item">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-gold-500 transition-colors">Próximo Juros</p>
           <p className="text-2xl font-black text-gold-600 dark:text-gold-500">{formatBRL(nextMonthInterest)}</p>
@@ -89,6 +102,20 @@ export function FinancialSummary({
           <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">{formatBRL(valorPago)}</p>
           <p className="text-[10px] font-bold text-slate-400 mt-2 italic">Ref. ao valor principal</p>
         </div>
+        {installmentAmounts && installmentProgress ? (
+          <>
+            <div className="bg-white dark:bg-slate-950 p-8 group/item">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-blue-500 transition-colors">Parcela Atual</p>
+              <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{formatBRL(installmentAmounts.valorParcela)}</p>
+              <p className="text-[10px] font-bold text-slate-400 mt-2">Parcela {installmentProgress.current}/{installmentProgress.total}</p>
+            </div>
+            <div className="bg-white dark:bg-slate-950 p-8 group/item">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-blue-500 transition-colors">Juros Atual</p>
+              <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{formatBRL(installmentAmounts.jurosAtual)}</p>
+              <p className="text-[10px] font-bold text-slate-400 mt-2">Incluído na parcela do mês</p>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   )

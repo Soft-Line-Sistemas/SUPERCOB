@@ -39,6 +39,26 @@ export function calculateEstimatedMonthlyPayment(input: {
   return monthlyPayment
 }
 
+export function calculateCurrentInstallmentAmounts(input: {
+  valor?: number | null
+  jurosMes?: number | null
+  quantidadeParcelas?: number | null
+}) {
+  const valor = Number(input.valor ?? 0)
+  const jurosMes = Number(input.jurosMes ?? 0)
+  const quantidadeParcelas = Number(input.quantidadeParcelas ?? 0)
+
+  if (!Number.isFinite(valor) || valor <= 0) return null
+  if (!Number.isFinite(jurosMes) || jurosMes < 0) return null
+  if (!Number.isInteger(quantidadeParcelas) || quantidadeParcelas <= 0) return null
+
+  const jurosAtual = valor * (jurosMes / 100)
+  const valorParcela = valor / quantidadeParcelas + jurosAtual
+  if (!Number.isFinite(jurosAtual) || !Number.isFinite(valorParcela)) return null
+
+  return { valorParcela, jurosAtual }
+}
+
 export function calculateCurrentInstallment(input: {
   valor?: number | null
   valorPago?: number | null

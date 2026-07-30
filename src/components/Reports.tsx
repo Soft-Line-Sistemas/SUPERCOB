@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Cell, AreaChart, Area } from 'recharts';
-import { Wallet, PiggyBank, TrendingUp, CalendarDays, AlertTriangle, MapPin, Download, FileText, Share2, Filter, MoreVertical, X } from 'lucide-react';
+import { Wallet, PiggyBank, TrendingUp, CalendarDays, AlertTriangle, MapPin, Download, FileText, Share2, Filter, MoreVertical, X, BarChart3, LayoutGrid, CalendarClock, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -25,10 +25,25 @@ type ReportsData = {
   }
   interestByMonth: { month: string; juros: number }[]
   volumeByLocation: { city: string; volume: number }[]
+  volumeByLocationFull?: { city: string; volume: number }[]
   abcCurveData: { rank: number; client: string; city: string; volume: number; class: 'A' | 'B' | 'C'; acc: string }[]
+  abcCurveDataFull?: { rank: number; client: string; city: string; volume: number; class: 'A' | 'B' | 'C'; acc: string }[]
   defaultersData: { id: string; client: string; city: string; daysLate: number; amount: number }[]
+  defaultersDataFull?: { id: string; client: string; city: string; daysLate: number; amount: number }[]
   dailyInterestData: { date: string; client: string; loanId: string; amount: number; isPaid: boolean }[]
+  dueDayData?: { day: number; entries: { client: string; jurosAtual: number; isAcordo: boolean; parcelaAtual: number; parcelaTotal: number; valorParcela: number }[] }[]
 }
+
+type ReportSection = 'full' | 'kpis' | 'defaulters' | 'abc' | 'geo' | 'daily' | 'dueDay'
+
+const REPORT_TYPES: { section: ReportSection; title: string; description: string; icon: any; color: string }[] = [
+  { section: 'kpis', title: 'Indicadores (KPIs)', description: 'Principal ativo, projeção e rentabilidade', icon: TrendingUp, color: 'indigo' },
+  { section: 'defaulters', title: 'Atrasados', description: 'Contratos em atraso, lista completa', icon: AlertTriangle, color: 'red' },
+  { section: 'abc', title: 'Curva ABC', description: 'Concentração de carteira por cliente', icon: LayoutGrid, color: 'blue' },
+  { section: 'geo', title: 'Localidade', description: 'Distribuição geográfica da carteira', icon: MapPin, color: 'purple' },
+  { section: 'daily', title: 'Agenda do Dia', description: 'Juros com vencimento hoje', icon: CalendarDays, color: 'emerald' },
+  { section: 'full', title: 'Relatório Completo', description: 'Todas as seções em um único PDF', icon: BarChart3, color: 'slate' },
+]
 
 export function Reports({
   report,
@@ -41,6 +56,8 @@ export function Reports({
 }) {
   const router = useRouter()
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
+  const [isExportOpen, setIsExportOpen] = useState(false)
+  const [exportingSection, setExportingSection] = useState<ReportSection | null>(null)
   const [draftFilters, setDraftFilters] = useState<ReportsFilters>(filters)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
@@ -58,14 +75,17 @@ export function Reports({
 
   const leaderCity = useMemo(() => report.volumeByLocation[0]?.city, [report.volumeByLocation])
 
-  const handleExportPDF = async () => {
+  const handleExportSection = async (section: ReportSection) => {
+    const toastId = `pdf-${section}`
     try {
-      toast.loading('Gerando relatório PDF...', { id: 'pdf' })
+      setExportingSection(section)
+      toast.loading('Gerando relatório PDF...', { id: toastId })
       const res = await fetch('/api/export/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           kind: 'reports',
+          section,
           filters,
           report,
         }),
@@ -76,14 +96,21 @@ export function Reports({
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `relatorio-mrcobrancas-${filters.startDate}_a_${filters.endDate}.pdf`
+      const sectionTitle = section === 'dueDay' ? 'Dia de Vencimento' : REPORT_TYPES.find((t) => t.section === section)?.title
+      const sectionSlug = (sectionTitle ?? section).toLowerCase().replace(/\s+/g, '-')
+      a.download = section === 'dueDay'
+        ? `relatorio-${sectionSlug}-${new Date().toISOString().split('T')[0]}.pdf`
+        : `relatorio-${sectionSlug}-${filters.startDate}_a_${filters.endDate}.pdf`
       document.body.appendChild(a)
       a.click()
       a.remove()
       URL.revokeObjectURL(url)
-      toast.success('Relatório exportado com sucesso!', { id: 'pdf' })
+      toast.success('Relatório exportado com sucesso!', { id: toastId })
+      setIsExportOpen(false)
     } catch (e) {
-      toast.error('Erro ao gerar PDF.', { id: 'pdf' })
+      toast.error('Erro ao gerar PDF.', { id: toastId })
+    } finally {
+      setExportingSection(null)
     }
   }
 
@@ -160,7 +187,7 @@ export function Reports({
             Filtros
           </button>
           <button
-            onClick={handleExportPDF}
+            onClick={() => setIsExportOpen(true)}
             className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 dark:bg-gold-600 text-white text-sm font-bold rounded-2xl hover:bg-slate-800 dark:hover:bg-gold-700 shadow-lg shadow-slate-900/20 dark:shadow-gold-600/20 transition-all active:scale-95"
           >
             <Download className="w-4 h-4" />
@@ -594,6 +621,103 @@ export function Reports({
                   >
                     Aplicar
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isExportOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsExportOpen(false)}
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white dark:bg-slate-950 rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 dark:border-white/10"
+            >
+              <div className="p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Exportar Relatório</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Escolha qual relatório deseja baixar em PDF, com todos os dados.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsExportOpen(false)}
+                    className="p-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-full text-slate-400 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={exportingSection !== null}
+                  onClick={() => handleExportSection('dueDay')}
+                  className="group w-full flex items-center gap-4 p-5 mb-4 text-left bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl hover:from-emerald-500 hover:to-teal-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-emerald-600/20"
+                >
+                  <div className="p-3 rounded-2xl bg-white/15 text-white shrink-0">
+                    <CalendarClock className="w-6 h-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black text-white uppercase tracking-wide">Dia de Vencimento</p>
+                    <p className="text-xs text-white/80 mt-0.5">Agenda de cobrança organizada por dia do mês, pronta para imprimir e marcar</p>
+                  </div>
+                  <div className="shrink-0">
+                    {exportingSection === 'dueDay' ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                    )}
+                  </div>
+                </button>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {REPORT_TYPES.map((rt) => {
+                    const Icon = rt.icon
+                    const isLoading = exportingSection === rt.section
+                    const colorMap: Record<string, string> = {
+                      indigo: 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
+                      red: 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400',
+                      blue: 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400',
+                      purple: 'bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400',
+                      emerald: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                      slate: 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300',
+                    }
+                    return (
+                      <button
+                        key={rt.section}
+                        type="button"
+                        disabled={exportingSection !== null}
+                        onClick={() => handleExportSection(rt.section)}
+                        className="group flex items-start gap-4 p-5 text-left bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl hover:border-gold-500 hover:bg-white dark:hover:bg-white/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <div className={`p-3 rounded-2xl ${colorMap[rt.color]} shrink-0`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{rt.title}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{rt.description}</p>
+                        </div>
+                        <div className="ml-auto shrink-0 self-center">
+                          {isLoading ? (
+                            <div className="w-5 h-5 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-gold-500 transition-colors" />
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             </motion.div>

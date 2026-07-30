@@ -69,6 +69,7 @@ interface Cliente {
   estado2?: string | null;
   pontoReferencia2?: string | null;
   createdAt: string | Date;
+  loans?: { id: string; status: string }[]
 }
 
 interface ClientsProps {
@@ -1021,10 +1022,17 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
           </button>
           <button
             type="button"
-            onClick={() => updateQueryParams({ inadimplente: searchParams.get('inadimplente') === '1' ? null : '1' })}
+            onClick={() => updateQueryParams({ inadimplente: searchParams.get('inadimplente') === '1' ? null : '1', pago: null })}
             className={`rounded-xl border px-3 py-2.5 text-xs font-black transition-colors shadow-sm ${searchParams.get('inadimplente') === '1' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}
           >
             Inadimplentes
+          </button>
+          <button
+            type="button"
+            onClick={() => updateQueryParams({ pago: searchParams.get('pago') === '1' ? null : '1', inadimplente: null })}
+            className={`rounded-xl border px-3 py-2.5 text-xs font-black transition-colors shadow-sm ${searchParams.get('pago') === '1' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'}`}
+          >
+            Pagos
           </button>
           
           <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
@@ -1105,7 +1113,13 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                   <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xl shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
                     {client.nome.charAt(0)}
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-2">
+                    {client.loans?.length === 1 && client.loans[0].status === 'QUITADO' ? (
+                      <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 shadow-sm">
+                        Pago
+                      </div>
+                    ) : null}
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => handleOpenModal(client)}
                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
@@ -1130,6 +1144,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                         <Trash2 className="h-4 w-4" />
                       </button>
                     )}
+                    </div>
                   </div>
                 </div>
 
