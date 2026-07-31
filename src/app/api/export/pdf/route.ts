@@ -84,6 +84,7 @@ function drawFiltersLine(ctx: PdfCtx, filters: any, includePeriod: boolean = tru
     filters.status ? `Status: ${filters.status}` : null,
     filters.cidade ? `Cidade: ${filters.cidade}` : null,
     filters.estado ? `UF: ${filters.estado}` : null,
+    filters.dueDayStart && filters.dueDayEnd ? `Vencimentos: dias ${filters.dueDayStart} a ${filters.dueDayEnd}` : null,
   ].filter(Boolean)
   if (fParts.length > 0) {
     drawText(`CRITÉRIOS DE FILTRO: ${fParts.join(' • ')}`, { size: 8, color: rgb(0.4, 0.4, 0.4) })
@@ -362,7 +363,7 @@ export async function POST(req: Request) {
     return new NextResponse('Não autorizado', { status: 401 })
   }
   const role = ((session.user as any).role as string | undefined)?.toUpperCase()
-  if (role !== 'ADM' && role !== 'ADMIN') {
+  if (role !== 'ADM' && role !== 'ADMIN' && role !== 'ESCRITORIO') {
     return new NextResponse('Acesso negado', { status: 403 })
   }
 
@@ -376,12 +377,26 @@ export async function POST(req: Request) {
     ? (rawSection as SectionKind)
     : 'full'
 
+  if (role === 'ESCRITORIO' && !(['defaulters', 'daily', 'dueDay'] as SectionKind[]).includes(section)) {
+    return new NextResponse('Acesso negado', { status: 403 })
+  }
+
   const filters = (body as any).filters ?? {}
   const report = (body as any).report ?? null
   const userName = session.user.name || 'Usuário'
 
   // Para relatórios individuais, preferir os conjuntos de dados completos quando disponíveis
   const effectiveReport = { ...report }
+  if (section === 'dueDay') {
+    const start = Number(filters.dueDayStart ?? 1)
+    const end = Number(filters.dueDayEnd ?? 31)
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end > 31 || start > end) {
+      return NextResponse.json({ error: 'Intervalo de vencimento inválido' }, { status: 400 })
+    }
+    effectiveReport.dueDayData = Array.isArray(report?.dueDayData)
+      ? report.dueDayData.filter((group: any) => Number(group?.day) >= start && Number(group?.day) <= end)
+      : []
+  }
   if (section === 'defaulters' && Array.isArray(report?.defaultersDataFull)) {
     effectiveReport.defaultersData = report.defaultersDataFull
   }

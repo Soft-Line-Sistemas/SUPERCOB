@@ -62,8 +62,9 @@ export default async function ReportsPage({
   
   const role = ((session.user as any).role as string)?.toUpperCase()
 
-  // Regra: apenas administradores acessam a área financeira de relatórios
-  if (role !== 'ADM' && role !== 'ADMIN') redirect('/dashboard')
+  const isOffice = role === 'ESCRITORIO'
+  // Escritório acessa somente os relatórios necessários à rotina de cobrança.
+  if (role !== 'ADM' && role !== 'ADMIN' && !isOffice) redirect('/dashboard')
 
   const params = await searchParams
   const startDateParam = Array.isArray(params.startDate) ? params.startDate[0] : params.startDate
@@ -401,9 +402,25 @@ export default async function ReportsPage({
     dueDayData,
   }
 
+  // Não serializar dados gerenciais para a visão de Escritório. A permissão na
+  // interface complementa esta separação dos dados enviados ao navegador.
+  const reportForViewer = isOffice
+    ? {
+        kpis: { principalAtivo: 0, totalProjetado: 0, jurosMes: 0, jurosAno: 0 },
+        interestByMonth: [],
+        volumeByLocation: [],
+        abcCurveData: [],
+        defaultersData,
+        defaultersDataFull,
+        dailyInterestData: report.dailyInterestData,
+        dueDayData,
+      }
+    : report
+
   return (
     <Reports
-      report={report as any}
+      report={reportForViewer as any}
+      accessLevel={isOffice ? 'office' : 'admin'}
       colaboradores={colaboradores}
       filters={{
         startDate: startYMD,

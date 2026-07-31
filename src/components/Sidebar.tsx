@@ -51,12 +51,16 @@ export function Sidebar() {
   ]
 
   const isAdmin = isAdminRole(session?.user?.role)
+  const canAccessReports = isAdmin || String(session?.user?.role).toUpperCase() === 'ESCRITORIO'
 
   if (isAdmin) {
     navItems.push({ id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, href: '/dashboard/whatsapp' })
-    navItems.push({ id: 'reports', label: 'Relatórios', icon: BarChart3, href: '/reports' })
     navItems.push({ id: 'users', label: 'Equipe', icon: UserCog, href: '/usuarios' })
     // navItems.push({ id: 'archived', label: 'Arquivados', icon: Archive, href: '/arquivados' })
+  }
+
+  if (canAccessReports) {
+    navItems.push({ id: 'reports', label: 'Relatórios', icon: BarChart3, href: '/reports' })
   }
 
   const mobileItems = [

@@ -24,7 +24,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     if (data.senha && data.senha.trim() !== '') {
-      updateData.senha = await bcrypt.hash(data.senha, 10)
+      const senha = data.senha.trim()
+      if (senha.length < 6) {
+        return NextResponse.json({ error: 'A senha deve ter pelo menos 6 caracteres' }, { status: 400 })
+      }
+      updateData.senha = await bcrypt.hash(senha, 10)
     }
 
     const usuario = await prisma.usuario.update({

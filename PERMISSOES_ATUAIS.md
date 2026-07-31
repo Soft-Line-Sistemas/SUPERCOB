@@ -15,7 +15,8 @@ Documento de referência das permissões **atualmente implementadas** no sistema
 
 | Funcionalidade | ADM / ADMIN | Escritório | Gerente | Operador |
 | --- | --- | --- | --- | --- |
-| Entrar no dashboard, clientes, empréstimos, relatórios, chat e perfil | Sim | Sim | Sim | Sim |
+| Entrar no dashboard, clientes, empréstimos, chat e perfil | Sim | Sim | Sim | Sim |
+| Relatórios | Todos, inclusive indicadores financeiros e análises de carteira | Somente agenda de juros, vencimentos e atrasados | Não | Não |
 | Acessar Usuários e Arquivados pela tela | Sim | Não | Não | Não |
 | Ver lista de clientes | Todos | Todos | Somente clientes da própria carteira | Todos* |
 | Criar ou editar cliente | Sim | Sim | Sim | Sim |

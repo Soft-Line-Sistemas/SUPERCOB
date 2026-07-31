@@ -37,6 +37,10 @@ export async function createUsuario(data: { nome: string; email: string; senha: 
   const session = await checkPermission()
   const myRole = session?.user?.role
 
+  if (!data.senha || data.senha.trim().length < 6) {
+    throw new Error('A senha deve ter pelo menos 6 caracteres.')
+  }
+
   // Regra 4: Escritório só pode criar Gerente ou Escritório
   if (myRole === 'ESCRITORIO' && data.role === 'ADM') {
     throw new Error('Escritório não pode criar usuários ADM.')
@@ -78,7 +82,11 @@ export async function updateUsuario(id: string, data: { nome: string; email: str
   }
 
   if (data.senha && data.senha.trim() !== '') {
-    updateData.senha = await bcrypt.hash(data.senha, 10)
+    const senha = data.senha.trim()
+    if (senha.length < 6) {
+      throw new Error('A senha deve ter pelo menos 6 caracteres.')
+    }
+    updateData.senha = await bcrypt.hash(senha, 10)
   }
 
   const usuario = await prisma.usuario.update({

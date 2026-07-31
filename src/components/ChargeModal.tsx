@@ -526,7 +526,7 @@ export function ChargeModal({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="py-3 px-4 bg-slate-950 text-slate-700 font-black rounded-2xl hover:bg-slate-200 transition-colors"
+                    className="py-3 px-4 bg-slate-100 text-slate-700 font-black rounded-2xl hover:bg-slate-200 transition-colors dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/20"
                   >
                     Cancelar
                   </button>

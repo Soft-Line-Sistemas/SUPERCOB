@@ -12,6 +12,7 @@ import { ChargeModal } from './ChargeModal';
 import { parseDateInputToUTCNoon } from '@/lib/date-utils'
 import {
   calculateCurrentInstallment,
+  calculateCurrentInstallmentAmounts,
   calculateEstimatedInstallments,
   calculateEstimatedMonthlyPayment,
   calculatePaidPrincipalFromCurrentInstallment,
@@ -1103,6 +1104,10 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                   const isDraft = loan.id.startsWith('draft-')
                   const saldo = getLoanSaldo(loan)
                   const installmentProgress = getCurrentInstallment(loan)
+                  const installmentAmounts = calculateCurrentInstallmentAmounts(loan)
+                  const jurosAtual = loan.status === 'QUITADO' || loan.status === 'CANCELADO'
+                    ? 0
+                    : Math.max(Number(loan.valor) || 0, 0) * (Math.max(Number(loan.jurosMes) || 0, 0) / 100)
                   return (
                     <tr key={loan.id} className="hover:bg-amber-50 dark:hover:bg-slate-800 hover:shadow-lg hover:border-l-4 hover:border-l-amber-400 dark:hover:border-l-amber-600 transition-all">
                       <td className="px-6 py-4">
@@ -1123,10 +1128,21 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">{formatCurrency(saldo)}</td>
                       <td className="px-6 py-4 text-sm text-slate-600">
                         <div>{formatCurrency(loan.valor)}</div>
+                        <div className="text-xs text-slate-500">
+                          {loan.jurosMes}% · Juros atual {formatCurrency(jurosAtual)}
+                        </div>
                         {installmentProgress ? (
                           <div className="text-xs text-blue-600">
                             Parcela {installmentProgress.current}/{installmentProgress.total}
+                            {installmentAmounts ? (
+                              <> · {formatCurrency(installmentAmounts.valorParcela)}</>
+                            ) : null}
                           </div>
+                        ) : null}
+                        {isMonthlyPaymentSettled(loan) ? (
+                          <span className="mt-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700">
+                            Pago
+                          </span>
                         ) : null}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">{formatDate(loan.vencimento)}</td>

@@ -1616,7 +1616,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="flex-1 py-3.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                      className="flex-1 py-3.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/20"
                     >
                       Cancelar
                     </button>
@@ -1767,7 +1767,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                         inadimplente: null,
                       })
                     }}
-                    className="flex-1 py-3.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                    className="flex-1 py-3.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/20"
                   >
                     Limpar
                   </button>

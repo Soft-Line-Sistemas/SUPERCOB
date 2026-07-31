@@ -16,6 +16,11 @@ type ReportsFilters = {
   usuarioId?: string
 }
 
+type ExportFilters = ReportsFilters & {
+  dueDayStart?: number
+  dueDayEnd?: number
+}
+
 type ReportsData = {
   kpis: {
     principalAtivo: number
@@ -35,6 +40,9 @@ type ReportsData = {
 }
 
 type ReportSection = 'full' | 'kpis' | 'defaulters' | 'abc' | 'geo' | 'daily' | 'dueDay'
+type AccessLevel = 'admin' | 'office'
+
+const OFFICE_SECTIONS: ReportSection[] = ['defaulters', 'daily', 'dueDay']
 
 const REPORT_TYPES: { section: ReportSection; title: string; description: string; icon: any; color: string }[] = [
   { section: 'kpis', title: 'Indicadores (KPIs)', description: 'Principal ativo, projeção e rentabilidade', icon: TrendingUp, color: 'indigo' },
@@ -49,15 +57,20 @@ export function Reports({
   report,
   filters,
   colaboradores,
+  accessLevel = 'admin',
 }: {
   report: ReportsData
   filters: ReportsFilters
   colaboradores: { id: string; nome: string }[]
+  accessLevel?: AccessLevel
 }) {
   const router = useRouter()
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [isExportOpen, setIsExportOpen] = useState(false)
+  const [isDueDayRangeOpen, setIsDueDayRangeOpen] = useState(false)
   const [exportingSection, setExportingSection] = useState<ReportSection | null>(null)
+  const [dueDayStart, setDueDayStart] = useState(1)
+  const [dueDayEnd, setDueDayEnd] = useState(31)
   const [draftFilters, setDraftFilters] = useState<ReportsFilters>(filters)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
@@ -74,8 +87,12 @@ export function Reports({
   };
 
   const leaderCity = useMemo(() => report.volumeByLocation[0]?.city, [report.volumeByLocation])
+  const isOffice = accessLevel === 'office'
+  const exportableReports = isOffice
+    ? REPORT_TYPES.filter((reportType) => OFFICE_SECTIONS.includes(reportType.section))
+    : REPORT_TYPES
 
-  const handleExportSection = async (section: ReportSection) => {
+  const handleExportSection = async (section: ReportSection, exportFilters: ExportFilters = filters) => {
     const toastId = `pdf-${section}`
     try {
       setExportingSection(section)
@@ -86,7 +103,7 @@ export function Reports({
         body: JSON.stringify({
           kind: 'reports',
           section,
-          filters,
+          filters: exportFilters,
           report,
         }),
       })
@@ -107,11 +124,20 @@ export function Reports({
       URL.revokeObjectURL(url)
       toast.success('Relatório exportado com sucesso!', { id: toastId })
       setIsExportOpen(false)
+      setIsDueDayRangeOpen(false)
     } catch (e) {
       toast.error('Erro ao gerar PDF.', { id: toastId })
     } finally {
       setExportingSection(null)
     }
+  }
+
+  const handleDueDayRangeExport = () => {
+    if (!Number.isInteger(dueDayStart) || !Number.isInteger(dueDayEnd) || dueDayStart < 1 || dueDayEnd > 31 || dueDayStart > dueDayEnd) {
+      toast.error('Informe um intervalo válido entre os dias 1 e 31.')
+      return
+    }
+    handleExportSection('dueDay', { ...filters, dueDayStart, dueDayEnd })
   }
 
   const handleExportDailyPDF = async () => {
@@ -170,8 +196,8 @@ export function Reports({
       {/* Header with Export Actions */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Relatórios Avançados</h1>
-          <p className="text-slate-500 dark:text-slate-400">Análise profunda de métricas e performance de cobrança.</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{isOffice ? 'Relatórios Operacionais' : 'Relatórios Avançados'}</h1>
+          <p className="text-slate-500 dark:text-slate-400">{isOffice ? 'Agenda de cobrança, vencimentos e contratos em atraso.' : 'Análise profunda de métricas e performance de cobrança.'}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -193,21 +219,21 @@ export function Reports({
             <Download className="w-4 h-4" />
             Exportar PDF
           </button>
-          <button
+          {!isOffice && <button
             onClick={handleExportDailyPDF}
             className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-2xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
           >
             <CalendarDays className="w-4 h-4" />
             Relatório Diário
-          </button>
-          <button className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors shadow-sm">
+          </button>}
+          {!isOffice && <button className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors shadow-sm">
             <Share2 className="w-5 h-5" />
-          </button>
+          </button>}
         </div>
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {!isOffice && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <motion.div variants={item}>
           <ReportMetricCard
             title="Principal Ativo"
@@ -244,7 +270,7 @@ export function Reports({
             color="purple"
           />
         </motion.div>
-      </div>
+      </div>}
 
       {/* Daily Interest Entries Table */}
       <motion.div variants={item} className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
@@ -332,7 +358,7 @@ export function Reports({
       </motion.div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {!isOffice && <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Interest Evolution Chart */}
         <motion.div variants={item} className="min-w-0 bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm">
           <div className="flex items-center justify-between mb-8">
@@ -398,14 +424,14 @@ export function Reports({
             </ResponsiveContainer>
           </div>
         </motion.div>
-      </div>
+      </div>}
 
 
 
       {/* Detailed Tables Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 ${isOffice ? '' : 'lg:grid-cols-2'} gap-6`}>
         {/* ABC Curve Table */}
-        <motion.div variants={item} className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
+        {!isOffice && <motion.div variants={item} className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
           <div className="px-8 py-6 border-b border-slate-50 dark:border-white/5 flex justify-between items-center bg-slate-950/30 dark:bg-white/5">
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Curva ABC de Clientes</h3>
@@ -446,7 +472,7 @@ export function Reports({
               </tbody>
             </table>
           </div>
-        </motion.div>
+        </motion.div>}
 
         {/* Defaulters Report Table */}
         <motion.div variants={item} className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
@@ -659,10 +685,10 @@ export function Reports({
                   </button>
                 </div>
 
-                <button
+                {(!isOffice || OFFICE_SECTIONS.includes('dueDay')) && <button
                   type="button"
                   disabled={exportingSection !== null}
-                  onClick={() => handleExportSection('dueDay')}
+                  onClick={() => setIsDueDayRangeOpen(true)}
                   className="group w-full flex items-center gap-4 p-5 mb-4 text-left bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl hover:from-emerald-500 hover:to-teal-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-emerald-600/20"
                 >
                   <div className="p-3 rounded-2xl bg-white/15 text-white shrink-0">
@@ -679,10 +705,10 @@ export function Reports({
                       <ChevronRight className="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                     )}
                   </div>
-                </button>
+                </button>}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {REPORT_TYPES.map((rt) => {
+                  {exportableReports.map((rt) => {
                     const Icon = rt.icon
                     const isLoading = exportingSection === rt.section
                     const colorMap: Record<string, string> = {
@@ -720,6 +746,48 @@ export function Reports({
                   })}
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isDueDayRangeOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !exportingSection && setIsDueDayRangeOpen(false)}
+              className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-md rounded-[2rem] border border-slate-100 bg-white p-8 shadow-2xl dark:border-white/10 dark:bg-slate-950"
+            >
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Dia de Vencimento</h3>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Escolha os dias que devem constar no PDF.</p>
+                </div>
+                <button type="button" onClick={() => setIsDueDayRangeOpen(false)} disabled={exportingSection !== null} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-50 dark:hover:bg-white/5" aria-label="Fechar">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <label className="text-sm font-bold text-slate-700 dark:text-slate-200">Dia inicial
+                  <input type="number" min="1" max="31" step="1" value={dueDayStart} onChange={(event) => setDueDayStart(Number(event.target.value))} disabled={exportingSection !== null} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-gold-500 disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" />
+                </label>
+                <label className="text-sm font-bold text-slate-700 dark:text-slate-200">Dia final
+                  <input type="number" min="1" max="31" step="1" value={dueDayEnd} onChange={(event) => setDueDayEnd(Number(event.target.value))} disabled={exportingSection !== null} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-gold-500 disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" />
+                </label>
+              </div>
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Intervalo inclusivo, de 1 a 31.</p>
+              <button type="button" onClick={handleDueDayRangeExport} disabled={exportingSection !== null} className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">
+                {exportingSection === 'dueDay' ? 'Gerando PDF...' : 'Baixar PDF'}
+              </button>
             </motion.div>
           </div>
         )}

@@ -68,6 +68,9 @@ export function Users({ initialUsers, myRole }: UsersProps) {
     setError(null);
     try {
       if (editingUser) {
+        if (formData.senha.trim() && formData.senha.trim().length < 6) {
+          throw new Error('A senha deve ter pelo menos 6 caracteres.');
+        }
         await updateUsuario(editingUser.id, formData);
         toast.success('Usuário atualizado com sucesso!');
       } else {
@@ -358,7 +361,7 @@ export function Users({ initialUsers, myRole }: UsersProps) {
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                      className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-colors dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/20"
                     >
                       Cancelar
                     </button>
