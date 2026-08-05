@@ -40,6 +40,7 @@ const validData = {
   cidade2: '',
   estado2: '',
   pontoReferencia2: '',
+  usuarioId: '',
 }
 
 describe('client form schema', () => {

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import type { ChargeData, ClientFormData, DocItem, EmergencyParts, SetState } from './types'
+import type { ChargeData, ClientFormData, DocItem, EmergencyParts, SetState, UsuarioOption } from './types'
 
 export function ClientStepRevisao({
   formData,
@@ -15,6 +15,7 @@ export function ClientStepRevisao({
   installmentHint,
   printReview,
   setActiveTab,
+  usuarios = [],
 }: {
   formData: ClientFormData
   chargeData: ChargeData
@@ -27,7 +28,10 @@ export function ClientStepRevisao({
   installmentHint: string | null
   printReview: () => void
   setActiveTab: SetState<any>
+  usuarios?: UsuarioOption[]
 }) {
+  const assignedUser = usuarios.find((u) => u.id === formData.usuarioId)
+
   return (
     <div className="space-y-4">
       <div className="p-4 rounded-2xl border border-slate-200 bg-white">
@@ -53,6 +57,14 @@ export function ClientStepRevisao({
           <div className="mt-2 text-sm text-slate-800 space-y-1">
             <p>
               <span className="font-black">Nome:</span> {formData.nome || '-'}
+            </p>
+            {formData.indicacao ? (
+              <p>
+                <span className="font-black">Indicação:</span> {formData.indicacao}
+              </p>
+            ) : null}
+            <p>
+              <span className="font-black">Atribuído a:</span> {assignedUser ? assignedUser.nome : 'Não atribuído'}
             </p>
             <p>
               <span className="font-black">WhatsApp:</span> {formData.whatsapp || '-'}

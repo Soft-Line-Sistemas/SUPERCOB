@@ -45,6 +45,7 @@ export type ClienteInput = {
   cidade2?: string | null
   estado2?: string | null
   pontoReferencia2?: string | null
+  usuarioId?: string | null
 }
 
 type ClientValidationCode = 'INVALID_INPUT' | 'DUPLICATE_CPF'
@@ -157,6 +158,7 @@ export function normalizeClienteInput(data: ClienteInput): ClienteInput {
     cidade2: normalizeOptional(data.cidade2),
     estado2: normalizeOptional(data.estado2),
     pontoReferencia2: normalizeOptional(data.pontoReferencia2),
+    usuarioId: normalizeOptional(data.usuarioId),
   }
 }
 

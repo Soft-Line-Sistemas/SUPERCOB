@@ -79,6 +79,8 @@ export default async function ClienteHistoricoPage({
       id: true,
       nome: true,
       indicacao: true,
+      usuarioId: true,
+      usuario: { select: { id: true, nome: true } },
       cpf: true,
       rg: true,
       orgao: true,
@@ -179,7 +181,9 @@ export default async function ClienteHistoricoPage({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-slate-900">{cliente.nome}</h1>
-          <p className="text-sm text-slate-500">Histórico do cliente • {formatDate(cliente.createdAt)}</p>
+          <p className="text-sm text-slate-500">
+            Histórico do cliente • {formatDate(cliente.createdAt)} • Atribuído a: <span className="font-bold text-slate-700">{cliente.usuario?.nome || 'Não atribuído'}</span>
+          </p>
         </div>
         <a
           href={`/api/clientes/${cliente.id}/export?${exportParams.toString()}`}

@@ -32,6 +32,8 @@ interface Cliente {
   id: string;
   nome: string;
   indicacao?: string | null;
+  usuarioId?: string | null;
+  usuario?: { id: string; nome: string } | null;
   cpf?: string | null;
   rg?: string | null;
   orgao?: string | null;
@@ -88,9 +90,10 @@ interface ClientsProps {
     withCpf: number;
     cities: number;
   };
+  usuarios?: { id: string; nome: string }[];
 }
 
-export function Clients({ initialClients, pagination, sort, summary }: ClientsProps) {
+export function Clients({ initialClients, pagination, sort, summary, usuarios = [] }: ClientsProps) {
   const sortStorageKey = 'supercob:clientes:sort'
   const viewStorageKey = 'supercob:clientes:view'
   const expectedInterestOptions = Array.from({ length: 20 }, (_, index) => (index + 1) * 5)
@@ -504,6 +507,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
         cidade2: client.cidade2 ?? '',
         estado2: client.estado2 ?? '',
         pontoReferencia2: client.pontoReferencia2 ?? '',
+        usuarioId: client.usuarioId ?? '',
       });
       setChargeData({ enabled: false, valor: '', quantidadeParcelas: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
       setChargeInstallmentsManuallyEdited(false)
@@ -553,6 +557,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
         cidade2: '',
         estado2: '',
         pontoReferencia2: '',
+        usuarioId: '',
       });
       setChargeData({ enabled: false, valor: '', quantidadeParcelas: '', jurosMes: '', jurosAtrasoDia: '', vencimento: '', observacao: '' })
       setChargeInstallmentsManuallyEdited(false)
@@ -1162,12 +1167,17 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                   </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-slate-50 flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Desde {new Date(client.createdAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+                <div className="mt-6 pt-6 border-t border-slate-50 flex items-center justify-between gap-2">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Desde {new Date(client.createdAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+                    <span className="text-[11px] font-bold text-slate-600 mt-0.5">
+                      Atribuído: <span className={client.usuario?.nome ? 'text-blue-600 font-black' : 'text-slate-400 font-medium'}>{client.usuario?.nome || 'Não atribuído'}</span>
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => router.push(`/clientes/${client.id}`)}
-                    className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-600 hover:text-white transition-colors"
+                    className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-600 hover:text-white transition-colors shrink-0"
                   >
                     Ver Histórico
                   </button>
@@ -1183,6 +1193,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Cliente</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Atribuição</th>
                   <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Contato</th>
                   <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Cidade</th>
                   <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">CPF</th>
@@ -1203,6 +1214,13 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                           <p className="truncate text-xs text-slate-500">{client.email || 'Sem e-mail'}</p>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-bold text-slate-700">
+                      {client.usuario?.nome ? (
+                        <span className="text-blue-600 font-bold">{client.usuario.nome}</span>
+                      ) : (
+                        <span className="text-slate-400 font-normal">Não atribuído</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">{client.whatsapp ? formatPhoneBR(client.whatsapp) : '-'}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{client.cidade || '-'}</td>
@@ -1498,7 +1516,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                       },
                       () => handleValidationErrors() // onInvalid callback!
                     )}>
-                  {activeTab === 'basico' && <ClientStepBasic formData={formData} setFormData={setFormData} formatPhoneBR={formatPhoneBR} errors={formErrorMessages} />}
+                  {activeTab === 'basico' && <ClientStepBasic formData={formData} setFormData={setFormData} formatPhoneBR={formatPhoneBR} errors={formErrorMessages} usuarios={usuarios} />}
 
                   {activeTab === 'identificacao' && (
                     <ClientStepIdentificacao
@@ -1609,6 +1627,7 @@ export function Clients({ initialClients, pagination, sort, summary }: ClientsPr
                       installmentHint={chargeInstallmentHint}
                       printReview={printReview}
                       setActiveTab={setActiveTab}
+                      usuarios={usuarios}
                     />
                   )}
 

@@ -25,7 +25,9 @@ model Usuario {
   mensagensRecebidas   MensagemInterna[]     @relation("MensagensRecebidas")
   mensagensEnviadas    MensagemInterna[]     @relation("MensagensEnviadas")
   passwordResetTokens  PasswordResetToken[]
+  clientesAtribuidos          Cliente[]                      @relation("UsuarioClientesAtribuidos")
   clientesArquivadosPor       ClienteArquivado[]             @relation("ClienteArquivadoPor")
+  clientesArquivadosAtribuidos ClienteArquivado[]            @relation("ClienteArquivadoUsuario")
   emprestimosArquivados       EmprestimoArquivado[]          @relation("EmprestimoArquivadoUsuario")
   emprestimosArquivadosPor    EmprestimoArquivado[]          @relation("EmprestimoArquivadoPor")
   historicosArquivadosCriados EmprestimoHistoricoArquivado[] @relation("EmprestimoHistoricoArquivadoCreatedBy")
@@ -99,6 +101,8 @@ model Cliente {
   pontoReferencia2   String?
   createdAt          DateTime           @default(now())
   numeroEndereco     Int?
+  usuarioId          String?
+  usuario            Usuario?           @relation("UsuarioClientesAtribuidos", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   documentos         ClienteDocumento[]
   loans              Emprestimo[]
   whatsappPrefs      WhatsappAutomationClientPreference[]
@@ -126,7 +130,9 @@ model Emprestimo {
   jurosPagos          Float                 @default(0)
   cobrancaAtiva       Boolean               @default(false)
   inadimplente        Boolean               @default(false)
-  lastInterestAccrual DateTime?
+  lastInterestAccrual     DateTime?
+  jurosCicloIniciadoEm    DateTime?
+  jurosPagosNoInicioCiclo Float?
   cliente             Cliente               @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   usuario             Usuario?              @relation(fields: [usuarioId], references: [id])
   historico           EmprestimoHistorico[]
@@ -299,7 +305,9 @@ model ClienteArquivado {
   arquivadoEm        DateTime @default(now())
   arquivadoPorId     String?
   motivoArquivamento String?  @db.Text
+  usuarioId          String?
 
+  usuario            Usuario? @relation("ClienteArquivadoUsuario", fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   arquivadoPor       Usuario? @relation("ClienteArquivadoPor", fields: [arquivadoPorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   documentos         ClienteDocumentoArquivado[]
   whatsappPrefs      WhatsappAutomationClientPreferenceArquivado?
@@ -331,6 +339,8 @@ model EmprestimoArquivado {
   cobrancaAtiva          Boolean
   inadimplente            Boolean
   lastInterestAccrual    DateTime?
+  jurosCicloIniciadoEm    DateTime?
+  jurosPagosNoInicioCiclo Float?
 
   arquivadoEm            DateTime @default(now())
   arquivadoPorId         String?

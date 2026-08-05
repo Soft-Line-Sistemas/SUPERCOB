@@ -36,9 +36,15 @@ export function ClientProfile({ cliente }: ClientProfileProps) {
             </div>
           </div>
 
-          <div className="border-t border-slate-100 dark:border-white/5 pt-6">
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Indicação / Origem</p>
-            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{cliente.indicacao || 'Direto / Sem indicação'}</p>
+          <div className="grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-white/5 pt-6">
+            <div>
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Indicação / Origem</p>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{cliente.indicacao || 'Direto / Sem indicação'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Atribuído a</p>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{cliente.usuario?.nome || 'Não atribuído'}</p>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-white/5 pt-6">

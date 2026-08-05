@@ -2,18 +2,20 @@
 
 import React from 'react'
 import { AlertCircle, Mail, Phone, User } from 'lucide-react'
-import type { ClientFormData, SetState } from './types'
+import type { ClientFormData, SetState, UsuarioOption } from './types'
 
 export function ClientStepBasic({
   formData,
   setFormData,
   formatPhoneBR,
   errors,
+  usuarios = [],
 }: {
   formData: ClientFormData
   setFormData: SetState<ClientFormData>
   formatPhoneBR: (value: string) => string
   errors?: Partial<Record<keyof ClientFormData, string>>
+  usuarios?: UsuarioOption[]
 }) {
   const fieldClass = (hasError?: boolean) =>
     `w-full px-4 py-3 bg-slate-50 border rounded-2xl focus:ring-4 outline-none transition-all ${hasError ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-blue-500 focus:ring-blue-500/5'}`
@@ -37,9 +39,27 @@ export function ClientStepBasic({
         {errors?.nome ? <p className="text-xs font-black text-red-600">{errors.nome}</p> : null}
       </div>
 
-      <div className="space-y-1.5">
-        <label className="text-sm font-bold text-slate-700 ml-1">Indicação</label>
-        <input type="text" value={formData.indicacao} onChange={(e) => setFormData({ ...formData, indicacao: e.target.value })} className={fieldClass(false)} placeholder="Quem indicou?" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <label className="text-sm font-bold text-slate-700 ml-1">Indicação</label>
+          <input type="text" value={formData.indicacao} onChange={(e) => setFormData({ ...formData, indicacao: e.target.value })} className={fieldClass(false)} placeholder="Quem indicou?" />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-bold text-slate-700 ml-1">Atribuir</label>
+          <select
+            value={formData.usuarioId || ''}
+            onChange={(e) => setFormData({ ...formData, usuarioId: e.target.value })}
+            className={fieldClass(false)}
+          >
+            <option value="">Não atribuído</option>
+            {usuarios.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nome}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="space-y-1.5">

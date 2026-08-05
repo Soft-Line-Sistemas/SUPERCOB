@@ -54,12 +54,18 @@ export async function getClientes(options?: { includeIds?: string[] }) {
       where: {
         OR: orConditions,
       },
+      include: {
+        usuario: { select: { id: true, nome: true } },
+      },
       orderBy: { createdAt: 'desc' },
     })
   }
 
   // ADM e ESCRITORIO veem tudo
   return await prisma.cliente.findMany({
+    include: {
+      usuario: { select: { id: true, nome: true } },
+    },
     orderBy: { createdAt: 'desc' },
   })
 }
@@ -218,6 +224,7 @@ export async function getClientesPage(options?: {
       skip,
       take: perPage,
       include: {
+        usuario: { select: { id: true, nome: true } },
         loans: {
           select: { id: true, status: true },
         },

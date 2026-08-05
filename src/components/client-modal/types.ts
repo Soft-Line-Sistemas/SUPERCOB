@@ -55,8 +55,12 @@ export type ClientFormData = {
   cidade2: string
   estado2: string
   pontoReferencia2: string
+  usuarioId: string
 }
+
+export type UsuarioOption = { id: string; nome: string }
 
 export type SetState<T> = React.Dispatch<React.SetStateAction<T>>
 
 export type EmergencyParts = { nome: string; telefone: string }
+

@@ -47,6 +47,7 @@ export const clientFormDefaults: ClientFormData = {
   cidade2: '',
   estado2: '',
   pontoReferencia2: '',
+  usuarioId: '',
 }
 
 export const normalizeDigits = (value: string) => value.replace(/\D/g, '')
@@ -132,6 +133,7 @@ export const clientSchema = z.object({
   cidade2: z.string(),
   estado2: z.string(),
   pontoReferencia2: z.string(),
+  usuarioId: z.string().optional(),
 }).superRefine((data, ctx) => {
   const birthCheck = validateBirthDateParts(data.diaNasc, data.mesNasc, data.anoNasc)
   if (birthCheck.dia) ctx.addIssue({ code: 'custom', path: ['diaNasc'], message: birthCheck.dia })
@@ -201,5 +203,6 @@ export const normalizeClientPayload = (formData: ClientFormData) => {
     cidade2: normalizeOptional(formData.cidade2),
     estado2: normalizeOptional(formData.estado2),
     pontoReferencia2: normalizeOptional(formData.pontoReferencia2),
+    usuarioId: normalizeOptional(formData.usuarioId),
   }
 }

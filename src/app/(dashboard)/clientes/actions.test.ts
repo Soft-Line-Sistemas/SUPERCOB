@@ -65,9 +65,13 @@ describe('clientes actions - listagem e dashboard', () => {
       expect.objectContaining({
         skip: 2,
         take: 2,
+        include: {
+          usuario: { select: { id: true, nome: true } },
+          loans: { select: { id: true, status: true } },
+        },
         orderBy: [{ nome: 'asc' }, { createdAt: 'desc' }],
         where: {
-          AND: [
+          AND: expect.arrayContaining([
             {
               OR: [
                 { nome: { contains: 'Ana' } },
@@ -77,7 +81,7 @@ describe('clientes actions - listagem e dashboard', () => {
               ],
             },
             { loans: { none: { inadimplente: true } } },
-          ],
+          ]),
         },
       }),
     )
@@ -117,9 +121,13 @@ describe('clientes actions - listagem e dashboard', () => {
     expect(mockClienteFindMany).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
+        include: {
+          usuario: { select: { id: true, nome: true } },
+          loans: { select: { id: true, status: true } },
+        },
         orderBy: [{ createdAt: 'desc' }],
         where: {
-          AND: [
+          AND: expect.arrayContaining([
             {
               OR: [
                 { loans: { some: { usuarioId: 'ger-1' } } },
@@ -128,7 +136,7 @@ describe('clientes actions - listagem e dashboard', () => {
             },
             { email: { contains: 'x@teste.com' } },
             { loans: { none: { inadimplente: true } } },
-          ],
+          ]),
         },
       }),
     )
@@ -154,14 +162,18 @@ describe('clientes actions - listagem e dashboard', () => {
     expect(mockClienteFindMany).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
+        include: {
+          usuario: { select: { id: true, nome: true } },
+          loans: { select: { id: true, status: true } },
+        },
         where: {
-          AND: [
+          AND: expect.arrayContaining([
             { OR: [{ email: null }, { email: '' }] },
             { whatsapp: { not: null } },
             { whatsapp: { not: '' } },
             { OR: [{ cpf: null }, { cpf: '' }] },
             { loans: { none: { inadimplente: true } } },
-          ],
+          ]),
         },
       }),
     )

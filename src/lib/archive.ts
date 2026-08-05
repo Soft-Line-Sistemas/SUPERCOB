@@ -80,6 +80,7 @@ export async function archiveCliente(clienteId: string, opts: { actorUserId?: st
         pontoReferencia2: cliente.pontoReferencia2,
         numeroEndereco: cliente.numeroEndereco,
         createdAt: cliente.createdAt,
+        usuarioId: cliente.usuarioId,
         arquivadoPorId: opts.actorUserId ?? null,
         motivoArquivamento: opts.motivo ?? null,
       },
@@ -349,6 +350,7 @@ export async function unarchiveCliente(clienteId: string, opts: { actorUserId?: 
         pontoReferencia2: arquivado.pontoReferencia2,
         numeroEndereco: arquivado.numeroEndereco,
         createdAt: arquivado.createdAt,
+        usuarioId: arquivado.usuarioId,
       },
     })
 
