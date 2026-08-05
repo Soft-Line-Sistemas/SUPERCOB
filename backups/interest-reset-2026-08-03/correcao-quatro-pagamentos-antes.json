@@ -1,0 +1,162 @@
+{
+  "generatedAt": "2026-08-03T13:06:18.768Z",
+  "scope": "Estado antes de reclassificar quatro pagamentos de principal para juros",
+  "emprestimos": [
+    {
+      "id": "cmqf55ylo0032fljh69htr2ln",
+      "clienteId": "cmqf55ylo0031fljhwgxf0j2i",
+      "usuarioId": null,
+      "valor": 2000,
+      "quantidadeParcelas": null,
+      "jurosMes": 30,
+      "jurosAtrasoDia": 10,
+      "vencimento": "2026-08-01T12:00:00.000Z",
+      "quitadoEm": null,
+      "status": "NEGOCIACAO",
+      "observacao": null,
+      "arquivo1": null,
+      "arquivo2": null,
+      "arquivo3": null,
+      "arquivo4": null,
+      "arquivo5": null,
+      "createdAt": "2026-06-15T11:40:19.693Z",
+      "valorPago": 600,
+      "jurosPagos": 0,
+      "jurosPagosNoInicioCiclo": 0,
+      "cobrancaAtiva": false,
+      "inadimplente": false,
+      "lastInterestAccrual": "2026-08-01T12:00:00.000Z",
+      "jurosCicloIniciadoEm": "2026-08-01T12:00:00.000Z",
+      "cliente": {
+        "nome": "LEONARDO SANTANA FERREIRA BORGES"
+      },
+      "historico": [
+        {
+          "id": "cmsd7ghq6001zkq247yo74emx",
+          "emprestimoId": "cmqf55ylo0032fljh69htr2ln",
+          "descricao": "Pagamento registrado: R$ 600,00. (Total aplicado no principal).",
+          "createdAt": "2026-08-03T12:28:22.590Z",
+          "createdById": "cmq72q0a6002kkqodz2ek1xam",
+          "tipo": "PAGAMENTO"
+        }
+      ]
+    },
+    {
+      "id": "cmr6uoep3006lkq5gpa1ayiqe",
+      "clienteId": "cmr6uodas006hkq5gxha4duol",
+      "usuarioId": null,
+      "valor": 500,
+      "quantidadeParcelas": null,
+      "jurosMes": 30,
+      "jurosAtrasoDia": 10,
+      "vencimento": "2026-08-01T12:00:00.000Z",
+      "quitadoEm": null,
+      "status": "NEGOCIACAO",
+      "observacao": "",
+      "arquivo1": null,
+      "arquivo2": null,
+      "arquivo3": null,
+      "arquivo4": null,
+      "arquivo5": null,
+      "createdAt": "2026-07-04T21:04:17.366Z",
+      "valorPago": 150,
+      "jurosPagos": 150,
+      "jurosPagosNoInicioCiclo": 150,
+      "cobrancaAtiva": false,
+      "inadimplente": false,
+      "lastInterestAccrual": "2026-08-01T12:00:00.000Z",
+      "jurosCicloIniciadoEm": "2026-08-01T12:00:00.000Z",
+      "cliente": {
+        "nome": "HELEN DOS SANTOS MOREIRA"
+      },
+      "historico": [
+        {
+          "id": "cmsd7t1iu0027kq24f3tkr7la",
+          "emprestimoId": "cmr6uoep3006lkq5gpa1ayiqe",
+          "descricao": "Pagamento registrado: R$ 150,00. (Total aplicado no principal).",
+          "createdAt": "2026-08-03T12:38:08.118Z",
+          "createdById": "cmq72q0a6002kkqodz2ek1xam",
+          "tipo": "PAGAMENTO"
+        }
+      ]
+    },
+    {
+      "id": "cmr6vfgs6006vkq5gyr5dnnnf",
+      "clienteId": "cmr6vfg7j006tkq5g4ftg3byl",
+      "usuarioId": null,
+      "valor": 1000,
+      "quantidadeParcelas": null,
+      "jurosMes": 30,
+      "jurosAtrasoDia": 10,
+      "vencimento": "2026-08-01T12:00:00.000Z",
+      "quitadoEm": null,
+      "status": "NEGOCIACAO",
+      "observacao": "",
+      "arquivo1": null,
+      "arquivo2": null,
+      "arquivo3": null,
+      "arquivo4": null,
+      "arquivo5": null,
+      "createdAt": "2026-07-04T21:25:19.876Z",
+      "valorPago": 300,
+      "jurosPagos": 0,
+      "jurosPagosNoInicioCiclo": 0,
+      "cobrancaAtiva": false,
+      "inadimplente": false,
+      "lastInterestAccrual": "2026-08-01T12:00:00.000Z",
+      "jurosCicloIniciadoEm": "2026-08-01T12:00:00.000Z",
+      "cliente": {
+        "nome": "ISABELLA SANTOS ANDRADE"
+      },
+      "historico": [
+        {
+          "id": "cmsd7pc870023kq241hlpqq4o",
+          "emprestimoId": "cmr6vfgs6006vkq5gyr5dnnnf",
+          "descricao": "Pagamento registrado: R$ 300,00. (Total aplicado no principal).",
+          "createdAt": "2026-08-03T12:35:15.366Z",
+          "createdById": "cmq72q0a6002kkqodz2ek1xam",
+          "tipo": "PAGAMENTO"
+        }
+      ]
+    },
+    {
+      "id": "cmr813kne00hukq5gmemq6xzm",
+      "clienteId": "cmr813kbx00hskq5gazq3xhmc",
+      "usuarioId": null,
+      "valor": 300,
+      "quantidadeParcelas": null,
+      "jurosMes": 30,
+      "jurosAtrasoDia": 10,
+      "vencimento": "2026-08-02T12:00:00.000Z",
+      "quitadoEm": null,
+      "status": "ABERTO",
+      "observacao": null,
+      "arquivo1": null,
+      "arquivo2": null,
+      "arquivo3": null,
+      "arquivo4": null,
+      "arquivo5": null,
+      "createdAt": "2026-07-05T16:51:48.871Z",
+      "valorPago": 0,
+      "jurosPagos": 0,
+      "jurosPagosNoInicioCiclo": 0,
+      "cobrancaAtiva": false,
+      "inadimplente": false,
+      "lastInterestAccrual": "2026-08-02T12:00:00.000Z",
+      "jurosCicloIniciadoEm": "2026-08-02T12:00:00.000Z",
+      "cliente": {
+        "nome": "PATRICIA DOS SANTOS DE JESUS"
+      },
+      "historico": [
+        {
+          "id": "cmsd6p44u001xkq24pdfy2t32",
+          "emprestimoId": "cmr813kne00hukq5gmemq6xzm",
+          "descricao": "Pagamento registrado: R$ 90,00. (Total aplicado no principal).",
+          "createdAt": "2026-08-03T12:07:05.262Z",
+          "createdById": "cmq72q0a6002kkqodz2ek1xam",
+          "tipo": "PAGAMENTO"
+        }
+      ]
+    }
+  ]
+}

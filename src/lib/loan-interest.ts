@@ -4,6 +4,8 @@ type LoanInterestInput = {
   jurosMes?: number | null
   jurosAtrasoDia?: number | null
   jurosPagos?: number | null
+  jurosPagosNoInicioCiclo?: number | null
+  jurosCicloIniciadoEm?: Date | string | null
   vencimento?: Date | string | null
   createdAt?: Date | string | null
   now?: Date
@@ -20,13 +22,20 @@ export function calculateLoanInterest(input: LoanInterestInput) {
   const principalBaseJuros = principalRestante > 0 ? principalRestante : Math.max(Number(input.valor || 0), 0)
   const jurosPercent = Number(input.jurosMes ?? 0) || 0
   const jurosAtrasoPercent = Number(input.jurosAtrasoDia ?? 0) || 0
-  const jurosPagos = Number(input.jurosPagos ?? 0) || 0
+  const jurosPagos = Math.max(
+    (Number(input.jurosPagos ?? 0) || 0) - (Number(input.jurosPagosNoInicioCiclo ?? 0) || 0),
+    0,
+  )
   const now = input.now ?? new Date()
-  const baseDate = new Date((input.vencimento ?? input.createdAt ?? now) as any)
+  const vencimento = new Date((input.vencimento ?? input.createdAt ?? now) as any)
+  const cicloIniciadoEm = input.jurosCicloIniciadoEm ? new Date(input.jurosCicloIniciadoEm) : null
+  const baseDate = cicloIniciadoEm && cicloIniciadoEm > vencimento ? cicloIniciadoEm : vencimento
 
   const jurosBase = principalBaseJuros * (jurosPercent / 100)
 
-  if (jurosPercent <= 0 || baseDate.getTime() > now.getTime()) {
+  // O juros mensal é devido desde a contratação. O vencimento controla somente
+  // a contagem dos dias de atraso, não o início da cobrança dos juros mensais.
+  if (jurosPercent <= 0) {
     return {
       principalRestante,
       jurosBase,

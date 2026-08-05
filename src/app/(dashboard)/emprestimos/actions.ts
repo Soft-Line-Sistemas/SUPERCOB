@@ -114,6 +114,8 @@ export async function getEmprestimos(filters?: {
     cobrancaAtiva: true,
     inadimplente: true,
     jurosPagos: true,
+    jurosPagosNoInicioCiclo: true,
+    jurosCicloIniciadoEm: true,
     cliente: {
       select: { nome: true, email: true, whatsapp: true },
     },

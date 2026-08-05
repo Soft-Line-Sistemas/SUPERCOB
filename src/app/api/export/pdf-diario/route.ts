@@ -50,6 +50,8 @@ export async function GET() {
       vencimento: true,
       createdAt: true,
       jurosPagos: true,
+      jurosPagosNoInicioCiclo: true,
+      jurosCicloIniciadoEm: true,
       cliente: { select: { nome: true } }
     }
   })

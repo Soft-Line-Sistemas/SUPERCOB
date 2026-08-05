@@ -17,7 +17,7 @@ describe('calculateLoanInterest', () => {
     expect(result.totalDevido).toBe(1000)
   })
 
-  it('does not accrue interest before the due date', () => {
+  it('charges the monthly interest immediately even before the due date', () => {
     const result = calculateLoanInterest({
       valor: 1000,
       valorPago: 0,
@@ -27,9 +27,24 @@ describe('calculateLoanInterest', () => {
       now: new Date('2026-05-08T12:00:00.000Z'),
     })
 
-    expect(result.jurosPendente).toBe(0)
-    expect(result.totalDevido).toBe(1000)
-    expect(result.monthsAccrued).toBe(0)
+    expect(result.jurosPendente).toBe(50)
+    expect(result.totalDevido).toBe(1050)
+    expect(result.monthsAccrued).toBe(1)
+  })
+
+  it('shows R$ 1,300.00 immediately for R$ 1,000.00 at 30%, without daily late interest', () => {
+    const result = calculateLoanInterest({
+      valor: 1000,
+      valorPago: 0,
+      jurosMes: 30,
+      jurosAtrasoDia: 10,
+      vencimento: new Date('2026-09-05T12:00:00.000Z'),
+      now: new Date('2026-08-05T12:00:00.000Z'),
+    })
+
+    expect(result.daysLate).toBe(0)
+    expect(result.jurosPendente).toBe(300)
+    expect(result.totalDevido).toBe(1300)
   })
 
   it('accrues one monthly period on the exact due date', () => {
@@ -116,6 +131,21 @@ describe('calculateLoanInterest', () => {
     expect(result.totalDevido).toBe(1000)
   })
 
+  it('does not use interest payments made before a new cycle as credit for the new cycle', () => {
+    const result = calculateLoanInterest({
+      valor: 1000,
+      jurosMes: 5,
+      jurosPagos: 999,
+      jurosPagosNoInicioCiclo: 999,
+      jurosCicloIniciadoEm: new Date('2026-05-08T12:00:00.000Z'),
+      vencimento: new Date('2026-01-08T12:00:00.000Z'),
+      now: new Date('2026-05-08T12:00:00.000Z'),
+    })
+
+    expect(result.monthsAccrued).toBe(1)
+    expect(result.jurosPendente).toBe(50)
+  })
+
   it('computes daily delay by UTC day boundaries rather than clock hours', () => {
     const result = calculateLoanInterest({
       valor: 1000,
@@ -179,7 +209,7 @@ describe('calculateLoanInterest', () => {
     expect(result.totalDevido).toBe(25)
   })
 
-  it('does not create interest when the principal is fully paid before the due date', () => {
+  it('keeps the immediate monthly interest due when principal is paid before the due date', () => {
     const result = calculateLoanInterest({
       valor: 1000,
       valorPago: 1000,
@@ -191,7 +221,7 @@ describe('calculateLoanInterest', () => {
     })
 
     expect(result.principalRestante).toBe(0)
-    expect(result.jurosPendente).toBe(0)
-    expect(result.totalDevido).toBe(0)
+    expect(result.jurosPendente).toBe(50)
+    expect(result.totalDevido).toBe(50)
   })
 })

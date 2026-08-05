@@ -128,6 +128,8 @@ export default async function ReportsPage({
       clienteId: true,
       usuarioId: true,
       jurosPagos: true,
+      jurosPagosNoInicioCiclo: true,
+      jurosCicloIniciadoEm: true,
       cliente: {
         select: { nome: true, cidade: true, estado: true },
       },
@@ -170,6 +172,8 @@ export default async function ReportsPage({
       jurosMes: true,
       jurosAtrasoDia: true,
       jurosPagos: true,
+      jurosPagosNoInicioCiclo: true,
+      jurosCicloIniciadoEm: true,
       quantidadeParcelas: true,
       status: true,
       vencimento: true,

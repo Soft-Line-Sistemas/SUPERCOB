@@ -203,6 +203,6 @@ export const normalizeClientPayload = (formData: ClientFormData) => {
     cidade2: normalizeOptional(formData.cidade2),
     estado2: normalizeOptional(formData.estado2),
     pontoReferencia2: normalizeOptional(formData.pontoReferencia2),
-    usuarioId: normalizeOptional(formData.usuarioId),
+    usuarioId: normalizeOptional(formData.usuarioId ?? ''),
   }
 }
