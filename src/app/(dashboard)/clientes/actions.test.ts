@@ -18,13 +18,20 @@ const {
 
 vi.mock('@/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
+vi.mock('@/lib/audit', () => ({ logSystemAction: vi.fn() }))
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     cliente: {
       findMany: mockClienteFindMany,
       count: mockClienteCount,
       findFirst: mockClienteFindFirst,
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
       delete: mockClienteDelete,
+    },
+    usuario: {
+      findUnique: vi.fn(),
     },
   },
 }))

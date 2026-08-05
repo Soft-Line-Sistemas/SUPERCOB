@@ -13,6 +13,7 @@ import {
   validateClienteInput,
 } from '@/lib/client-validation'
 import { archiveCliente, ArchiveError, unarchiveCliente } from '@/lib/archive'
+import { logSystemAction } from '@/lib/audit'
 
 type ClienteMutationResult =
   | { ok: true; id: string }
@@ -278,6 +279,24 @@ export async function createCliente(data: ClienteInput) {
       select: { id: true },
     })
 
+    const assignedUser = normalizedData.usuarioId
+      ? await prisma.usuario.findUnique({ where: { id: normalizedData.usuarioId }, select: { nome: true } })
+      : null
+
+    await logSystemAction({
+      entidade: 'CLIENTE',
+      entidadeId: cliente.id,
+      acao: 'CREATE',
+      detalhes: `Cliente "${normalizedData.nome}" cadastrado.${assignedUser ? ` Atribuído ao usuário: ${assignedUser.nome}.` : ' Não atribuído.'}`,
+      depois: {
+        id: cliente.id,
+        nome: normalizedData.nome,
+        cpf: normalizedData.cpf,
+        usuarioId: normalizedData.usuarioId ?? null,
+        usuarioNome: assignedUser?.nome ?? 'Não atribuído',
+      },
+    })
+
     revalidatePath('/clientes')
     return { ok: true, id: cliente.id } satisfies ClienteMutationResult
   } catch (error) {
@@ -331,10 +350,46 @@ export async function updateCliente(id: string, data: ClienteInput) {
     const normalizedData = normalizeClienteInput(data)
     validateClienteInput(normalizedData)
 
+    const currentClient = await prisma.cliente.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        nome: true,
+        usuarioId: true,
+        usuario: { select: { nome: true } },
+      },
+    })
+
     const cliente = await prisma.cliente.update({
       where: { id },
       data: normalizedData,
       select: { id: true },
+    })
+
+    const isAssignmentChanged = (currentClient?.usuarioId ?? null) !== (normalizedData.usuarioId ?? null)
+
+    const oldUserNome = currentClient?.usuario?.nome || 'Não atribuído'
+    const newUserNome = normalizedData.usuarioId
+      ? (await prisma.usuario.findUnique({ where: { id: normalizedData.usuarioId }, select: { nome: true } }))?.nome || 'Não atribuído'
+      : 'Não atribuído'
+
+    await logSystemAction({
+      entidade: 'CLIENTE',
+      entidadeId: cliente.id,
+      acao: 'UPDATE',
+      detalhes: isAssignmentChanged
+        ? `Atribuição do cliente "${normalizedData.nome}" alterada de "${oldUserNome}" para "${newUserNome}".`
+        : `Cadastro do cliente "${normalizedData.nome}" atualizado.`,
+      antes: {
+        nome: currentClient?.nome,
+        usuarioId: currentClient?.usuarioId ?? null,
+        usuarioNome: oldUserNome,
+      },
+      depois: {
+        nome: normalizedData.nome,
+        usuarioId: normalizedData.usuarioId ?? null,
+        usuarioNome: newUserNome,
+      },
     })
 
     revalidatePath('/clientes')
@@ -372,9 +427,23 @@ export async function deleteCliente(id: string) {
       }
     }
 
+    const currentClient = await prisma.cliente.findUnique({
+      where: { id },
+      select: { id: true, nome: true, usuarioId: true, usuario: { select: { nome: true } } },
+    })
+
     await prisma.cliente.delete({
       where: { id },
     })
+
+    await logSystemAction({
+      entidade: 'CLIENTE',
+      entidadeId: id,
+      acao: 'DELETE',
+      detalhes: `Cliente "${currentClient?.nome || id}" excluído.${currentClient?.usuario?.nome ? ` Estava atribuído a: ${currentClient.usuario.nome}.` : ''}`,
+      antes: currentClient,
+    })
+
     revalidatePath('/clientes')
     return { ok: true, id } satisfies ClienteMutationResult
   } catch (error) {
