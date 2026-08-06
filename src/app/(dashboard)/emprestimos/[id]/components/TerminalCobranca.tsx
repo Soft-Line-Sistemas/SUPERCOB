@@ -71,7 +71,7 @@ export function TerminalCobranca({
               <span className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 font-black text-lg group-focus-within:text-white/50 transition-colors">R$</span>
               <input
                 type="text"
-                inputMode="numeric"
+                inputMode="decimal"
                 value={pagamento}
                 onChange={(e) => setPagamento(e.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-[2rem] py-5 pl-14 pr-6 text-xl font-black text-white outline-none focus:ring-4 focus:ring-emerald-500/20 transition-all placeholder:text-white/10"

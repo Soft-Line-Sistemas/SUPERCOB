@@ -5,6 +5,7 @@ import type { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import { isAdminRole } from '@/lib/admin-auth'
+import { CLIENT_LOAN_STATUS_FILTERS_ENABLED } from '@/lib/client-list-features'
 import {
   assertUniqueClienteCpf,
   ClientValidationError,
@@ -188,25 +189,26 @@ export async function getClientesPage(options?: {
     })
   }
 
-  // As filas de inadimplentes e pagos são exclusivas da lista principal.
-  andConditions.push(
-    inadimplente
-      ? { loans: { some: { inadimplente: true } } }
-      : { loans: { none: { inadimplente: true } } },
-  )
-
-  if (pago) {
+  if (CLIENT_LOAN_STATUS_FILTERS_ENABLED) {
     andConditions.push(
-      { loans: { some: {} } },
-      { loans: { every: { status: 'QUITADO' } } },
+      inadimplente
+        ? { loans: { some: { inadimplente: true } } }
+        : { loans: { none: { inadimplente: true } } },
     )
-  } else if (!inadimplente) {
-    andConditions.push({
-      OR: [
-        { loans: { none: {} } },
-        { loans: { some: { status: { not: 'QUITADO' } } } },
-      ],
-    })
+
+    if (pago) {
+      andConditions.push(
+        { loans: { some: {} } },
+        { loans: { every: { status: 'QUITADO' } } },
+      )
+    } else if (!inadimplente) {
+      andConditions.push({
+        OR: [
+          { loans: { none: {} } },
+          { loans: { some: { status: { not: 'QUITADO' } } } },
+        ],
+      })
+    }
   }
 
   if (andConditions.length > 0) {

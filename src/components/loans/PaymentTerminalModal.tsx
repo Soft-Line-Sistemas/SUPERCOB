@@ -137,7 +137,7 @@ export function PaymentTerminalModal({
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg font-black text-white/20 group-focus-within:text-white/50 transition-colors">R$</span>
                     <input
                       type="text"
-                      inputMode="numeric"
+                      inputMode="decimal"
                       value={pagamento}
                       onChange={(event) => onPagamentoChange(event.target.value)}
                       placeholder="0,00"

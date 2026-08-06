@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Cell, AreaChart, Area } from 'recharts';
 import { Wallet, PiggyBank, TrendingUp, CalendarDays, AlertTriangle, MapPin, Download, FileText, Share2, Filter, MoreVertical, X, BarChart3, LayoutGrid, CalendarClock, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,11 +14,23 @@ type ReportsFilters = {
   cidade: string
   estado: string
   usuarioId?: string
+  upcomingDays: number
+  nextDuePerContract: boolean
+  includeInadimplentes: boolean
+  includePaid: boolean
 }
 
 type ExportFilters = ReportsFilters & {
   dueDayStart?: number
   dueDayEnd?: number
+  includeCurrent?: boolean
+  includeWhatsapp?: boolean
+  markPaid?: boolean
+  markCurrent?: boolean
+  strikePaid?: boolean
+  strikeCurrent?: boolean
+  onlyInadimplentes?: boolean
+  onlyAgreement?: boolean
 }
 
 type ReportsData = {
@@ -49,7 +61,7 @@ const REPORT_TYPES: { section: ReportSection; title: string; description: string
   { section: 'defaulters', title: 'Atrasados', description: 'Contratos em atraso, lista completa', icon: AlertTriangle, color: 'red' },
   { section: 'abc', title: 'Curva ABC', description: 'Concentração de carteira por cliente', icon: LayoutGrid, color: 'blue' },
   { section: 'geo', title: 'Localidade', description: 'Distribuição geográfica da carteira', icon: MapPin, color: 'purple' },
-  { section: 'daily', title: 'Agenda do Dia', description: 'Juros com vencimento hoje', icon: CalendarDays, color: 'emerald' },
+  { section: 'daily', title: 'A vencer', description: 'Juros com vencimento próximo', icon: CalendarDays, color: 'emerald' },
   { section: 'full', title: 'Relatório Completo', description: 'Todas as seções em um único PDF', icon: BarChart3, color: 'slate' },
 ]
 
@@ -71,6 +83,19 @@ export function Reports({
   const [exportingSection, setExportingSection] = useState<ReportSection | null>(null)
   const [dueDayStart, setDueDayStart] = useState(1)
   const [dueDayEnd, setDueDayEnd] = useState(31)
+  const [dueDayUpcomingDays, setDueDayUpcomingDays] = useState(30)
+  const [dueDayNextDuePerContract, setDueDayNextDuePerContract] = useState(true)
+  const [dueDayIncludeInadimplentes, setDueDayIncludeInadimplentes] = useState(true)
+  const [dueDayIncludePaid, setDueDayIncludePaid] = useState(false)
+  const [dueDayIncludeCurrent, setDueDayIncludeCurrent] = useState(true)
+  const [dueDayIncludeWhatsapp, setDueDayIncludeWhatsapp] = useState(false)
+  const [dueDayMarkPaid, setDueDayMarkPaid] = useState(false)
+  const [dueDayMarkCurrent, setDueDayMarkCurrent] = useState(true)
+  const [dueDayStrikePaid, setDueDayStrikePaid] = useState(false)
+  const [dueDayStrikeCurrent, setDueDayStrikeCurrent] = useState(false)
+  const [dueDayOnlyInadimplentes, setDueDayOnlyInadimplentes] = useState(false)
+  const [dueDayOnlyAgreement, setDueDayOnlyAgreement] = useState(false)
+  const [isDueDayPreferencesLoaded, setIsDueDayPreferencesLoaded] = useState(false)
   const [draftFilters, setDraftFilters] = useState<ReportsFilters>(filters)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
@@ -81,6 +106,52 @@ export function Reports({
   }, [report.dailyInterestData, currentPage])
 
   const totalPages = Math.ceil(report.dailyInterestData.length / itemsPerPage)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('reports-due-day-preferences')
+      if (!saved) return
+      const preferences = JSON.parse(saved)
+      if (Number.isInteger(preferences.dayStart) && preferences.dayStart >= 1 && preferences.dayStart <= 31) setDueDayStart(preferences.dayStart)
+      if (Number.isInteger(preferences.dayEnd) && preferences.dayEnd >= 1 && preferences.dayEnd <= 31) setDueDayEnd(preferences.dayEnd)
+      if (Number.isInteger(preferences.upcomingDays) && preferences.upcomingDays >= 1 && preferences.upcomingDays <= 3650) setDueDayUpcomingDays(preferences.upcomingDays)
+      if (typeof preferences.nextDuePerContract === 'boolean') setDueDayNextDuePerContract(preferences.nextDuePerContract)
+      if (typeof preferences.includeInadimplentes === 'boolean') setDueDayIncludeInadimplentes(preferences.includeInadimplentes)
+      if (typeof preferences.includePaid === 'boolean') setDueDayIncludePaid(preferences.includePaid)
+      if (typeof preferences.includeCurrent === 'boolean') setDueDayIncludeCurrent(preferences.includeCurrent)
+      if (typeof preferences.includeWhatsapp === 'boolean') setDueDayIncludeWhatsapp(preferences.includeWhatsapp)
+      if (typeof preferences.markPaid === 'boolean') setDueDayMarkPaid(preferences.markPaid)
+      if (typeof preferences.markCurrent === 'boolean') setDueDayMarkCurrent(preferences.markCurrent)
+      if (typeof preferences.strikePaid === 'boolean') setDueDayStrikePaid(preferences.strikePaid)
+      if (typeof preferences.strikeCurrent === 'boolean') setDueDayStrikeCurrent(preferences.strikeCurrent)
+      if (typeof preferences.onlyInadimplentes === 'boolean') setDueDayOnlyInadimplentes(preferences.onlyInadimplentes)
+      if (typeof preferences.onlyAgreement === 'boolean') setDueDayOnlyAgreement(preferences.onlyAgreement)
+    } catch {
+      // Preferências inválidas não impedem o uso do relatório.
+    } finally {
+      setIsDueDayPreferencesLoaded(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isDueDayPreferencesLoaded) return
+    localStorage.setItem('reports-due-day-preferences', JSON.stringify({
+      dayStart: dueDayStart,
+      dayEnd: dueDayEnd,
+      upcomingDays: dueDayUpcomingDays,
+      nextDuePerContract: dueDayNextDuePerContract,
+      includeInadimplentes: dueDayIncludeInadimplentes,
+      includePaid: dueDayIncludePaid,
+      includeCurrent: dueDayIncludeCurrent,
+      includeWhatsapp: dueDayIncludeWhatsapp,
+      markPaid: dueDayMarkPaid,
+      markCurrent: dueDayMarkCurrent,
+      strikePaid: dueDayStrikePaid,
+      strikeCurrent: dueDayStrikeCurrent,
+      onlyInadimplentes: dueDayOnlyInadimplentes,
+      onlyAgreement: dueDayOnlyAgreement,
+    }))
+  }, [dueDayStart, dueDayEnd, dueDayUpcomingDays, dueDayNextDuePerContract, dueDayIncludeInadimplentes, dueDayIncludePaid, dueDayIncludeCurrent, dueDayIncludeWhatsapp, dueDayMarkPaid, dueDayMarkCurrent, dueDayStrikePaid, dueDayStrikeCurrent, dueDayOnlyInadimplentes, dueDayOnlyAgreement, isDueDayPreferencesLoaded])
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -108,7 +179,10 @@ export function Reports({
         }),
       })
 
-      if (!res.ok) throw new Error('Erro ao gerar PDF')
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        throw new Error(payload?.error || 'Erro ao gerar PDF')
+      }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -124,9 +198,8 @@ export function Reports({
       URL.revokeObjectURL(url)
       toast.success('Relatório exportado com sucesso!', { id: toastId })
       setIsExportOpen(false)
-      setIsDueDayRangeOpen(false)
     } catch (e) {
-      toast.error('Erro ao gerar PDF.', { id: toastId })
+      toast.error(e instanceof Error ? e.message : 'Erro ao gerar PDF.', { id: toastId })
     } finally {
       setExportingSection(null)
     }
@@ -137,7 +210,27 @@ export function Reports({
       toast.error('Informe um intervalo válido entre os dias 1 e 31.')
       return
     }
-    handleExportSection('dueDay', { ...filters, dueDayStart, dueDayEnd })
+    if (!Number.isInteger(dueDayUpcomingDays) || dueDayUpcomingDays < 1 || dueDayUpcomingDays > 3650) {
+      toast.error('Informe uma quantidade de dias entre 1 e 3650.')
+      return
+    }
+    handleExportSection('dueDay', {
+      ...filters,
+      upcomingDays: dueDayUpcomingDays,
+      nextDuePerContract: dueDayNextDuePerContract,
+      includeInadimplentes: dueDayIncludeInadimplentes,
+      includePaid: dueDayIncludePaid,
+      includeCurrent: dueDayIncludeCurrent,
+      includeWhatsapp: dueDayIncludeWhatsapp,
+      markPaid: dueDayMarkPaid,
+      markCurrent: dueDayMarkCurrent,
+      strikePaid: dueDayStrikePaid,
+      strikeCurrent: dueDayStrikeCurrent,
+      onlyInadimplentes: dueDayOnlyInadimplentes,
+      onlyAgreement: dueDayOnlyAgreement,
+      dueDayStart,
+      dueDayEnd,
+    })
   }
 
   const handleExportDailyPDF = async () => {
@@ -169,6 +262,10 @@ export function Reports({
     if (draftFilters.cidade) sp.set('cidade', draftFilters.cidade)
     if (draftFilters.estado) sp.set('estado', draftFilters.estado)
     if (draftFilters.usuarioId) sp.set('usuarioId', draftFilters.usuarioId)
+    sp.set('upcomingDays', String(draftFilters.upcomingDays))
+    sp.set('nextDuePerContract', String(draftFilters.nextDuePerContract))
+    sp.set('includeInadimplentes', String(draftFilters.includeInadimplentes))
+    sp.set('includePaid', String(draftFilters.includePaid))
     router.push(`/reports?${sp.toString()}`)
     setIsFiltersOpen(false)
   }
@@ -278,9 +375,13 @@ export function Reports({
           <div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <CalendarDays className="w-5 h-5 text-gold-500" />
-              Agenda de Juros do Dia
+              Juros a Vencer
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Clientes com vencimento de juros hoje ({new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {filters.nextDuePerContract
+                ? 'Próximo vencimento de cada contrato ativo.'
+                : `Vencimentos nos próximos ${filters.upcomingDays} dias.`}
+            </p>
           </div>
           <span className="bg-indigo-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg uppercase">
             {report.dailyInterestData.length} Lançamentos
@@ -300,7 +401,7 @@ export function Reports({
               {paginatedDailyInterest.length === 0 ? (
                 <tr className="bg-white dark:bg-slate-950">
                   <td colSpan={4} className="px-8 py-10 text-center text-sm text-slate-400">
-                    Nenhuma entrada de juros identificada hoje.
+                    Nenhum vencimento de juros encontrado para este critério.
                   </td>
                 </tr>
               ) : (
@@ -630,12 +731,34 @@ export function Reports({
                       />
                     </div>
                   </div>
+
+                  <div className="rounded-2xl border border-gold-200 bg-gold-50/50 p-4 dark:border-gold-500/20 dark:bg-gold-500/5">
+                    <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-300">Quais vencimentos devem aparecer?</p>
+                    <label className="flex cursor-pointer items-start gap-3 text-sm text-slate-700 dark:text-slate-300">
+                      <input type="radio" name="upcoming-mode" checked={draftFilters.nextDuePerContract} onChange={() => setDraftFilters({ ...draftFilters, nextDuePerContract: true })} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
+                      <span>
+                        <span className="block font-bold">Mostrar somente o próximo vencimento de cada contrato</span>
+                        <span className="block text-xs text-slate-500 dark:text-slate-400">Ex.: se um contrato vence dia 10 e outro dia 25, será exibido o próximo vencimento de cada um.</span>
+                      </span>
+                    </label>
+                    <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-700 dark:text-slate-300">
+                      <input type="radio" name="upcoming-mode" checked={!draftFilters.nextDuePerContract} onChange={() => setDraftFilters({ ...draftFilters, nextDuePerContract: false })} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
+                      <span className="font-bold">Mostrar os que estão a vencer nos próximos</span>
+                    </label>
+                    <div className="mt-2 flex items-center gap-3">
+                      <input id="upcoming-days" type="number" min="1" max="3650" value={draftFilters.upcomingDays} disabled={draftFilters.nextDuePerContract} onChange={(e) => {
+                        const value = Number(e.target.value)
+                        setDraftFilters({ ...draftFilters, upcomingDays: Number.isFinite(value) ? value : 30 })
+                      }} className="w-24 px-4 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl outline-none disabled:cursor-not-allowed disabled:opacity-50" />
+                      <span className="text-sm text-slate-500 dark:text-slate-400">dias</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="pt-8 flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setDraftFilters({ startDate: '', endDate: '', status: '', cidade: '', estado: '', usuarioId: '' })}
+                    onClick={() => setDraftFilters({ startDate: '', endDate: '', status: '', cidade: '', estado: '', usuarioId: '', upcomingDays: 30, nextDuePerContract: true, includeInadimplentes: false, includePaid: false })}
                     className="flex-1 py-3.5 px-4 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-100 font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                   >
                     Limpar
@@ -765,12 +888,12 @@ export function Reports({
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-md rounded-[2rem] border border-slate-100 bg-white p-8 shadow-2xl dark:border-white/10 dark:bg-slate-950"
+              className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] border border-slate-100 bg-white p-8 shadow-2xl dark:border-white/10 dark:bg-slate-950"
             >
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Dia de Vencimento</h3>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Escolha os dias que devem constar no PDF.</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Defina quais vencimentos devem constar no PDF.</p>
                 </div>
                 <button type="button" onClick={() => setIsDueDayRangeOpen(false)} disabled={exportingSection !== null} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-50 dark:hover:bg-white/5" aria-label="Fechar">
                   <X className="h-5 w-5" />
@@ -785,6 +908,50 @@ export function Reports({
                 </label>
               </div>
               <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Intervalo inclusivo, de 1 a 31.</p>
+              <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <div className="rounded-2xl border border-gold-200 bg-gold-50/50 p-4 dark:border-gold-500/20 dark:bg-gold-500/5">
+                <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Quais vencimentos devem aparecer?</p>
+                <label className="flex cursor-pointer items-start gap-3 text-sm text-slate-700 dark:text-slate-200">
+                  <input type="radio" name="due-day-upcoming-mode" checked={dueDayNextDuePerContract} onChange={() => setDueDayNextDuePerContract(true)} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
+                  <span><span className="block font-bold">Mostrar somente o próximo vencimento de cada contrato</span><span className="block text-xs text-slate-500 dark:text-slate-400">Ex.: se um contrato vence dia 10 e outro dia 25, será exibido o próximo vencimento de cada um.</span></span>
+                </label>
+                <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-700 dark:text-slate-200">
+                  <input type="radio" name="due-day-upcoming-mode" checked={!dueDayNextDuePerContract} onChange={() => setDueDayNextDuePerContract(false)} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
+                  <span className="font-bold">Mostrar os que estão a vencer nos próximos</span>
+                </label>
+                <div className="mt-2 flex items-center gap-3">
+                  <input id="due-day-upcoming-days" type="number" min="1" max="3650" step="1" value={dueDayUpcomingDays} disabled={dueDayNextDuePerContract} onChange={(event) => setDueDayUpcomingDays(Number(event.target.value))} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-gold-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" />
+                  <span className="text-sm text-slate-500 dark:text-slate-400">dias</span>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Restringir a situações específicas</p>
+                <div className="grid grid-cols-2 gap-3 text-sm text-slate-700 dark:text-slate-200">
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayOnlyInadimplentes} onChange={(event) => { setDueDayOnlyInadimplentes(event.target.checked); if (event.target.checked) setDueDayIncludeInadimplentes(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Somente inadimplentes</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayOnlyAgreement} onChange={(event) => setDueDayOnlyAgreement(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Somente em acordo</label>
+                </div>
+                {dueDayOnlyInadimplentes && dueDayOnlyAgreement && <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-400">Serão exibidos somente os contratos inadimplentes que também estão em acordo.</p>}
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Marcação no PDF</p>
+                <div className="grid grid-cols-2 gap-3 text-sm text-slate-700 dark:text-slate-200">
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayMarkPaid} onChange={(event) => { setDueDayMarkPaid(event.target.checked); if (event.target.checked) setDueDayIncludePaid(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Marcar pagos</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayMarkCurrent} onChange={(event) => { setDueDayMarkCurrent(event.target.checked); if (event.target.checked) setDueDayIncludeCurrent(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Marcar em dia</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayStrikePaid} onChange={(event) => { setDueDayStrikePaid(event.target.checked); if (event.target.checked) setDueDayIncludePaid(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Riscar pagos</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayStrikeCurrent} onChange={(event) => { setDueDayStrikeCurrent(event.target.checked); if (event.target.checked) setDueDayIncludeCurrent(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Riscar em dia</label>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Outras situações a incluir</p>
+                <div className="grid grid-cols-2 gap-3 text-sm text-slate-700 dark:text-slate-200">
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayIncludePaid} onChange={(event) => setDueDayIncludePaid(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Incluir pagos</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayIncludeCurrent} onChange={(event) => setDueDayIncludeCurrent(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Incluir os em dia</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayIncludeWhatsapp} onChange={(event) => setDueDayIncludeWhatsapp(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Incluir WhatsApp</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayIncludeInadimplentes} onChange={(event) => setDueDayIncludeInadimplentes(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Incluir inadimplentes</label>
+                </div>
+                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Em dia: contratos sem juros pendentes até a data de geração do relatório.</p>
+              </div>
+              </div>
               <button type="button" onClick={handleDueDayRangeExport} disabled={exportingSection !== null} className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">
                 {exportingSection === 'dueDay' ? 'Gerando PDF...' : 'Baixar PDF'}
               </button>

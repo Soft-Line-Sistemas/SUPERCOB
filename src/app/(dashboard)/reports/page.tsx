@@ -38,6 +38,21 @@ function addMonthsYMD(ymd: string, months: number) {
   return `${yyyy}-${mm}-${dd}`
 }
 
+function addMonthlyOccurrence(date: Date, preferredDay: number) {
+  const year = date.getUTCFullYear()
+  const month = date.getUTCMonth() + 1
+  const lastDayOfNextMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(
+    year,
+    month,
+    Math.min(preferredDay, lastDayOfNextMonth),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+    date.getUTCMilliseconds(),
+  ))
+}
+
 function saoPauloDayStartUtc(ymd: string) {
   const p = parseYMD(ymd)
   if (!p) return new Date()
@@ -73,8 +88,21 @@ export default async function ReportsPage({
   const cidadeParam = Array.isArray(params.cidade) ? params.cidade[0] : params.cidade
   const estadoParam = Array.isArray(params.estado) ? params.estado[0] : params.estado
   const usuarioIdParam = Array.isArray(params.usuarioId) ? params.usuarioId[0] : params.usuarioId
+  const upcomingDaysParam = Array.isArray(params.upcomingDays) ? params.upcomingDays[0] : params.upcomingDays
+  const nextDuePerContractParam = Array.isArray(params.nextDuePerContract) ? params.nextDuePerContract[0] : params.nextDuePerContract
+  const includeInadimplentesParam = Array.isArray(params.includeInadimplentes) ? params.includeInadimplentes[0] : params.includeInadimplentes
+  const includePaidParam = Array.isArray(params.includePaid) ? params.includePaid[0] : params.includePaid
+  const parsedUpcomingDays = Number(upcomingDaysParam)
+  const upcomingDays = Number.isInteger(parsedUpcomingDays) && parsedUpcomingDays >= 1 && parsedUpcomingDays <= 3650
+    ? parsedUpcomingDays
+    : 30
+  const nextDuePerContract = nextDuePerContractParam !== 'false'
+  const includeInadimplentes = includeInadimplentesParam === 'true'
+  const includePaid = includePaidParam === 'true'
 
   const todayYMD = todayYMDInSaoPaulo()
+  const todayStart = saoPauloDayStartUtc(todayYMD)
+  const upcomingEnd = saoPauloDayStartUtc(addDaysYMD(todayYMD, upcomingDays + 1))
   const defaultEndYMD = todayYMD
   const defaultStartYMD = addMonthsYMD(defaultEndYMD, -6)
 
@@ -185,7 +213,13 @@ export default async function ReportsPage({
   const dueDayGroups = new Map<number, { client: string; jurosAtual: number; isAcordo: boolean; parcelaAtual: number; parcelaTotal: number; valorParcela: number }[]>()
   for (const loan of dueDayLoans) {
     if (!loan.vencimento) continue
-    const day = loan.vencimento.getUTCDate()
+    let nextOccurrence = new Date(loan.vencimento)
+    const preferredDay = nextOccurrence.getUTCDate()
+    while (nextOccurrence.getTime() < todayStart.getTime()) {
+      nextOccurrence = addMonthlyOccurrence(nextOccurrence, preferredDay)
+    }
+    if (!nextDuePerContract && nextOccurrence.getTime() >= upcomingEnd.getTime()) continue
+    const day = nextOccurrence.getUTCDate()
     const interest = calculateLoanInterest(loan)
     const quantidadeParcelas = loan.quantidadeParcelas ?? 0
     const isAcordo = Number.isInteger(quantidadeParcelas) && quantidadeParcelas > 0
@@ -335,54 +369,45 @@ export default async function ReportsPage({
   const defaultersData = defaultersDataFull.slice(0, 12)
 
   const dailyInterestData: { date: string; dateObj: Date; client: string; loanId: string; amount: number; isPaid: boolean }[] = []
-  
-  const todayStart = saoPauloDayStartUtc(todayYMD)
-  const todayEnd = saoPauloDayStartUtc(addDaysYMD(todayYMD, 1))
+  const upcomingWhere: any = {
+    status: { in: ['ABERTO', 'NEGOCIACAO'] },
+    vencimento: { not: null },
+    jurosMes: { gt: 0 },
+  }
+  if (statusParam === 'ABERTO' || statusParam === 'NEGOCIACAO') upcomingWhere.status = statusParam
+  if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
+    upcomingWhere.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
+  }
+  if ((cidadeParam && typeof cidadeParam === 'string' && cidadeParam.trim() !== '') || (estadoParam && typeof estadoParam === 'string' && estadoParam.trim() !== '')) {
+    upcomingWhere.cliente = {}
+    if (cidadeParam && typeof cidadeParam === 'string' && cidadeParam.trim() !== '') upcomingWhere.cliente.cidade = { contains: cidadeParam }
+    if (estadoParam && typeof estadoParam === 'string' && estadoParam.trim() !== '') upcomingWhere.cliente.estado = { contains: estadoParam }
+  }
 
-  // Calcular entradas diárias de juros apenas para o DIA EM CURSO
-  for (const loan of loans) {
-    if (loan.status === 'CANCELADO') continue
-    const base = loan.vencimento ?? loan.createdAt
-    const jurosPercent = Number(loan.jurosMes ?? 0) || 0
-    if (jurosPercent <= 0) continue
+  const upcomingLoans = await prisma.emprestimo.findMany({
+    where: upcomingWhere,
+    select: { id: true, valor: true, jurosMes: true, jurosPagos: true, vencimento: true, cliente: { select: { nome: true } } },
+  })
 
-    const monthlyAmount = loan.valor * (jurosPercent / 100)
-    
-    // Gerar ocorrências de juros
-    let currentOccurrence = new Date(base)
+  for (const loan of upcomingLoans) {
+    let occurrence = new Date(loan.vencimento!)
+    const preferredDay = occurrence.getUTCDate()
     let occurrenceIndex = 1
-    let safety = 0
-    // Precisamos de um limite para o loop, mas queremos encontrar a ocorrência do dia de hoje
-    // Como os juros são mensais, verificamos se o dia do mês bate com o dia de hoje
-    const maxDate = new Date(todayEnd)
-    maxDate.setUTCMonth(maxDate.getUTCMonth() + 1) 
-
-    while (currentOccurrence <= maxDate && safety < 500) {
-      safety++
-      const occurrenceTime = currentOccurrence.getTime()
-      
-      // APENAS SE FOR HOJE (dia em curso)
-      if (occurrenceTime >= todayStart.getTime() && occurrenceTime < todayEnd.getTime()) {
-        const totalOwedUntilNow = monthlyAmount * occurrenceIndex
-        const isPaid = (loan.jurosPagos || 0) >= (totalOwedUntilNow - 0.01)
-        
-        dailyInterestData.push({
-          date: currentOccurrence.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-          dateObj: new Date(currentOccurrence),
-          client: loan.cliente.nome,
-          loanId: `COB-${loan.id.slice(0, 6).toUpperCase()}`,
-          amount: monthlyAmount,
-          isPaid
-        })
-        break // Já achamos a de hoje para este empréstimo
-      }
-      
-      if (occurrenceTime >= todayEnd.getTime()) break
-
-      currentOccurrence = new Date(currentOccurrence)
-      currentOccurrence.setUTCMonth(currentOccurrence.getUTCMonth() + 1)
+    while (occurrence.getTime() < todayStart.getTime()) {
+      occurrence = addMonthlyOccurrence(occurrence, preferredDay)
       occurrenceIndex++
     }
+
+    if (!nextDuePerContract && occurrence.getTime() >= upcomingEnd.getTime()) continue
+    const monthlyAmount = Number(loan.valor) * (Number(loan.jurosMes) / 100)
+    dailyInterestData.push({
+      date: occurrence.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+      dateObj: occurrence,
+      client: loan.cliente.nome,
+      loanId: `COB-${loan.id.slice(0, 6).toUpperCase()}`,
+      amount: monthlyAmount,
+      isPaid: Number(loan.jurosPagos || 0) >= monthlyAmount * occurrenceIndex - 0.01,
+    })
   }
 
   // Ordenar por data decrescente
@@ -433,6 +458,10 @@ export default async function ReportsPage({
         cidade: (cidadeParam as string) || '',
         estado: (estadoParam as string) || '',
         usuarioId: (usuarioIdParam as string) || '',
+        upcomingDays,
+        nextDuePerContract,
+        includeInadimplentes,
+        includePaid,
       }}
     />
   )

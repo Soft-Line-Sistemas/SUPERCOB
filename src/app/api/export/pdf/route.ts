@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { prisma } from '@/lib/prisma'
+import { calculateLoanInterest } from '@/lib/loan-interest'
+import { calculateCurrentInstallment, calculateCurrentInstallmentAmounts } from '@/lib/installments'
 
 type PdfCtx = {
   pdfDoc: PDFDocument
@@ -10,6 +13,102 @@ type PdfCtx = {
   width: number
   height: number
   y: number
+}
+
+function todayYMDInSaoPaulo() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+}
+
+function saoPauloDayStartUtc(ymd: string) {
+  const [year, month, day] = ymd.split('-').map(Number)
+  return new Date(Date.UTC(year, month - 1, day, 3, 0, 0, 0))
+}
+
+function addDaysYMD(ymd: string, days: number) {
+  const [year, month, day] = ymd.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0, 0))
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
+}
+
+function addMonthlyOccurrence(date: Date, preferredDay: number) {
+  const year = date.getUTCFullYear()
+  const month = date.getUTCMonth() + 1
+  const lastDayOfNextMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(year, month, Math.min(preferredDay, lastDayOfNextMonth), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds(), date.getUTCMilliseconds()))
+}
+
+async function buildDueDayData(filters: any) {
+  const parsedDays = Number(filters?.upcomingDays)
+  const upcomingDays = Number.isInteger(parsedDays) && parsedDays >= 1 && parsedDays <= 3650 ? parsedDays : 30
+  const nextDuePerContract = filters?.nextDuePerContract !== false
+  const includeInadimplentes = filters?.includeInadimplentes === true
+  const includePaid = filters?.includePaid === true || filters?.markPaid === true || filters?.strikePaid === true
+  const includeCurrent = filters?.includeCurrent === true || filters?.markCurrent === true || filters?.strikeCurrent === true
+  const onlyInadimplentes = filters?.onlyInadimplentes === true
+  const onlyAgreement = filters?.onlyAgreement === true
+  const statuses = ['ABERTO', 'NEGOCIACAO']
+  if (includePaid) statuses.push('QUITADO')
+  const where: any = {
+    status: ['ABERTO', 'NEGOCIACAO', 'QUITADO'].includes(filters?.status) ? filters.status : { in: statuses },
+    vencimento: { not: null },
+  }
+  if (onlyInadimplentes) where.inadimplente = true
+  else if (!includeInadimplentes) where.inadimplente = false
+  if (onlyAgreement) where.quantidadeParcelas = { gt: 0 }
+  if (filters?.usuarioId) where.usuarioId = filters.usuarioId === '__UNASSIGNED__' ? null : filters.usuarioId
+  if (filters?.cidade || filters?.estado) {
+    where.cliente = {}
+    if (filters.cidade) where.cliente.cidade = { contains: filters.cidade }
+    if (filters.estado) where.cliente.estado = { contains: filters.estado }
+  }
+
+  const loans = await prisma.emprestimo.findMany({
+    where,
+    select: {
+      valor: true, valorPago: true, jurosMes: true, jurosAtrasoDia: true, jurosPagos: true,
+      jurosPagosNoInicioCiclo: true, jurosCicloIniciadoEm: true, quantidadeParcelas: true,
+      status: true, vencimento: true, createdAt: true, cliente: { select: { nome: true, whatsapp: true } },
+    },
+  })
+  const todayStart = saoPauloDayStartUtc(todayYMDInSaoPaulo())
+  const upcomingEnd = saoPauloDayStartUtc(addDaysYMD(todayYMDInSaoPaulo(), upcomingDays + 1))
+  const groups = new Map<number, { client: string; whatsapp: string | null; jurosAtual: number; isAcordo: boolean; parcelaAtual: number; parcelaTotal: number; valorParcela: number; isPaid: boolean; isCurrent: boolean }[]>()
+
+  for (const loan of loans) {
+    if (!loan.vencimento) continue
+    let nextOccurrence = new Date(loan.vencimento)
+    const preferredDay = nextOccurrence.getUTCDate()
+    while (nextOccurrence.getTime() < todayStart.getTime()) nextOccurrence = addMonthlyOccurrence(nextOccurrence, preferredDay)
+    if (!nextDuePerContract && nextOccurrence.getTime() >= upcomingEnd.getTime()) continue
+
+    const quantidadeParcelas = loan.quantidadeParcelas ?? 0
+    const isAcordo = Number.isInteger(quantidadeParcelas) && quantidadeParcelas > 0
+    const progress = isAcordo ? calculateCurrentInstallment(loan) : null
+    const amounts = isAcordo ? calculateCurrentInstallmentAmounts(loan) : null
+    const interest = calculateLoanInterest(loan)
+    const isCurrent = loan.status !== 'QUITADO' && interest.jurosPendente <= 0.01
+    if (!includeCurrent && isCurrent) continue
+    const entry = {
+      client: loan.cliente.nome,
+      whatsapp: loan.cliente.whatsapp,
+      jurosAtual: Math.round(interest.jurosBase),
+      isAcordo,
+      parcelaAtual: progress?.current ?? 0,
+      parcelaTotal: progress?.total ?? quantidadeParcelas,
+      valorParcela: Math.round(amounts?.valorParcela ?? 0),
+      isPaid: loan.status === 'QUITADO',
+      isCurrent,
+    }
+    const day = nextOccurrence.getUTCDate()
+    const list = groups.get(day) ?? []
+    list.push(entry)
+    groups.set(day, list)
+  }
+
+  return Array.from(groups.entries()).sort((a, b) => a[0] - b[0]).map(([day, entries]) => ({
+    day,
+    entries: entries.sort((a, b) => a.client.localeCompare(b.client, 'pt-BR')),
+  }))
 }
 
 function makePdfHelpers(ctx: PdfCtx) {
@@ -84,7 +183,7 @@ function drawFiltersLine(ctx: PdfCtx, filters: any, includePeriod: boolean = tru
     filters.status ? `Status: ${filters.status}` : null,
     filters.cidade ? `Cidade: ${filters.cidade}` : null,
     filters.estado ? `UF: ${filters.estado}` : null,
-    filters.dueDayStart && filters.dueDayEnd ? `Vencimentos: dias ${filters.dueDayStart} a ${filters.dueDayEnd}` : null,
+    filters.nextDuePerContract ? 'Vencimentos exibidos: somente o próximo de cada contrato' : filters.upcomingDays ? `Vencimentos exibidos: próximos ${filters.upcomingDays} dias` : null,
   ].filter(Boolean)
   if (fParts.length > 0) {
     drawText(`CRITÉRIOS DE FILTRO: ${fParts.join(' • ')}`, { size: 8, color: rgb(0.4, 0.4, 0.4) })
@@ -265,23 +364,25 @@ async function buildPdf(section: SectionKind, filters: any, report: any, userNam
 
   if (section === 'full' || section === 'daily') {
     checkNewPage(120, 'Mr Cobranças - CONTINUAÇÃO')
-    drawText('AGENDA DE JUROS DO DIA (VENCIMENTOS HOJE)', { bold: true, size: 11, color: rgb(0.1, 0.5, 0.4) })
+    drawText('AGENDA DE JUROS A VENCER', { bold: true, size: 11, color: rgb(0.1, 0.5, 0.4) })
     ctx.y -= 15
     const dailyInterest: any[] = Array.isArray(report?.dailyInterestData) ? report.dailyInterestData : []
     if (dailyInterest.length === 0) {
-      drawText('Nenhum vencimento de juros programado para hoje.', { size: 9, color: rgb(0.5, 0.5, 0.5) })
+      drawText('Nenhum vencimento de juros encontrado para este critério.', { size: 9, color: rgb(0.5, 0.5, 0.5) })
     } else {
-      const redrawHeader = () => drawTableHeader(['CLIENTE', 'VALOR JUROS', 'STATUS'], [300, 100, 80])
+      const redrawHeader = () => drawTableHeader(['DATA', 'CLIENTE', 'VALOR JUROS', 'STATUS'], [75, 225, 100, 80])
       redrawHeader()
       dailyInterest.forEach((item, idx) => {
         checkNewPage(40, 'Mr Cobranças - CONTINUAÇÃO AGENDA', redrawHeader)
-        const client = (item.client ?? '').slice(0, 48)
+        const date = item.date ?? '-'
+        const client = (item.client ?? '').slice(0, 36)
         const amount = formatCurrency(item.amount ?? 0)
         const status = item.isPaid ? 'PAGO' : 'A PAGAR'
 
         if (idx % 2 === 0) ctx.page.drawRectangle({ x: 50, y: ctx.y - 5, width: width - 100, height: 16, color: rgb(0.95, 0.99, 0.98) })
 
-        drawText(client, { size: 8, x: 55 })
+        drawText(date, { size: 8, x: 55 })
+        drawText(client, { size: 8, x: 130 })
         drawText(amount, { bold: true, size: 8, x: 355 })
         drawText(status, { bold: true, size: 8, x: 50, align: 'right', color: item.isPaid ? rgb(0, 0.5, 0) : rgb(0.7, 0.4, 0) })
         ctx.y -= 16
@@ -290,7 +391,7 @@ async function buildPdf(section: SectionKind, filters: any, report: any, userNam
   }
 
   if (section === 'dueDay') {
-    const dueDayData: { day: number; entries: { client: string; jurosAtual: number; isAcordo: boolean; parcelaAtual: number; parcelaTotal: number; valorParcela: number }[] }[] =
+    const dueDayData: { day: number; entries: { client: string; whatsapp?: string | null; jurosAtual: number; isAcordo: boolean; parcelaAtual: number; parcelaTotal: number; valorParcela: number; isPaid?: boolean; isCurrent?: boolean }[] }[] =
       Array.isArray(report?.dueDayData) ? report.dueDayData : []
 
     drawText('Agenda de cobrança organizada por dia do mês de vencimento (contratos em aberto/negociação).', { size: 8, color: rgb(0.4, 0.4, 0.4) })
@@ -322,8 +423,15 @@ async function buildPdf(section: SectionKind, filters: any, report: any, userNam
             borderColor: rgb(0.3, 0.3, 0.3),
             borderWidth: 1,
           })
+          const isPaidMarked = filters?.markPaid === true && entry.isPaid
+          const isCurrentMarked = filters?.markCurrent === true && entry.isCurrent
+          const shouldMark = isPaidMarked || isCurrentMarked
+          if (shouldMark) {
+            ctx.page.drawLine({ start: { x: 57, y: rowTop - 5 }, end: { x: 59, y: rowTop - 8 }, color: rgb(0, 0, 0), thickness: 1.5 })
+            ctx.page.drawLine({ start: { x: 59, y: rowTop - 8 }, end: { x: 63, y: rowTop - 2 }, color: rgb(0, 0, 0), thickness: 1.5 })
+          }
 
-          const client = (entry.client ?? '').slice(0, 45)
+          const client = `${entry.client ?? ''}${filters?.includeWhatsapp === true && entry.whatsapp ? ` • ${entry.whatsapp}` : ''}`.slice(0, 52)
           const jurosText = formatCurrency(entry.jurosAtual ?? 0)
           let cursorX = 72
           drawText(client, { size: 9, x: cursorX, bold: false })
@@ -343,6 +451,16 @@ async function buildPdf(section: SectionKind, filters: any, report: any, userNam
 
             const valorText = `(${formatCurrency(entry.valorParcela ?? 0)})`
             drawText(valorText, { size: 8, x: cursorX, color: rgb(0.3, 0.3, 0.3) })
+          }
+
+          const shouldStrike = (filters?.strikePaid === true && entry.isPaid) || (filters?.strikeCurrent === true && entry.isCurrent)
+          if (shouldStrike) {
+            ctx.page.drawLine({
+              start: { x: 72, y: ctx.y + 3 },
+              end: { x: ctx.width - 55, y: ctx.y + 3 },
+              color: rgb(0, 0, 0),
+              thickness: 0.7,
+            })
           }
 
           ctx.y -= 20
@@ -387,16 +505,6 @@ export async function POST(req: Request) {
 
   // Para relatórios individuais, preferir os conjuntos de dados completos quando disponíveis
   const effectiveReport = { ...report }
-  if (section === 'dueDay') {
-    const start = Number(filters.dueDayStart ?? 1)
-    const end = Number(filters.dueDayEnd ?? 31)
-    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end > 31 || start > end) {
-      return NextResponse.json({ error: 'Intervalo de vencimento inválido' }, { status: 400 })
-    }
-    effectiveReport.dueDayData = Array.isArray(report?.dueDayData)
-      ? report.dueDayData.filter((group: any) => Number(group?.day) >= start && Number(group?.day) <= end)
-      : []
-  }
   if (section === 'defaulters' && Array.isArray(report?.defaultersDataFull)) {
     effectiveReport.defaultersData = report.defaultersDataFull
   }
@@ -405,6 +513,19 @@ export async function POST(req: Request) {
   }
   if (section === 'geo' && Array.isArray(report?.volumeByLocationFull)) {
     effectiveReport.volumeByLocation = report.volumeByLocationFull
+  }
+  if (section === 'dueDay') {
+    effectiveReport.dueDayData = await buildDueDayData(filters)
+    const start = Number(filters.dueDayStart ?? 1)
+    const end = Number(filters.dueDayEnd ?? 31)
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end > 31 || start > end) {
+      return NextResponse.json({ error: 'Intervalo de vencimento inválido' }, { status: 400 })
+    }
+    effectiveReport.dueDayData = effectiveReport.dueDayData.filter((group: any) => Number(group.day) >= start && Number(group.day) <= end)
+    const hasEntries = effectiveReport.dueDayData.some((group: any) => Array.isArray(group.entries) && group.entries.length > 0)
+    if (!hasEntries) {
+      return NextResponse.json({ error: 'Nenhum contrato encontrado para os critérios selecionados.' }, { status: 422 })
+    }
   }
 
   const pdfBytes = await buildPdf(section, filters, effectiveReport, userName)

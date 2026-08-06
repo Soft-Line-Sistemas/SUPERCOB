@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Search, Filter, Download, Send, X, LayoutGrid, List } from 'lucide-react'
+import { Search, Filter, Download, Send, X, LayoutGrid, List, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface LoanFiltersData {
@@ -36,6 +36,7 @@ interface LoanFiltersProps {
   onToggleInadimplente: () => void
   pagosOnly: boolean
   onTogglePagos: () => void
+  quickFilterLoading: 'inadimplente' | 'pagos' | null
 }
 
 export function LoanFilters({
@@ -59,6 +60,7 @@ export function LoanFilters({
   onToggleInadimplente,
   pagosOnly,
   onTogglePagos,
+  quickFilterLoading,
 }: LoanFiltersProps) {
   return (
     <div className="w-full">
@@ -121,25 +123,29 @@ export function LoanFilters({
         <button
           type="button"
           onClick={onToggleInadimplente}
+          disabled={quickFilterLoading !== null}
           className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-black transition-all shadow-sm border ${
             inadimplenteOnly
               ? 'border-amber-600 bg-amber-600 text-white'
               : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
-          }`}
+          } disabled:cursor-wait disabled:opacity-75`}
         >
-          Inadimplentes
+          {quickFilterLoading === 'inadimplente' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+          {quickFilterLoading === 'inadimplente' ? 'Carregando...' : 'Inadimplentes'}
         </button>
 
         <button
           type="button"
           onClick={onTogglePagos}
+          disabled={quickFilterLoading !== null}
           className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-black transition-all shadow-sm border ${
             pagosOnly
               ? 'border-emerald-600 bg-emerald-600 text-white'
               : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-          }`}
+          } disabled:cursor-wait disabled:opacity-75`}
         >
-          Pagos
+          {quickFilterLoading === 'pagos' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+          {quickFilterLoading === 'pagos' ? 'Carregando...' : 'Pagos'}
         </button>
 
         <button

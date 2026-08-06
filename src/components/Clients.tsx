@@ -27,6 +27,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { isAdminRole } from '@/lib/admin-auth';
+import { CLIENT_LOAN_STATUS_FILTERS_ENABLED } from '@/lib/client-list-features'
 
 interface Cliente {
   id: string;
@@ -101,12 +102,13 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const urlSearchTerm = searchParams.get('search') ?? ''
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { data: session } = useSession();
   const isAdmin = isAdminRole(session?.user?.role);
   const canDeleteClient = isAdmin || session?.user?.role === 'GERENTE';
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '');
+  const [searchTerm, setSearchTerm] = useState(urlSearchTerm);
   const [sortOrder, setSortOrder] = useState<'newest' | 'az'>(sort);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [preferencesLoaded, setPreferencesLoaded] = useState(false)
@@ -159,6 +161,9 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const inputFileRef = useRef<HTMLInputElement>(null)
   const inputCameraRef = useRef<HTMLInputElement>(null)
+  // Keep URL updates from an older search request from overwriting what is being typed.
+  const lastUrlSearchTermRef = useRef(urlSearchTerm)
+  const lastRequestedSearchTermRef = useRef(urlSearchTerm)
   const lastAutoAdvanceRef = useRef<string | null>(null)
   const lastValidatedCpfRef = useRef<string | null>(null)
   const lastCpfToastRef = useRef<string | null>(null)
@@ -319,6 +324,17 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
     router.push(`${pathname}?${params.toString()}`)
   }, [pathname, router, searchParams])
 
+  const replaceSearchQuery = useCallback((value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    const trimmed = value.trim()
+
+    if (trimmed === '') params.delete('search')
+    else params.set('search', trimmed)
+    params.set('page', '1')
+
+    router.replace(`${pathname}?${params.toString()}`)
+  }, [pathname, router, searchParams])
+
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -347,7 +363,6 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
   }, [preferencesLoaded, searchParams, sortStorageKey, viewStorageKey])
 
   useEffect(() => {
-    setSearchTerm(searchParams.get('search') ?? '')
     setFilters({
       email: searchParams.get('email') ?? '',
       whatsapp: searchParams.get('whatsapp') ?? '',
@@ -357,6 +372,23 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
       inadimplente: searchParams.get('inadimplente') === '1',
     })
   }, [searchParams])
+
+  useEffect(() => {
+    // Search has its own synchronization: a delayed response for an older URL
+    // must not reset the controlled input while the user is still typing.
+    if (urlSearchTerm === lastUrlSearchTermRef.current) return
+
+    lastUrlSearchTermRef.current = urlSearchTerm
+    if (urlSearchTerm === searchTerm) {
+      lastRequestedSearchTermRef.current = urlSearchTerm
+      return
+    }
+
+    if (urlSearchTerm === lastRequestedSearchTermRef.current) return
+
+    lastRequestedSearchTermRef.current = urlSearchTerm
+    setSearchTerm(urlSearchTerm)
+  }, [searchTerm, urlSearchTerm])
 
   useEffect(() => {
     if (!preferencesLoaded) return
@@ -405,12 +437,14 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      if (searchTerm === (searchParams.get('search') ?? '')) return
-      updateQueryParams({ search: searchTerm })
+      const normalizedSearchTerm = searchTerm.trim()
+      if (normalizedSearchTerm === urlSearchTerm) return
+      lastRequestedSearchTermRef.current = normalizedSearchTerm
+      replaceSearchQuery(normalizedSearchTerm)
     }, 350)
 
     return () => window.clearTimeout(timeout)
-  }, [searchParams, searchTerm, updateQueryParams])
+  }, [replaceSearchQuery, searchTerm, urlSearchTerm])
 
   useEffect(() => {
     const cpfDigits = normalizeDigits(formData.cpf)
@@ -1025,20 +1059,24 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
           >
             <Filter className="h-5 w-5" />
           </button>
-          <button
-            type="button"
-            onClick={() => updateQueryParams({ inadimplente: searchParams.get('inadimplente') === '1' ? null : '1', pago: null })}
-            className={`rounded-xl border px-3 py-2.5 text-xs font-black transition-colors shadow-sm ${searchParams.get('inadimplente') === '1' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}
-          >
-            Inadimplentes
-          </button>
-          <button
-            type="button"
-            onClick={() => updateQueryParams({ pago: searchParams.get('pago') === '1' ? null : '1', inadimplente: null })}
-            className={`rounded-xl border px-3 py-2.5 text-xs font-black transition-colors shadow-sm ${searchParams.get('pago') === '1' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'}`}
-          >
-            Pagos
-          </button>
+          {CLIENT_LOAN_STATUS_FILTERS_ENABLED && (
+            <>
+              <button
+                type="button"
+                onClick={() => updateQueryParams({ inadimplente: searchParams.get('inadimplente') === '1' ? null : '1', pago: null })}
+                className={`rounded-xl border px-3 py-2.5 text-xs font-black transition-colors shadow-sm ${searchParams.get('inadimplente') === '1' ? 'border-amber-600 bg-amber-600 text-white' : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}
+              >
+                Inadimplentes
+              </button>
+              <button
+                type="button"
+                onClick={() => updateQueryParams({ pago: searchParams.get('pago') === '1' ? null : '1', inadimplente: null })}
+                className={`rounded-xl border px-3 py-2.5 text-xs font-black transition-colors shadow-sm ${searchParams.get('pago') === '1' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'}`}
+              >
+                Pagos
+              </button>
+            </>
+          )}
           
           <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
             <Download className="h-5 w-5" />
@@ -1760,15 +1798,17 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
                       placeholder="Somente números"
                     />
                   </div>
-                  <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:border-red-200 hover:bg-red-50">
-                    <input
-                      type="checkbox"
-                      checked={filters.inadimplente}
-                      onChange={(e) => setFilters({ ...filters, inadimplente: e.target.checked })}
-                      className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                    />
-                    Somente inadimplentes
-                  </label>
+                  {CLIENT_LOAN_STATUS_FILTERS_ENABLED && (
+                    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:border-red-200 hover:bg-red-50">
+                      <input
+                        type="checkbox"
+                        checked={filters.inadimplente}
+                        onChange={(e) => setFilters({ ...filters, inadimplente: e.target.checked })}
+                        className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                      />
+                      Somente inadimplentes
+                    </label>
+                  )}
                 </div>
 
                 <div className="pt-6 flex gap-3">

@@ -142,6 +142,7 @@ export function ContractDetails({
   const [descricao, setDescricao] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [pagamento, setPagamento] = useState('')
+  const [paymentConfirmationValue, setPaymentConfirmationValue] = useState<number | null>(null)
   const [abaAtiva, setAbaAtiva] = useState<'historico' | 'documentos'>('historico')
 
   const statusLabel = useMemo(() => getStatusLabel(status), [status])
@@ -151,9 +152,11 @@ export function ContractDetails({
 
   const formatBRL = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(value) ? value : 0)
   const parseBRL = (value: string) => {
-    const digits = value.replace(/\D/g, '')
-    const cents = digits ? Number(digits) : 0
-    return cents / 100
+    const normalized = value.replace(/[^\d,\.]/g, '').trim()
+    if (!normalized) return 0
+    if (normalized.includes(',')) return Number(normalized.replace(/\./g, '').replace(',', '.'))
+    if (/^\d{1,3}(?:\.\d{3})+$/.test(normalized)) return Number(normalized.replace(/\./g, ''))
+    return Number(normalized)
   }
   const {
     principalRestante: restante,
@@ -169,6 +172,18 @@ export function ContractDetails({
   const installmentProgress = calculateCurrentInstallment({ ...emprestimo, valorPago, status })
   const installmentAmounts = calculateCurrentInstallmentAmounts(emprestimo)
   const canFinish = status !== 'QUITADO' && status !== 'CANCELADO' && restante <= 0 && jurosPendente <= 0
+  const paymentConfirmation = useMemo(() => {
+    if (paymentConfirmationValue === null) return null
+    const paraJuros = Math.min(paymentConfirmationValue, jurosPendente)
+    const paraPrincipal = Math.max(paymentConfirmationValue - paraJuros, 0)
+
+    return {
+      valor: paymentConfirmationValue,
+      paraJuros,
+      paraPrincipal,
+      principalRestanteApos: Math.max(restante - paraPrincipal, 0),
+    }
+  }, [jurosPendente, paymentConfirmationValue, restante])
 
   const priorityLevel = useMemo(() => {
     if (status === 'QUITADO' || status === 'CANCELADO') return 'BLOQUEADO'
@@ -214,12 +229,18 @@ export function ContractDetails({
     })
   }
 
-  const handlePagamentoParcial = () => {
+  const requestPaymentConfirmation = () => {
     const v = parseBRL(pagamento)
     if (!Number.isFinite(v) || v <= 0) {
       toast.error('Informe um valor válido.')
       return
     }
+    setPaymentConfirmationValue(v)
+  }
+
+  const handlePagamentoParcial = () => {
+    if (paymentConfirmationValue === null) return
+    const v = paymentConfirmationValue
     startTransition(async () => {
       try {
         const { emprestimo: updated, eventos: novosEventos } = await addPagamentoParcial({ emprestimoId: emprestimo.id, valor: v })
@@ -228,6 +249,7 @@ export function ContractDetails({
         setQuitadoEm((updated as any).quitadoEm)
         setEventos((prev) => [...prev, ...(novosEventos as any)].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)))
         setPagamento('')
+        setPaymentConfirmationValue(null)
         toast.success('Pagamento registrado.')
         router.refresh()
       } catch {
@@ -339,13 +361,70 @@ export function ContractDetails({
             descricao={descricao}
             setDescricao={setDescricao}
             isPending={isPending}
-            handlePagamentoParcial={handlePagamentoParcial}
+            handlePagamentoParcial={requestPaymentConfirmation}
             handleAddEvento={handleAddEvento}
             formatBRL={formatBRL}
             formatDate={formatDate}
           />
         </div>
       </div>
+
+      {paymentConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Fechar confirmação"
+            className="absolute inset-0 cursor-default bg-slate-950/60 backdrop-blur-sm"
+            disabled={isPending}
+            onClick={() => setPaymentConfirmationValue(null)}
+          />
+          <div role="dialog" aria-modal="true" aria-labelledby="payment-confirmation-title" className="relative w-full max-w-lg rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">Confirmação de pagamento</p>
+                <h2 id="payment-confirmation-title" className="mt-2 text-xl font-black text-slate-900 dark:text-white">Confirmar pagamento?</h2>
+              </div>
+              <button type="button" onClick={() => setPaymentConfirmationValue(null)} disabled={isPending} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-white" aria-label="Fechar">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Será registrado um pagamento de <strong>{formatBRL(paymentConfirmation.valor)}</strong>. O valor é aplicado primeiro aos juros pendentes e, depois, ao principal.
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Pagamento informado</p>
+                <p className="mt-1 font-black text-emerald-800 dark:text-emerald-200">{formatBRL(paymentConfirmation.valor)}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Juros pendentes</p>
+                <p className="mt-1 font-black text-slate-900 dark:text-white">{formatBRL(jurosPendente)}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Aplicação em juros</p>
+                <p className="mt-1 font-black text-slate-900 dark:text-white">{formatBRL(paymentConfirmation.paraJuros)}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Amortização do principal</p>
+                <p className="mt-1 font-black text-slate-900 dark:text-white">{formatBRL(paymentConfirmation.paraPrincipal)}</p>
+              </div>
+            </div>
+
+            <p className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:bg-white/5 dark:text-slate-300">
+              Principal estimado após o pagamento: <strong className="text-slate-900 dark:text-white">{formatBRL(paymentConfirmation.principalRestanteApos)}</strong>.
+            </p>
+
+            <div className="mt-6 flex gap-3">
+              <button type="button" onClick={() => setPaymentConfirmationValue(null)} disabled={isPending} className="flex-1 rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-40 dark:bg-white/10 dark:text-slate-200">Cancelar</button>
+              <button type="button" onClick={handlePagamentoParcial} disabled={isPending} className="flex-[1.5] rounded-2xl bg-emerald-600 px-4 py-3 font-bold text-white shadow-lg shadow-emerald-600/20 transition-colors hover:bg-emerald-700 disabled:opacity-40">
+                {isPending ? 'Confirmando...' : 'Confirmar pagamento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

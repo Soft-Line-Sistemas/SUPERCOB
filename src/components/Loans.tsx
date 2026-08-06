@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useTransition } from 'react';
-import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download, ChevronLeft, ChevronRight, Terminal as TerminalIcon, CheckCircle, MessageSquare, Eye, Pencil, Trash2, Archive } from 'lucide-react';
+import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download, ChevronLeft, ChevronRight, Terminal as TerminalIcon, CheckCircle, MessageSquare, Eye, Pencil, Trash2, Archive, Loader2 } from 'lucide-react';
 import { createEmprestimo, updateEmprestimo, deleteEmprestimo, archiveEmprestimoAction, toggleCobrancaAtiva, toggleInadimplente } from '@/app/(dashboard)/emprestimos/actions';
 import { addPagamentoParcial } from '@/app/(dashboard)/emprestimos/[id]/actions';
 import { format } from 'date-fns';
@@ -119,6 +119,10 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
 
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [loading, setLoading] = useState(false);
+  const [quickFilterLoading, setQuickFilterLoading] = useState<{
+    filter: 'inadimplente' | 'pagos'
+    active: boolean
+  } | null>(null)
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [isBatchDossieOpen, setIsBatchDossieOpen] = useState(false)
   const [isBatchExporting, setIsBatchExporting] = useState(false)
@@ -126,6 +130,11 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const [isSingleChargeDownloading, setIsSingleChargeDownloading] = useState(false)
   const [isSendingChargeWhatsapp, setIsSendingChargeWhatsapp] = useState(false)
   const [paymentTerminalLoan, setPaymentTerminalLoan] = useState<Loan | null>(null)
+  const [paymentConfirmation, setPaymentConfirmation] = useState<{
+    loan: Loan
+    valor: number
+    kind: 'monthly' | 'custom'
+  } | null>(null)
   const [pagamentoRapido, setPagamentoRapido] = useState('')
   const [isPaymentPending, startPaymentTransition] = useTransition()
   const [directMonthlyPaymentLoanId, setDirectMonthlyPaymentLoanId] = useState<string | null>(null)
@@ -177,9 +186,11 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   }
 
   const parseBRL = (value: string) => {
-    const digits = value.replace(/\D/g, '')
-    const cents = digits ? Number(digits) : 0
-    return cents / 100
+    const normalized = value.replace(/[^\d,\.]/g, '').trim()
+    if (!normalized) return 0
+    if (normalized.includes(',')) return Number(normalized.replace(/\./g, '').replace(',', '.'))
+    if (/^\d{1,3}(?:\.\d{3})+$/.test(normalized)) return Number(normalized.replace(/\./g, ''))
+    return Number(normalized)
   }
 
   const parsePaymentAmountFromDescription = (value?: string | null) => {
@@ -283,6 +294,15 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const pagosFilter = searchParams.get('status') === 'QUITADO'
   const lifecycleFilter = searchParams.get('lifecycle')
 
+  useEffect(() => {
+    if (quickFilterLoading?.filter === 'inadimplente' && inadimplenteFilter === quickFilterLoading.active) {
+      setQuickFilterLoading(null)
+    }
+    if (quickFilterLoading?.filter === 'pagos' && pagosFilter === quickFilterLoading.active) {
+      setQuickFilterLoading(null)
+    }
+  }, [inadimplenteFilter, pagosFilter, quickFilterLoading])
+
   const getSummaryCardClass = (state: string | null) => {
     if (state === 'no' || state === 'open') return 'border-red-300 ring-2 ring-red-100'
     if (state === 'yes' || state === 'closed') return 'border-blue-300 ring-2 ring-blue-100'
@@ -340,6 +360,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   }
 
   const toggleInadimplenteFilter = () => {
+    setQuickFilterLoading({ filter: 'inadimplente', active: !inadimplenteFilter })
     const next = new URLSearchParams(searchParams.toString())
     if (inadimplenteFilter) next.delete('inadimplente')
     else next.set('inadimplente', '1')
@@ -349,6 +370,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   }
 
   const togglePagosFilter = () => {
+    setQuickFilterLoading({ filter: 'pagos', active: !pagosFilter })
     const next = new URLSearchParams(searchParams.toString())
     if (pagosFilter) next.delete('status')
     else {
@@ -415,6 +437,23 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     router.refresh()
     setIsFiltersOpen(false)
   }
+
+  useEffect(() => {
+    const query = filters.q.trim()
+    if (query === (searchParams.get('q') ?? '')) return
+
+    const timeout = window.setTimeout(() => {
+      const next = new URLSearchParams(searchParams.toString())
+      if (query) next.set('q', query)
+      else next.delete('q')
+      next.delete('page')
+
+      router.replace(`${pathname}?${next.toString()}`)
+      router.refresh()
+    }, 350)
+
+    return () => window.clearTimeout(timeout)
+  }, [filters.q, pathname, router, searchParams])
 
   const handleOpenModal = (loan?: Loan) => {
     if (loan) {
@@ -652,6 +691,23 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     return getPaidAmountInCurrentMonth(loan) + 0.01 >= monthlyCharge
   }
 
+  const paymentConfirmationDetails = useMemo(() => {
+    if (!paymentConfirmation) return null
+
+    const { loan, valor } = paymentConfirmation
+    const financials = calculateLoanInterest(loan)
+    const paraJuros = Math.min(valor, financials.jurosPendente)
+    const paraPrincipal = Math.max(valor - paraJuros, 0)
+
+    return {
+      valor,
+      jurosPendente: financials.jurosPendente,
+      paraJuros,
+      paraPrincipal,
+      principalRestanteApos: Math.max(financials.principalRestante - paraPrincipal, 0),
+    }
+  }, [paymentConfirmation])
+
   const handleOpenPaymentTerminal = (loan: Loan) => {
     if (!canOpenPaymentTerminal(loan)) return
     setPaymentTerminalLoan(loan)
@@ -759,35 +815,26 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       return
     }
 
-    startPaymentTransition(async () => {
-      try {
-        await addPagamentoParcial({ emprestimoId: paymentTerminalLoan.id, valor })
-        toast.success('Pagamento registrado.')
-        setPaymentTerminalLoan(null)
-        setPagamentoRapido('')
-        router.refresh()
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Erro ao registrar pagamento.')
-      }
-    })
+    setPaymentConfirmation({ loan: paymentTerminalLoan, valor, kind: 'custom' })
   }
 
-  const handleDirectMonthlyPayment = (loan: Loan) => {
-    const valor = getMonthlyChargeAmount(loan)
-
-    if (!Number.isFinite(valor) || valor <= 0) {
-      toast.error('Pagamento mensal indisponível para este contrato.')
-      return
-    }
+  const handleConfirmPayment = () => {
+    if (!paymentConfirmation) return
+    const { loan, valor, kind } = paymentConfirmation
 
     setDirectMonthlyPaymentLoanId(loan.id)
     startPaymentTransition(async () => {
       try {
         await addPagamentoParcial({ emprestimoId: loan.id, valor })
-        toast.success('Pagamento integral do mês confirmado.')
+        toast.success(kind === 'monthly' ? 'Pagamento integral do mês confirmado.' : 'Pagamento registrado.')
+        setPaymentConfirmation(null)
+        if (kind === 'custom') {
+          setPaymentTerminalLoan(null)
+          setPagamentoRapido('')
+        }
         router.refresh()
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Erro ao confirmar pagamento do mês.')
+        toast.error(error instanceof Error ? error.message : 'Erro ao confirmar pagamento.')
       } finally {
         setDirectMonthlyPaymentLoanId(null)
       }
@@ -1006,6 +1053,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         onToggleInadimplente={toggleInadimplenteFilter}
         pagosOnly={pagosFilter}
         onTogglePagos={togglePagosFilter}
+        quickFilterLoading={quickFilterLoading?.filter ?? null}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1065,7 +1113,14 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 onToggleInadimplente={handleToggleInadimplente}
                 onExportDossie={handleOpenChargeDelivery}
                 onOpenPaymentTerminal={handleOpenPaymentTerminal}
-                onConfirmMonthlyPayment={handleDirectMonthlyPayment}
+                onConfirmMonthlyPayment={(loan) => {
+                  const valor = getMonthlyChargeAmount(loan)
+                  if (!Number.isFinite(valor) || valor <= 0) {
+                    toast.error('Pagamento mensal indisponível para este contrato.')
+                    return
+                  }
+                  setPaymentConfirmation({ loan, valor, kind: 'monthly' })
+                }}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
                 generateWhatsAppLink={generateWhatsAppLink}
@@ -1182,13 +1237,22 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                           {!isDraft && canConfirmMonthlyPayment(loan) ? (
                             <button
                               type="button"
-                              onClick={() => handleDirectMonthlyPayment(loan)}
+                              onClick={() => {
+                                const valor = getMonthlyChargeAmount(loan)
+                                if (!Number.isFinite(valor) || valor <= 0) {
+                                  toast.error('Pagamento mensal indisponível para este contrato.')
+                                  return
+                                }
+                                setPaymentConfirmation({ loan, valor, kind: 'monthly' })
+                              }}
                               disabled={isPaymentPending && directMonthlyPaymentLoanId === loan.id}
                               className="group inline-flex flex-col items-center gap-1 text-xs transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               <CheckCircle className="w-5 h-5 text-emerald-600 group-hover:text-emerald-800 dark:text-emerald-400 dark:group-hover:text-emerald-300 transition-colors" />
-                              <span className="font-medium text-slate-600 dark:text-slate-300">
-                                {isPaymentPending && directMonthlyPaymentLoanId === loan.id ? 'Confirmando...' : 'Confirmar mês'}
+                              <span className="inline-flex items-center gap-1.5 font-medium text-slate-600 dark:text-slate-300">
+                                {isPaymentPending && directMonthlyPaymentLoanId === loan.id ? (
+                                  <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Confirmando...</>
+                                ) : 'Confirmar mês'}
                               </span>
                             </button>
                           ) : null}
@@ -1381,6 +1445,99 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         formatBRL={formatCurrency}
         formatDate={formatDate}
       />
+
+      <AnimatePresence>
+        {paymentConfirmation && paymentConfirmationDetails && (
+          <div className="fixed inset-0 z-[97] flex items-center justify-center p-4">
+            <motion.button
+              type="button"
+              aria-label="Fechar confirmação"
+              className="absolute inset-0 cursor-default bg-slate-950/50 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (!isPaymentPending) setPaymentConfirmation(null)
+              }}
+            />
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="monthly-payment-title"
+              className="relative w-full max-w-lg rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900"
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">Confirmação de pagamento</p>
+                  <h2 id="monthly-payment-title" className="mt-2 text-xl font-black text-slate-900 dark:text-white">
+                    {paymentConfirmation.kind === 'monthly' ? 'Confirmar o mês' : 'Confirmar pagamento'} de {paymentConfirmation.loan.cliente.nome}?
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPaymentConfirmation(null)}
+                  disabled={isPaymentPending}
+                  className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-white"
+                  aria-label="Fechar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                Será registrado um pagamento de <strong>{formatCurrency(paymentConfirmationDetails.valor)}</strong> no contrato. O sistema aplica o valor primeiro aos juros pendentes e só então ao principal.
+              </p>
+
+              <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Juros pendentes</p>
+                  <p className="mt-1 font-black text-slate-900 dark:text-white">{formatCurrency(paymentConfirmationDetails.jurosPendente)}</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">{paymentConfirmation.kind === 'monthly' ? 'Pagamento do mês' : 'Pagamento informado'}</p>
+                  <p className="mt-1 font-black text-emerald-800 dark:text-emerald-200">{formatCurrency(paymentConfirmationDetails.valor)}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Aplicação em juros</p>
+                  <p className="mt-1 font-black text-slate-900 dark:text-white">{formatCurrency(paymentConfirmationDetails.paraJuros)}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Amortização do principal</p>
+                  <p className="mt-1 font-black text-slate-900 dark:text-white">{formatCurrency(paymentConfirmationDetails.paraPrincipal)}</p>
+                </div>
+              </div>
+
+              <p className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:bg-white/5 dark:text-slate-300">
+                Principal estimado após o pagamento: <strong className="text-slate-900 dark:text-white">{formatCurrency(paymentConfirmationDetails.principalRestanteApos)}</strong>.
+              </p>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPaymentConfirmation(null)}
+                  disabled={isPaymentPending}
+                  className="flex-1 rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmPayment}
+                  disabled={isPaymentPending}
+                  className="inline-flex flex-[1.5] items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 font-bold text-white shadow-lg shadow-emerald-600/20 transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isPaymentPending ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Confirmando...</>
+                  ) : 'Confirmar pagamento'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
