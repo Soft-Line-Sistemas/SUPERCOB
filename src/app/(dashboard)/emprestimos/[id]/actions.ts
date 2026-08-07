@@ -131,12 +131,20 @@ export async function setEmprestimoStatus(input: {
   return { emprestimo: updated, evento }
 }
 
-export async function addPagamentoParcial(input: { emprestimoId: string; valor: number }) {
+export async function addPagamentoParcial(input: {
+  emprestimoId: string
+  valor: number
+  descontoJuros?: number
+  renovarCiclo?: boolean
+}) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
   const valor = Number(input.valor)
   if (!Number.isFinite(valor) || valor <= 0) throw new Error('Valor inválido')
+
+  const descontoJuros = Math.max(0, Number(input.descontoJuros) || 0)
+  const renovarCiclo = Boolean(input.renovarCiclo)
 
   const createdById = (session.user as any).id as string | undefined
   const userRole = (session.user as any).role?.toUpperCase()
@@ -179,6 +187,8 @@ export async function addPagamentoParcial(input: { emprestimoId: string; valor: 
     nextStatus = 'NEGOCIACAO'
   }
 
+  const shouldResetCycle = renovarCiclo || descontoJuros > 0
+
   const updated = await prisma.emprestimo.update({
     where: { id: input.emprestimoId },
     data: {
@@ -186,18 +196,30 @@ export async function addPagamentoParcial(input: { emprestimoId: string; valor: 
       jurosPagos: novoJurosPagos,
       status: nextStatus,
       quitadoEm: quitado ? new Date() : emprestimoAtual.quitadoEm,
+      ...(shouldResetCycle
+        ? {
+            jurosPagosNoInicioCiclo: novoJurosPagos,
+            jurosCicloIniciadoEm: new Date(),
+          }
+        : {}),
     },
   })
 
   const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
   
   let desc = `Pagamento registrado: ${fmt.format(valor)}.`
+  if (descontoJuros > 0) {
+    desc += ` Desconto concedido nos juros: ${fmt.format(descontoJuros)}.`
+  }
   if (pagamentoParaJuros > 0 && pagamentoParaPrincipal > 0) {
     desc += ` (${fmt.format(pagamentoParaJuros)} em juros e ${fmt.format(pagamentoParaPrincipal)} no principal).`
   } else if (pagamentoParaJuros > 0) {
-    desc += ` (Total aplicado em juros).`
+    desc += ` (Aplicado em juros).`
   } else {
-    desc += ` (Total aplicado no principal).`
+    desc += ` (Aplicado no principal).`
+  }
+  if (shouldResetCycle) {
+    desc += ` Ciclo de juros renovado.`
   }
 
   const eventoPagamento = await prisma.emprestimoHistorico.create({

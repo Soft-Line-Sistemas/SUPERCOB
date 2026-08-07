@@ -45,6 +45,7 @@ export async function getClientes(options?: { includeIds?: string[] }) {
   if (role === 'GERENTE' || role === 'OPERADOR') {
     const includeIds = (options?.includeIds ?? []).filter((id) => typeof id === 'string' && id.trim() !== '')
     const orConditions: Prisma.ClienteWhereInput[] = [
+      { usuarioId: userId },
       { loans: { some: { usuarioId: userId } } },
     ]
 
@@ -114,7 +115,10 @@ export async function getClientesPage(options?: {
   let where: Prisma.ClienteWhereInput | undefined
 
   if (role === 'GERENTE' || role === 'OPERADOR') {
-    const orConditions: Prisma.ClienteWhereInput[] = [{ loans: { some: { usuarioId: userId } } }]
+    const orConditions: Prisma.ClienteWhereInput[] = [
+      { usuarioId: userId },
+      { loans: { some: { usuarioId: userId } } },
+    ]
 
     if (includeIds.length > 0) {
       orConditions.push({ id: { in: includeIds } })

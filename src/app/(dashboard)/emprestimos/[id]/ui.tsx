@@ -142,6 +142,8 @@ export function ContractDetails({
   const [descricao, setDescricao] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [pagamento, setPagamento] = useState('')
+  const [descontoJuros, setDescontoJuros] = useState('')
+  const [renovarCiclo, setRenovarCiclo] = useState(false)
   const [paymentConfirmationValue, setPaymentConfirmationValue] = useState<number | null>(null)
   const [abaAtiva, setAbaAtiva] = useState<'historico' | 'documentos'>('historico')
 
@@ -176,14 +178,17 @@ export function ContractDetails({
     if (paymentConfirmationValue === null) return null
     const paraJuros = Math.min(paymentConfirmationValue, jurosPendente)
     const paraPrincipal = Math.max(paymentConfirmationValue - paraJuros, 0)
+    const descJuros = parseBRL(descontoJuros)
 
     return {
       valor: paymentConfirmationValue,
+      descontoJuros: descJuros,
+      renovarCiclo,
       paraJuros,
       paraPrincipal,
       principalRestanteApos: Math.max(restante - paraPrincipal, 0),
     }
-  }, [jurosPendente, paymentConfirmationValue, restante])
+  }, [jurosPendente, paymentConfirmationValue, restante, descontoJuros, renovarCiclo])
 
   const priorityLevel = useMemo(() => {
     if (status === 'QUITADO' || status === 'CANCELADO') return 'BLOQUEADO'
@@ -241,19 +246,27 @@ export function ContractDetails({
   const handlePagamentoParcial = () => {
     if (paymentConfirmationValue === null) return
     const v = paymentConfirmationValue
+    const descJuros = parseBRL(descontoJuros)
     startTransition(async () => {
       try {
-        const { emprestimo: updated, eventos: novosEventos } = await addPagamentoParcial({ emprestimoId: emprestimo.id, valor: v })
+        const { emprestimo: updated, eventos: novosEventos } = await addPagamentoParcial({
+          emprestimoId: emprestimo.id,
+          valor: v,
+          descontoJuros: descJuros,
+          renovarCiclo,
+        })
         setValorPago(Number((updated as any).valorPago ?? 0) || 0)
         setStatus((updated as any).status)
         setQuitadoEm((updated as any).quitadoEm)
         setEventos((prev) => [...prev, ...(novosEventos as any)].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)))
         setPagamento('')
+        setDescontoJuros('')
+        setRenovarCiclo(false)
         setPaymentConfirmationValue(null)
-        toast.success('Pagamento registrado.')
+        toast.success('Pagamento e negociação registrados.')
         router.refresh()
-      } catch {
-        toast.error('Erro ao registrar pagamento.')
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Erro ao registrar pagamento.')
       }
     })
   }
@@ -358,6 +371,10 @@ export function ContractDetails({
             totalDevido={totalDevido}
             pagamento={pagamento}
             setPagamento={setPagamento}
+            descontoJuros={descontoJuros}
+            setDescontoJuros={setDescontoJuros}
+            renovarCiclo={renovarCiclo}
+            setRenovarCiclo={setRenovarCiclo}
             descricao={descricao}
             setDescricao={setDescricao}
             isPending={isPending}

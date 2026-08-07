@@ -23,6 +23,10 @@ interface PaymentTerminalModalProps {
   monthlyPaymentAmount: number
   pagamento: string
   onPagamentoChange: (value: string) => void
+  descontoJuros?: string
+  onDescontoJurosChange?: (value: string) => void
+  renovarCiclo?: boolean
+  onRenovarCicloChange?: (value: boolean) => void
   pending: boolean
   onClose: () => void
   onFillMonthlyPayment: () => void
@@ -38,6 +42,10 @@ export function PaymentTerminalModal({
   monthlyPaymentAmount,
   pagamento,
   onPagamentoChange,
+  descontoJuros = '',
+  onDescontoJurosChange,
+  renovarCiclo = false,
+  onRenovarCicloChange,
   pending,
   onClose,
   onFillMonthlyPayment,
@@ -131,20 +139,54 @@ export function PaymentTerminalModal({
               </div>
 
               <div className="rounded-[2rem] border border-white/10 bg-white/5 p-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Registrar Recebimento</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Registrar Recebimento / Renegociação</p>
                 <div className="mt-4 space-y-3">
-                  <div className="relative group">
-                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg font-black text-white/20 group-focus-within:text-white/50 transition-colors">R$</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={pagamento}
-                      onChange={(event) => onPagamentoChange(event.target.value)}
-                      placeholder="0,00"
-                      disabled={pending}
-                      className="w-full rounded-[1.75rem] border border-white/10 bg-slate-900/80 py-4 pl-14 pr-4 text-xl font-black text-white outline-none transition-all placeholder:text-white/10 focus:ring-4 focus:ring-emerald-500/20"
-                    />
+                  <div>
+                    <label className="text-[10px] font-bold text-white/50 mb-1 block">Valor Recebido (Caixa)</label>
+                    <div className="relative group">
+                      <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg font-black text-white/20 group-focus-within:text-white/50 transition-colors">R$</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={pagamento}
+                        onChange={(event) => onPagamentoChange(event.target.value)}
+                        placeholder="0,00"
+                        disabled={pending}
+                        className="w-full rounded-[1.75rem] border border-white/10 bg-slate-900/80 py-4 pl-14 pr-4 text-xl font-black text-white outline-none transition-all placeholder:text-white/10 focus:ring-4 focus:ring-emerald-500/20"
+                      />
+                    </div>
                   </div>
+
+                  {onDescontoJurosChange && (
+                    <div>
+                      <label className="text-[10px] font-bold text-amber-400/70 mb-1 block">Desconto nos Juros (Abatimento)</label>
+                      <div className="relative group">
+                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-sm font-black text-amber-400/40 group-focus-within:text-amber-400 transition-colors">R$</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={descontoJuros}
+                          onChange={(event) => onDescontoJurosChange(event.target.value)}
+                          placeholder="0,00"
+                          disabled={pending}
+                          className="w-full rounded-[1.75rem] border border-amber-500/20 bg-amber-500/5 py-3.5 pl-14 pr-4 text-sm font-bold text-amber-300 outline-none transition-all placeholder:text-amber-500/20 focus:ring-4 focus:ring-amber-500/20"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {onRenovarCicloChange && (
+                    <label className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={renovarCiclo}
+                        onChange={(event) => onRenovarCicloChange(event.target.checked)}
+                        className="w-4 h-4 rounded border-white/20 text-emerald-600 focus:ring-emerald-500 bg-white/5"
+                        disabled={pending}
+                      />
+                      <span className="text-xs font-semibold text-white/80">Renovar ciclo de juros (resetar atraso)</span>
+                    </label>
+                  )}
 
                   <button
                     type="button"

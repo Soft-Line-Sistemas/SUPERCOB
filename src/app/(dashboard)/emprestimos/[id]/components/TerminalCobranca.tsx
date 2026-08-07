@@ -8,6 +8,10 @@ interface TerminalCobrancaProps {
   totalDevido: number
   pagamento: string
   setPagamento: (val: string) => void
+  descontoJuros?: string
+  setDescontoJuros?: (val: string) => void
+  renovarCiclo?: boolean
+  setRenovarCiclo?: (val: boolean) => void
   descricao: string
   setDescricao: (val: string) => void
   isPending: boolean
@@ -22,6 +26,10 @@ export function TerminalCobranca({
   totalDevido,
   pagamento,
   setPagamento,
+  descontoJuros = '',
+  setDescontoJuros,
+  renovarCiclo = false,
+  setRenovarCiclo,
   descricao,
   setDescricao,
   isPending,
@@ -65,20 +73,55 @@ export function TerminalCobranca({
 
         {/* Payment Action */}
         <div className="space-y-4 pt-6 border-t border-white/10">
-          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Registrar Recebimento</p>
+          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Registrar Recebimento / Renegociação</p>
           <div className="space-y-3">
-            <div className="relative group">
-              <span className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 font-black text-lg group-focus-within:text-white/50 transition-colors">R$</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={pagamento}
-                onChange={(e) => setPagamento(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-[2rem] py-5 pl-14 pr-6 text-xl font-black text-white outline-none focus:ring-4 focus:ring-emerald-500/20 transition-all placeholder:text-white/10"
-                placeholder="0,00"
-                disabled={isPending}
-              />
+            <div>
+              <label className="text-[10px] font-bold text-white/50 mb-1 block">Valor Recebido (Caixa)</label>
+              <div className="relative group">
+                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 font-black text-lg group-focus-within:text-white/50 transition-colors">R$</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={pagamento}
+                  onChange={(e) => setPagamento(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-[2rem] py-4 pl-14 pr-6 text-xl font-black text-white outline-none focus:ring-4 focus:ring-emerald-500/20 transition-all placeholder:text-white/10"
+                  placeholder="0,00"
+                  disabled={isPending}
+                />
+              </div>
             </div>
+
+            {setDescontoJuros && (
+              <div>
+                <label className="text-[10px] font-bold text-amber-400/70 mb-1 block">Desconto nos Juros (Abatimento)</label>
+                <div className="relative group">
+                  <span className="absolute left-6 top-1/2 -translate-y-1/2 text-amber-400/40 font-black text-sm group-focus-within:text-amber-400 transition-colors">R$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={descontoJuros}
+                    onChange={(e) => setDescontoJuros(e.target.value)}
+                    className="w-full bg-amber-500/5 border border-amber-500/20 rounded-[2rem] py-3.5 pl-14 pr-6 text-sm font-bold text-amber-300 outline-none focus:ring-4 focus:ring-amber-500/20 transition-all placeholder:text-amber-500/20"
+                    placeholder="0,00"
+                    disabled={isPending}
+                  />
+                </div>
+              </div>
+            )}
+
+            {setRenovarCiclo && (
+              <label className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={renovarCiclo}
+                  onChange={(e) => setRenovarCiclo(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/20 text-emerald-600 focus:ring-emerald-500 bg-white/5"
+                  disabled={isPending}
+                />
+                <span className="text-xs font-semibold text-white/80">Renovar ciclo de juros (resetar atraso)</span>
+              </label>
+            )}
+
             <button
               type="button"
               disabled={isPending || !pagamento}

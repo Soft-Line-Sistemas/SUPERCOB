@@ -127,8 +127,16 @@ export default async function ReportsPage({
   }
 
   if (isManager) {
-    // A carteira do gerente é definida pela sessão, nunca por um filtro da URL.
-    where.usuarioId = userId
+    // A carteira do gerente abrange tanto empréstimos atribuídos a ele quanto empréstimos de clientes da sua carteira.
+    where.AND = [
+      ...(where.AND || []),
+      {
+        OR: [
+          { usuarioId: userId },
+          { cliente: { usuarioId: userId } },
+        ],
+      },
+    ]
   } else if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
     where.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
   }
@@ -186,7 +194,15 @@ export default async function ReportsPage({
     vencimento: { not: null },
   }
   if (isManager) {
-    dueDayWhere.usuarioId = userId
+    dueDayWhere.AND = [
+      ...(dueDayWhere.AND || []),
+      {
+        OR: [
+          { usuarioId: userId },
+          { cliente: { usuarioId: userId } },
+        ],
+      },
+    ]
   } else if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
     dueDayWhere.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
   }

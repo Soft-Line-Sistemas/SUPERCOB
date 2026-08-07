@@ -133,9 +133,13 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const [paymentConfirmation, setPaymentConfirmation] = useState<{
     loan: Loan
     valor: number
+    descontoJuros?: number
+    renovarCiclo?: boolean
     kind: 'monthly' | 'custom'
   } | null>(null)
   const [pagamentoRapido, setPagamentoRapido] = useState('')
+  const [descontoJurosRapido, setDescontoJurosRapido] = useState('')
+  const [renovarCicloRapido, setRenovarCicloRapido] = useState(false)
   const [isPaymentPending, startPaymentTransition] = useTransition()
   const [directMonthlyPaymentLoanId, setDirectMonthlyPaymentLoanId] = useState<string | null>(null)
   const [installmentsManuallyEdited, setInstallmentsManuallyEdited] = useState(false)
@@ -815,22 +819,37 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       return
     }
 
-    setPaymentConfirmation({ loan: paymentTerminalLoan, valor, kind: 'custom' })
+    const descJuros = parseBRL(descontoJurosRapido)
+
+    setPaymentConfirmation({
+      loan: paymentTerminalLoan,
+      valor,
+      descontoJuros: descJuros,
+      renovarCiclo: renovarCicloRapido,
+      kind: 'custom',
+    })
   }
 
   const handleConfirmPayment = () => {
     if (!paymentConfirmation) return
-    const { loan, valor, kind } = paymentConfirmation
+    const { loan, valor, descontoJuros, renovarCiclo, kind } = paymentConfirmation
 
     setDirectMonthlyPaymentLoanId(loan.id)
     startPaymentTransition(async () => {
       try {
-        await addPagamentoParcial({ emprestimoId: loan.id, valor })
-        toast.success(kind === 'monthly' ? 'Pagamento integral do mês confirmado.' : 'Pagamento registrado.')
+        await addPagamentoParcial({
+          emprestimoId: loan.id,
+          valor,
+          descontoJuros,
+          renovarCiclo,
+        })
+        toast.success(kind === 'monthly' ? 'Pagamento integral do mês confirmado.' : 'Pagamento e negociação registrados.')
         setPaymentConfirmation(null)
         if (kind === 'custom') {
           setPaymentTerminalLoan(null)
           setPagamentoRapido('')
+          setDescontoJurosRapido('')
+          setRenovarCicloRapido(false)
         }
         router.refresh()
       } catch (error) {
@@ -1434,11 +1453,17 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         monthlyPaymentAmount={currentTerminalMonthlyPaymentAmount}
         pagamento={pagamentoRapido}
         onPagamentoChange={setPagamentoRapido}
+        descontoJuros={descontoJurosRapido}
+        onDescontoJurosChange={setDescontoJurosRapido}
+        renovarCiclo={renovarCicloRapido}
+        onRenovarCicloChange={setRenovarCicloRapido}
         pending={isPaymentPending}
         onClose={() => {
           if (isPaymentPending) return
           setPaymentTerminalLoan(null)
           setPagamentoRapido('')
+          setDescontoJurosRapido('')
+          setRenovarCicloRapido(false)
         }}
         onFillMonthlyPayment={handleFillMonthlyPayment}
         onSubmit={handleQuickPayment}
