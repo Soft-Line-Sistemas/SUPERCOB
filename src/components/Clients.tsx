@@ -106,7 +106,7 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { data: session } = useSession();
   const isAdmin = isAdminRole(session?.user?.role);
-  const canDeleteClient = isAdmin || session?.user?.role === 'GERENTE';
+  const canManageClientRecord = isAdmin || session?.user?.role === 'ESCRITORIO';
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(urlSearchTerm);
   const [sortOrder, setSortOrder] = useState<'newest' | 'az'>(sort);
@@ -1169,7 +1169,7 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
-                    {false && isAdmin && (
+                    {canManageClientRecord && (
                       <button
                         onClick={() => handleArchive(client.id)}
                         title="Arquivar cliente"
@@ -1178,7 +1178,7 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
                         <Archive className="h-4 w-4" />
                       </button>
                     )}
-                    {canDeleteClient && (
+                    {canManageClientRecord && (
                       <button
                         onClick={() => handleDelete(client.id)}
                         title="Excluir definitivamente"
@@ -1282,7 +1282,7 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
-                        {false && isAdmin && (
+                        {canManageClientRecord && (
                           <button
                             type="button"
                             onClick={() => handleArchive(client.id)}
@@ -1292,7 +1292,7 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
                             <Archive className="h-4 w-4" />
                           </button>
                         )}
-                        {canDeleteClient && (
+                        {canManageClientRecord && (
                           <button
                             type="button"
                             onClick={() => handleDelete(client.id)}

@@ -24,7 +24,7 @@ export function CommandPalette({ isOpen, setIsOpen }: { isOpen: boolean; setIsOp
   const router = useRouter()
   const { data: session } = useSession()
   const role = ((session?.user as any)?.role as string | undefined)?.toUpperCase()
-  const canAccessReports = role === 'ADM' || role === 'ADMIN'
+  const canAccessReports = role === 'ADM' || role === 'ADMIN' || role === 'ESCRITORIO' || role === 'GERENTE'
 
   const items: CommandItem[] = useMemo(() => {
     const next: CommandItem[] = [

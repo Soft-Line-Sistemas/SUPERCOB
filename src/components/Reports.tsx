@@ -52,7 +52,7 @@ type ReportsData = {
 }
 
 type ReportSection = 'full' | 'kpis' | 'defaulters' | 'abc' | 'geo' | 'daily' | 'dueDay'
-type AccessLevel = 'admin' | 'office'
+type AccessLevel = 'admin' | 'office' | 'manager'
 
 const OFFICE_SECTIONS: ReportSection[] = ['defaulters', 'daily', 'dueDay']
 
@@ -159,6 +159,7 @@ export function Reports({
 
   const leaderCity = useMemo(() => report.volumeByLocation[0]?.city, [report.volumeByLocation])
   const isOffice = accessLevel === 'office'
+  const isManager = accessLevel === 'manager'
   const exportableReports = isOffice
     ? REPORT_TYPES.filter((reportType) => OFFICE_SECTIONS.includes(reportType.section))
     : REPORT_TYPES
@@ -261,7 +262,7 @@ export function Reports({
     if (draftFilters.status) sp.set('status', draftFilters.status)
     if (draftFilters.cidade) sp.set('cidade', draftFilters.cidade)
     if (draftFilters.estado) sp.set('estado', draftFilters.estado)
-    if (draftFilters.usuarioId) sp.set('usuarioId', draftFilters.usuarioId)
+    if (!isManager && draftFilters.usuarioId) sp.set('usuarioId', draftFilters.usuarioId)
     sp.set('upcomingDays', String(draftFilters.upcomingDays))
     sp.set('nextDuePerContract', String(draftFilters.nextDuePerContract))
     sp.set('includeInadimplentes', String(draftFilters.includeInadimplentes))
@@ -293,8 +294,8 @@ export function Reports({
       {/* Header with Export Actions */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{isOffice ? 'Relatórios Operacionais' : 'Relatórios Avançados'}</h1>
-          <p className="text-slate-500 dark:text-slate-400">{isOffice ? 'Agenda de cobrança, vencimentos e contratos em atraso.' : 'Análise profunda de métricas e performance de cobrança.'}</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{isOffice ? 'Relatórios Operacionais' : isManager ? 'Relatórios da Minha Carteira' : 'Relatórios Avançados'}</h1>
+          <p className="text-slate-500 dark:text-slate-400">{isOffice ? 'Agenda de cobrança, vencimentos e contratos em atraso.' : isManager ? 'Análise dos contratos atribuídos a você.' : 'Análise profunda de métricas e performance de cobrança.'}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -316,7 +317,7 @@ export function Reports({
             <Download className="w-4 h-4" />
             Exportar PDF
           </button>
-          {!isOffice && <button
+          {!isOffice && !isManager && <button
             onClick={handleExportDailyPDF}
             className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-2xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
           >
@@ -692,7 +693,7 @@ export function Reports({
                     </select>
                   </div>
 
-                  <div className="space-y-1.5">
+                  {!isManager && <div className="space-y-1.5">
                     <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Consultor</label>
                     <select
                       value={draftFilters.usuarioId ?? ''}
@@ -707,7 +708,7 @@ export function Reports({
                         </option>
                       ))}
                     </select>
-                  </div>
+                  </div>}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">

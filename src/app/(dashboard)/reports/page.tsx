@@ -76,10 +76,12 @@ export default async function ReportsPage({
   if (!session?.user) redirect('/login')
   
   const role = ((session.user as any).role as string)?.toUpperCase()
+  const userId = (session.user as any).id as string
 
   const isOffice = role === 'ESCRITORIO'
+  const isManager = role === 'GERENTE'
   // Escritório acessa somente os relatórios necessários à rotina de cobrança.
-  if (role !== 'ADM' && role !== 'ADMIN' && !isOffice) redirect('/dashboard')
+  if (role !== 'ADM' && role !== 'ADMIN' && !isOffice && !isManager) redirect('/dashboard')
 
   const params = await searchParams
   const startDateParam = Array.isArray(params.startDate) ? params.startDate[0] : params.startDate
@@ -124,7 +126,10 @@ export default async function ReportsPage({
     ],
   }
 
-  if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
+  if (isManager) {
+    // A carteira do gerente é definida pela sessão, nunca por um filtro da URL.
+    where.usuarioId = userId
+  } else if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
     where.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
   }
 
@@ -164,11 +169,13 @@ export default async function ReportsPage({
     },
   })
 
-  const colaboradores = await prisma.usuario.findMany({
-    where: { role: { in: ['GERENTE', 'ESCRITORIO'] } },
-    select: { id: true, nome: true },
-    orderBy: { nome: 'asc' }
-  })
+  const colaboradores = isManager
+    ? []
+    : await prisma.usuario.findMany({
+        where: { role: { in: ['GERENTE', 'ESCRITORIO'] } },
+        select: { id: true, nome: true },
+        orderBy: { nome: 'asc' },
+      })
 
   // "Dia de Vencimento": agenda de cobrança por dia do mês, ignora o filtro de período
   // (é uma agenda recorrente, não presa ao range de datas selecionado na tela).
@@ -178,7 +185,9 @@ export default async function ReportsPage({
       : { in: ['ABERTO', 'NEGOCIACAO'] },
     vencimento: { not: null },
   }
-  if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
+  if (isManager) {
+    dueDayWhere.usuarioId = userId
+  } else if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
     dueDayWhere.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
   }
   if ((cidadeParam && typeof cidadeParam === 'string' && cidadeParam.trim() !== '') || (estadoParam && typeof estadoParam === 'string' && estadoParam.trim() !== '')) {
@@ -375,7 +384,9 @@ export default async function ReportsPage({
     jurosMes: { gt: 0 },
   }
   if (statusParam === 'ABERTO' || statusParam === 'NEGOCIACAO') upcomingWhere.status = statusParam
-  if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
+  if (isManager) {
+    upcomingWhere.usuarioId = userId
+  } else if (usuarioIdParam && typeof usuarioIdParam === 'string' && usuarioIdParam.trim() !== '') {
     upcomingWhere.usuarioId = usuarioIdParam === '__UNASSIGNED__' ? null : usuarioIdParam
   }
   if ((cidadeParam && typeof cidadeParam === 'string' && cidadeParam.trim() !== '') || (estadoParam && typeof estadoParam === 'string' && estadoParam.trim() !== '')) {
@@ -449,7 +460,7 @@ export default async function ReportsPage({
   return (
     <Reports
       report={reportForViewer as any}
-      accessLevel={isOffice ? 'office' : 'admin'}
+      accessLevel={isOffice ? 'office' : isManager ? 'manager' : 'admin'}
       colaboradores={colaboradores}
       filters={{
         startDate: startYMD,
@@ -457,7 +468,7 @@ export default async function ReportsPage({
         status: (statusParam as string) || '',
         cidade: (cidadeParam as string) || '',
         estado: (estadoParam as string) || '',
-        usuarioId: (usuarioIdParam as string) || '',
+        usuarioId: isManager ? '' : (usuarioIdParam as string) || '',
         upcomingDays,
         nextDuePerContract,
         includeInadimplentes,

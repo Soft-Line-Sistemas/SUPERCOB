@@ -47,17 +47,25 @@ describe('clientes actions - archive/unarchive', () => {
 
       const result = await archiveClienteAction('cli-1')
 
-      expect(result).toEqual({ ok: false, error: 'Apenas administradores podem arquivar clientes.', code: 'FORBIDDEN' })
+      expect(result).toEqual({ ok: false, error: 'Apenas administradores ou o Escritório podem arquivar clientes.', code: 'FORBIDDEN' })
       expect(mockArchiveCliente).not.toHaveBeenCalled()
     })
 
-    it.each(['ESCRITORIO', 'GERENTE', 'OPERADOR'])('bloqueia %s ao arquivar cliente', async (role) => {
+    it.each(['GERENTE', 'OPERADOR'])('bloqueia %s ao arquivar cliente', async (role) => {
       mockAuth.mockResolvedValue({ user: { id: 'u1', role } })
 
       const result = await archiveClienteAction('cli-1')
 
-      expect(result).toEqual({ ok: false, error: 'Apenas administradores podem arquivar clientes.', code: 'FORBIDDEN' })
+      expect(result).toEqual({ ok: false, error: 'Apenas administradores ou o Escritório podem arquivar clientes.', code: 'FORBIDDEN' })
       expect(mockArchiveCliente).not.toHaveBeenCalled()
+    })
+
+    it('permite que o Escritório arquive o cliente', async () => {
+      mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
+      mockArchiveCliente.mockResolvedValue(undefined)
+
+      await expect(archiveClienteAction('cli-1')).resolves.toEqual({ ok: true, id: 'cli-1' })
+      expect(mockArchiveCliente).toHaveBeenCalledWith('cli-1', { actorUserId: 'esc-1', motivo: undefined })
     })
 
     it('arquiva o cliente e revalida as rotas quando admin', async () => {

@@ -183,18 +183,18 @@ describe('clientes actions - listagem e dashboard', () => {
     )
   })
 
-  it.each(['ESCRITORIO', 'OPERADOR'])('bloqueia %s ao excluir cliente', async (role) => {
+  it.each(['GERENTE', 'OPERADOR'])('bloqueia %s ao excluir cliente', async (role) => {
     mockAuth.mockResolvedValue({ user: { id: 'u1', role } })
 
     await expect(deleteCliente('c1')).resolves.toEqual({
       ok: false,
-      error: 'Apenas administradores podem excluir clientes.',
+      error: 'Apenas administradores ou o Escritório podem excluir clientes.',
       code: 'FORBIDDEN',
     })
     expect(mockClienteDelete).not.toHaveBeenCalled()
   })
 
-  it.each(['ADM', 'ADMIN'])('permite %s excluir cliente', async (role) => {
+  it.each(['ADM', 'ADMIN', 'ESCRITORIO'])('permite %s excluir cliente', async (role) => {
     mockAuth.mockResolvedValue({ user: { id: 'admin-1', role } })
     mockClienteDelete.mockResolvedValue({ id: 'c1' })
 
@@ -202,27 +202,15 @@ describe('clientes actions - listagem e dashboard', () => {
     expect(mockClienteDelete).toHaveBeenCalledWith({ where: { id: 'c1' } })
   })
 
-  it('permite Gerente excluir cliente da própria carteira', async () => {
+  it('bloqueia gerente, mesmo para cliente da própria carteira', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'ger-1', role: 'GERENTE' } })
-    mockClienteFindFirst.mockResolvedValue({ id: 'c1' })
-    mockClienteDelete.mockResolvedValue({ id: 'c1' })
 
-    await expect(deleteCliente('c1')).resolves.toEqual({ ok: true, id: 'c1' })
-    expect(mockClienteFindFirst).toHaveBeenCalledWith({
-      where: { id: 'c1', loans: { some: { usuarioId: 'ger-1' } } },
-      select: { id: true },
-    })
-  })
-
-  it('bloqueia Gerente ao excluir cliente de outra carteira', async () => {
-    mockAuth.mockResolvedValue({ user: { id: 'ger-1', role: 'GERENTE' } })
-    mockClienteFindFirst.mockResolvedValue(null)
-
-    await expect(deleteCliente('c2')).resolves.toEqual({
+    await expect(deleteCliente('c1')).resolves.toEqual({
       ok: false,
-      error: 'Gerentes só podem excluir clientes da própria carteira.',
+      error: 'Apenas administradores ou o Escritório podem excluir clientes.',
       code: 'FORBIDDEN',
     })
+    expect(mockClienteFindFirst).not.toHaveBeenCalled()
     expect(mockClienteDelete).not.toHaveBeenCalled()
   })
 })

@@ -51,7 +51,7 @@ export function Sidebar() {
   ]
 
   const isAdmin = isAdminRole(session?.user?.role)
-  const canAccessReports = isAdmin || String(session?.user?.role).toUpperCase() === 'ESCRITORIO'
+  const canAccessReports = isAdmin || ['ESCRITORIO', 'GERENTE'].includes(String(session?.user?.role).toUpperCase())
 
   if (isAdmin) {
     navItems.push({ id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, href: '/dashboard/whatsapp' })

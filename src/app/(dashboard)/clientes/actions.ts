@@ -414,19 +414,8 @@ export async function deleteCliente(id: string) {
     }
 
     const role = (session.user as any).role
-    const userId = (session.user as any).id
-    if (!isAdminRole(role) && role !== 'GERENTE') {
-      return { ok: false, error: 'Apenas administradores podem excluir clientes.', code: 'FORBIDDEN' } satisfies ClienteMutationResult
-    }
-
-    if (role === 'GERENTE') {
-      const clienteDaCarteira = await prisma.cliente.findFirst({
-        where: { id, loans: { some: { usuarioId: userId } } },
-        select: { id: true },
-      })
-      if (!clienteDaCarteira) {
-        return { ok: false, error: 'Gerentes só podem excluir clientes da própria carteira.', code: 'FORBIDDEN' } satisfies ClienteMutationResult
-      }
+    if (!isAdminRole(role) && role !== 'ESCRITORIO') {
+      return { ok: false, error: 'Apenas administradores ou o Escritório podem excluir clientes.', code: 'FORBIDDEN' } satisfies ClienteMutationResult
     }
 
     const currentClient = await prisma.cliente.findUnique({
@@ -462,8 +451,8 @@ export async function archiveClienteAction(id: string, motivo?: string) {
     }
 
     const role = (session.user as any).role
-    if (!isAdminRole(role)) {
-      return { ok: false, error: 'Apenas administradores podem arquivar clientes.', code: 'FORBIDDEN' } satisfies ClienteMutationResult
+    if (!isAdminRole(role) && role !== 'ESCRITORIO') {
+      return { ok: false, error: 'Apenas administradores ou o Escritório podem arquivar clientes.', code: 'FORBIDDEN' } satisfies ClienteMutationResult
     }
 
     await archiveCliente(id, { actorUserId: (session.user as any).id, motivo })

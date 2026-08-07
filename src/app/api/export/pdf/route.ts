@@ -37,7 +37,7 @@ function addMonthlyOccurrence(date: Date, preferredDay: number) {
   return new Date(Date.UTC(year, month, Math.min(preferredDay, lastDayOfNextMonth), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds(), date.getUTCMilliseconds()))
 }
 
-async function buildDueDayData(filters: any) {
+async function buildDueDayData(filters: any, enforcedUsuarioId?: string) {
   const parsedDays = Number(filters?.upcomingDays)
   const upcomingDays = Number.isInteger(parsedDays) && parsedDays >= 1 && parsedDays <= 3650 ? parsedDays : 30
   const nextDuePerContract = filters?.nextDuePerContract !== false
@@ -55,7 +55,8 @@ async function buildDueDayData(filters: any) {
   if (onlyInadimplentes) where.inadimplente = true
   else if (!includeInadimplentes) where.inadimplente = false
   if (onlyAgreement) where.quantidadeParcelas = { gt: 0 }
-  if (filters?.usuarioId) where.usuarioId = filters.usuarioId === '__UNASSIGNED__' ? null : filters.usuarioId
+  if (enforcedUsuarioId) where.usuarioId = enforcedUsuarioId
+  else if (filters?.usuarioId) where.usuarioId = filters.usuarioId === '__UNASSIGNED__' ? null : filters.usuarioId
   if (filters?.cidade || filters?.estado) {
     where.cliente = {}
     if (filters.cidade) where.cliente.cidade = { contains: filters.cidade }
@@ -481,7 +482,7 @@ export async function POST(req: Request) {
     return new NextResponse('Não autorizado', { status: 401 })
   }
   const role = ((session.user as any).role as string | undefined)?.toUpperCase()
-  if (role !== 'ADM' && role !== 'ADMIN' && role !== 'ESCRITORIO') {
+  if (role !== 'ADM' && role !== 'ADMIN' && role !== 'ESCRITORIO' && role !== 'GERENTE') {
     return new NextResponse('Acesso negado', { status: 403 })
   }
 
@@ -515,7 +516,7 @@ export async function POST(req: Request) {
     effectiveReport.volumeByLocation = report.volumeByLocationFull
   }
   if (section === 'dueDay') {
-    effectiveReport.dueDayData = await buildDueDayData(filters)
+    effectiveReport.dueDayData = await buildDueDayData(filters, role === 'GERENTE' ? (session.user as any).id : undefined)
     const start = Number(filters.dueDayStart ?? 1)
     const end = Number(filters.dueDayEnd ?? 31)
     if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end > 31 || start > end) {
