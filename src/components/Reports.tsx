@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Cell, AreaChart, Area } from 'recharts';
-import { Wallet, PiggyBank, TrendingUp, CalendarDays, AlertTriangle, MapPin, Download, FileText, Share2, Filter, MoreVertical, X, BarChart3, LayoutGrid, CalendarClock, ChevronRight } from 'lucide-react';
+import { Wallet, PiggyBank, TrendingUp, CalendarDays, AlertTriangle, MapPin, Download, FileText, Share2, Filter, MoreVertical, X, Eye, EyeOff, BarChart3, LayoutGrid, CalendarClock, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -80,6 +80,7 @@ export function Reports({
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [isExportOpen, setIsExportOpen] = useState(false)
   const [isDueDayRangeOpen, setIsDueDayRangeOpen] = useState(false)
+  const [isDueDayPreviewVisible, setIsDueDayPreviewVisible] = useState(false)
   const [exportingSection, setExportingSection] = useState<ReportSection | null>(null)
   const [dueDayStart, setDueDayStart] = useState(1)
   const [dueDayEnd, setDueDayEnd] = useState(31)
@@ -96,6 +97,9 @@ export function Reports({
   const [dueDayOnlyInadimplentes, setDueDayOnlyInadimplentes] = useState(false)
   const [dueDayOnlyAgreement, setDueDayOnlyAgreement] = useState(false)
   const [isDueDayPreferencesLoaded, setIsDueDayPreferencesLoaded] = useState(false)
+  const [dueDayPreviewUrl, setDueDayPreviewUrl] = useState<string | null>(null)
+  const [isDueDayPreviewLoading, setIsDueDayPreviewLoading] = useState(false)
+  const [dueDayPreviewError, setDueDayPreviewError] = useState(false)
   const [draftFilters, setDraftFilters] = useState<ReportsFilters>(filters)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
@@ -109,7 +113,7 @@ export function Reports({
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('reports-due-day-preferences')
+      const saved = localStorage.getItem('reports-due-day-preferences-v6')
       if (!saved) return
       const preferences = JSON.parse(saved)
       if (Number.isInteger(preferences.dayStart) && preferences.dayStart >= 1 && preferences.dayStart <= 31) setDueDayStart(preferences.dayStart)
@@ -135,7 +139,7 @@ export function Reports({
 
   useEffect(() => {
     if (!isDueDayPreferencesLoaded) return
-    localStorage.setItem('reports-due-day-preferences', JSON.stringify({
+    localStorage.setItem('reports-due-day-preferences-v6', JSON.stringify({
       dayStart: dueDayStart,
       dayEnd: dueDayEnd,
       upcomingDays: dueDayUpcomingDays,
@@ -152,6 +156,69 @@ export function Reports({
       onlyAgreement: dueDayOnlyAgreement,
     }))
   }, [dueDayStart, dueDayEnd, dueDayUpcomingDays, dueDayNextDuePerContract, dueDayIncludeInadimplentes, dueDayIncludePaid, dueDayIncludeCurrent, dueDayIncludeWhatsapp, dueDayMarkPaid, dueDayMarkCurrent, dueDayStrikePaid, dueDayStrikeCurrent, dueDayOnlyInadimplentes, dueDayOnlyAgreement, isDueDayPreferencesLoaded])
+
+  useEffect(() => {
+    if (!isDueDayRangeOpen || !isDueDayPreviewVisible) {
+      setDueDayPreviewUrl((url) => {
+        if (url) URL.revokeObjectURL(url)
+        return null
+      })
+      if (!isDueDayRangeOpen) setIsDueDayPreviewVisible(false)
+      return
+    }
+
+    if (!Number.isInteger(dueDayStart) || !Number.isInteger(dueDayEnd) || dueDayStart < 1 || dueDayEnd > 31 || dueDayStart > dueDayEnd) return
+
+    const controller = new AbortController()
+    const timeout = window.setTimeout(async () => {
+      setIsDueDayPreviewLoading(true)
+      setDueDayPreviewError(false)
+      try {
+        const res = await fetch('/api/export/pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            kind: 'reports',
+            section: 'dueDay',
+            filters: {
+              ...filters,
+              upcomingDays: dueDayUpcomingDays,
+              nextDuePerContract: dueDayNextDuePerContract,
+              includeInadimplentes: dueDayIncludeInadimplentes,
+              includePaid: dueDayIncludePaid,
+              includeCurrent: dueDayIncludeCurrent,
+              includeWhatsapp: dueDayIncludeWhatsapp,
+              markPaid: false,
+              markCurrent: dueDayMarkCurrent,
+              strikePaid: false,
+              strikeCurrent: dueDayStrikeCurrent,
+              onlyInadimplentes: dueDayOnlyInadimplentes,
+              onlyAgreement: dueDayOnlyAgreement,
+              dueDayStart,
+              dueDayEnd,
+            },
+            report,
+          }),
+        })
+        if (!res.ok) throw new Error('Não foi possível gerar a prévia')
+        const nextUrl = URL.createObjectURL(await res.blob())
+        setDueDayPreviewUrl((url) => {
+          if (url) URL.revokeObjectURL(url)
+          return nextUrl
+        })
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') setDueDayPreviewError(true)
+      } finally {
+        if (!controller.signal.aborted) setIsDueDayPreviewLoading(false)
+      }
+    }, 350)
+
+    return () => {
+      window.clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [isDueDayRangeOpen, isDueDayPreviewVisible, dueDayStart, dueDayEnd, dueDayUpcomingDays, dueDayNextDuePerContract, dueDayIncludeInadimplentes, dueDayIncludePaid, dueDayIncludeCurrent, dueDayIncludeWhatsapp, dueDayMarkPaid, dueDayMarkCurrent, dueDayStrikePaid, dueDayStrikeCurrent, dueDayOnlyInadimplentes, dueDayOnlyAgreement, filters, report])
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -223,9 +290,9 @@ export function Reports({
       includePaid: dueDayIncludePaid,
       includeCurrent: dueDayIncludeCurrent,
       includeWhatsapp: dueDayIncludeWhatsapp,
-      markPaid: dueDayMarkPaid,
+      markPaid: false,
       markCurrent: dueDayMarkCurrent,
-      strikePaid: dueDayStrikePaid,
+      strikePaid: false,
       strikeCurrent: dueDayStrikeCurrent,
       onlyInadimplentes: dueDayOnlyInadimplentes,
       onlyAgreement: dueDayOnlyAgreement,
@@ -877,7 +944,7 @@ export function Reports({
 
       <AnimatePresence>
         {isDueDayRangeOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className={`fixed inset-0 z-[60] flex items-center justify-center ${isDueDayPreviewVisible ? 'p-8 sm:p-10' : 'p-4'}`}>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -889,27 +956,40 @@ export function Reports({
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] border border-slate-100 bg-white p-8 shadow-2xl dark:border-white/10 dark:bg-slate-950"
+              className={`relative w-full overflow-y-auto rounded-[2rem] border border-slate-100 bg-white shadow-2xl dark:border-white/10 dark:bg-slate-950 ${isDueDayPreviewVisible ? 'h-[calc(100vh-4rem)] max-w-none p-6 sm:h-[calc(100vh-5rem)] sm:p-8' : 'max-h-[90vh] max-w-5xl p-8'}`}
             >
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Dia de Vencimento</h3>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Defina quais vencimentos devem constar no PDF.</p>
                 </div>
-                <button type="button" onClick={() => setIsDueDayRangeOpen(false)} disabled={exportingSection !== null} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-50 dark:hover:bg-white/5" aria-label="Fechar">
-                  <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsDueDayPreviewVisible((visible) => !visible)}
+                    className={`rounded-full p-2 transition-colors ${isDueDayPreviewVisible ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'}`}
+                    aria-label={isDueDayPreviewVisible ? 'Desativar preview do PDF' : 'Ativar preview do PDF'}
+                    title={isDueDayPreviewVisible ? 'Desativar preview' : 'Ativar preview'}
+                  >
+                    {isDueDayPreviewVisible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                  <button type="button" onClick={() => setIsDueDayRangeOpen(false)} disabled={exportingSection !== null} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-50 dark:hover:bg-white/5" aria-label="Fechar">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <label className="text-sm font-bold text-slate-700 dark:text-slate-200">Dia inicial
-                  <input type="number" min="1" max="31" step="1" value={dueDayStart} onChange={(event) => setDueDayStart(Number(event.target.value))} disabled={exportingSection !== null} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-gold-500 disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" />
-                </label>
-                <label className="text-sm font-bold text-slate-700 dark:text-slate-200">Dia final
-                  <input type="number" min="1" max="31" step="1" value={dueDayEnd} onChange={(event) => setDueDayEnd(Number(event.target.value))} disabled={exportingSection !== null} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-gold-500 disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" />
-                </label>
-              </div>
-              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Intervalo inclusivo, de 1 a 31.</p>
-              <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <div className={isDueDayPreviewVisible ? 'grid gap-6 lg:grid-cols-[minmax(220px,20%)_minmax(0,1fr)] lg:items-start' : ''}>
+                <div>
+                  <div className={`grid grid-cols-2 gap-4 ${isDueDayPreviewVisible ? 'lg:grid-cols-1' : ''}`}>
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-200">Dia inicial
+                      <input type="number" min="1" max="31" step="1" value={dueDayStart} onChange={(event) => setDueDayStart(Number(event.target.value))} disabled={exportingSection !== null} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-gold-500 disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" />
+                    </label>
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-200">Dia final
+                      <input type="number" min="1" max="31" step="1" value={dueDayEnd} onChange={(event) => setDueDayEnd(Number(event.target.value))} disabled={exportingSection !== null} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-gold-500 disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" />
+                    </label>
+                  </div>
+                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Intervalo inclusivo, de 1 a 31.</p>
+                  <div className={`mt-5 grid grid-cols-2 gap-5 ${isDueDayPreviewVisible ? 'lg:grid-cols-1' : ''}`}>
               <div className="rounded-2xl border border-gold-200 bg-gold-50/50 p-4 dark:border-gold-500/20 dark:bg-gold-500/5">
                 <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Quais vencimentos devem aparecer?</p>
                 <label className="flex cursor-pointer items-start gap-3 text-sm text-slate-700 dark:text-slate-200">
@@ -926,42 +1006,69 @@ export function Reports({
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Restringir a situações específicas</p>
-                <div className="grid grid-cols-2 gap-3 text-sm text-slate-700 dark:text-slate-200">
-                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayOnlyInadimplentes} onChange={(event) => { setDueDayOnlyInadimplentes(event.target.checked); if (event.target.checked) setDueDayIncludeInadimplentes(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Somente inadimplentes</label>
-                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayOnlyAgreement} onChange={(event) => setDueDayOnlyAgreement(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Somente em acordo</label>
+                <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Quero apenas:</p>
+                <div className={`grid grid-cols-2 gap-3 text-sm text-slate-700 dark:text-slate-200 ${isDueDayPreviewVisible ? 'lg:grid-cols-1' : ''}`}>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayOnlyInadimplentes} onChange={(event) => { setDueDayOnlyInadimplentes(event.target.checked); if (event.target.checked) setDueDayIncludeInadimplentes(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Inadimplentes</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayOnlyAgreement} onChange={(event) => setDueDayOnlyAgreement(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Em acordo</label>
                 </div>
                 {dueDayOnlyInadimplentes && dueDayOnlyAgreement && <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-400">Serão exibidos somente os contratos inadimplentes que também estão em acordo.</p>}
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
                 <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Marcação no PDF</p>
-                <div className="grid grid-cols-2 gap-3 text-sm text-slate-700 dark:text-slate-200">
-                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayMarkPaid} onChange={(event) => { setDueDayMarkPaid(event.target.checked); if (event.target.checked) setDueDayIncludePaid(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Marcar pagos</label>
-                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayMarkCurrent} onChange={(event) => { setDueDayMarkCurrent(event.target.checked); if (event.target.checked) setDueDayIncludeCurrent(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Marcar em dia</label>
-                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayStrikePaid} onChange={(event) => { setDueDayStrikePaid(event.target.checked); if (event.target.checked) setDueDayIncludePaid(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Riscar pagos</label>
-                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayStrikeCurrent} onChange={(event) => { setDueDayStrikeCurrent(event.target.checked); if (event.target.checked) setDueDayIncludeCurrent(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Riscar em dia</label>
+                <div className={`grid grid-cols-2 gap-3 text-sm text-slate-700 dark:text-slate-200 ${isDueDayPreviewVisible ? 'lg:grid-cols-1' : ''}`}>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayMarkCurrent} onChange={(event) => { setDueDayMarkCurrent(event.target.checked); if (event.target.checked) setDueDayIncludeCurrent(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Marcar ✔ pagos</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayStrikeCurrent} onChange={(event) => { setDueDayStrikeCurrent(event.target.checked); if (event.target.checked) setDueDayIncludeCurrent(true) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Riscar pagos</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayIncludeWhatsapp} onChange={(event) => setDueDayIncludeWhatsapp(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Adicionar WhatsApp</label>
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Outras situações a incluir</p>
-                <div className="grid grid-cols-2 gap-3 text-sm text-slate-700 dark:text-slate-200">
-                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayIncludePaid} onChange={(event) => setDueDayIncludePaid(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Incluir pagos</label>
-                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayIncludeCurrent} onChange={(event) => setDueDayIncludeCurrent(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Incluir os em dia</label>
-                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayIncludeWhatsapp} onChange={(event) => setDueDayIncludeWhatsapp(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Incluir WhatsApp</label>
-                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={dueDayIncludeInadimplentes} onChange={(event) => setDueDayIncludeInadimplentes(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Incluir inadimplentes</label>
+                <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Quero excluir:</p>
+                <div className={`grid grid-cols-2 gap-3 text-sm text-slate-700 dark:text-slate-200 ${isDueDayPreviewVisible ? 'lg:grid-cols-1' : ''}`}>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={!dueDayIncludeCurrent} onChange={(event) => { setDueDayIncludeCurrent(!event.target.checked); if (event.target.checked) { setDueDayMarkCurrent(false); setDueDayStrikeCurrent(false) } }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Pagos</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={!dueDayIncludePaid} onChange={(event) => setDueDayIncludePaid(!event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Quitados</label>
+                  <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={!dueDayIncludeInadimplentes} onChange={(event) => { setDueDayIncludeInadimplentes(!event.target.checked); if (event.target.checked) setDueDayOnlyInadimplentes(false) }} className="h-4 w-4 rounded border-slate-300 text-gold-600 focus:ring-gold-500" />Inadimplentes</label>
                 </div>
-                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Em dia: contratos sem juros pendentes até a data de geração do relatório.</p>
+                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Sem exclusões, todas as situações são incluídas no relatório.</p>
               </div>
               </div>
-              <button type="button" onClick={handleDueDayRangeExport} disabled={exportingSection !== null} className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">
-                {exportingSection === 'dueDay' ? 'Gerando PDF...' : 'Baixar PDF'}
-              </button>
+                  <button type="button" onClick={handleDueDayRangeExport} disabled={exportingSection !== null} className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">
+                    {exportingSection === 'dueDay' ? 'Gerando PDF...' : 'Baixar PDF'}
+                  </button>
+                </div>
+                {isDueDayPreviewVisible && <DueDayPdfPreview
+                    previewUrl={dueDayPreviewUrl}
+                    isLoading={isDueDayPreviewLoading}
+                    hasError={dueDayPreviewError}
+                  />}
+              </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
     </motion.div>
   );
+}
+
+type DueDayPdfPreviewProps = {
+  previewUrl: string | null
+  isLoading: boolean
+  hasError: boolean
+}
+
+function DueDayPdfPreview({ previewUrl, isLoading, hasError }: DueDayPdfPreviewProps) {
+  return (
+    <aside className="rounded-2xl border border-slate-200 bg-slate-100 p-4 dark:border-white/10 dark:bg-white/5 lg:sticky lg:top-0">
+      <div className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+        <FileText className="h-4 w-4 text-emerald-600" />
+        Preview do PDF
+      </div>
+      <div className="relative min-h-[70vh] overflow-hidden rounded-sm bg-white shadow-lg ring-1 ring-slate-200" style={{ colorScheme: 'light' }}>
+        {previewUrl && <iframe title="Prévia do PDF de dia de vencimento" src={`${previewUrl}#toolbar=0&navpanes=0`} className="absolute inset-0 h-full w-full border-0" />}
+        {(isLoading || (!previewUrl && !hasError)) && <div className="absolute inset-0 flex items-center justify-center bg-white text-sm font-medium text-slate-500">Gerando prévia do PDF...</div>}
+        {hasError && !isLoading && <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-slate-500">Não há dados para montar a prévia com estes filtros.</div>}
+      </div>
+    </aside>
+  )
 }
 
 function ReportMetricCard({ title, value, subtitle, icon: Icon, color }: any) {
