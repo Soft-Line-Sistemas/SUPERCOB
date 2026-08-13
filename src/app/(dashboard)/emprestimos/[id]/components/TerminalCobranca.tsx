@@ -1,6 +1,8 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Pencil } from 'lucide-react'
 import { WhatsAppTemplates } from '@/components/WhatsAppTemplates'
 
 interface TerminalCobrancaProps {
@@ -8,6 +10,22 @@ interface TerminalCobrancaProps {
   totalDevido: number
   pagamento: string
   setPagamento: (val: string) => void
+  competenciaVencimento: string
+  setCompetenciaVencimento: (val: string) => void
+  competencias: { id: string; vencimento: Date | string; valorPrevisto: number; valorPago: number; pagoEm?: Date | string | null }[]
+  totalCompetenciasPendentes: number
+  evidenciasPorCompetencia: Map<string, { data: Date | string; fonte: 'RECIBO' | 'AUDITORIA' }>
+  pagamentosSemCompetencia: { id: string; descricao: string; createdAt: Date | string }[]
+  reciboHistoricoId: string
+  setReciboHistoricoId: (val: string) => void
+  competenciaRegularizacaoVencimento: string
+  setCompetenciaRegularizacaoVencimento: (val: string) => void
+  handleVincularPagamentoAntigo: () => Promise<boolean>
+  vinculosPorCompetencia: Map<string, string>
+  vinculoEmEdicao: { historicoId: string; vencimento: string } | null
+  handleEditarVinculo: (historicoId: string, vencimento: string) => void
+  setVinculoEmEdicao: (vinculo: { historicoId: string; vencimento: string } | null) => void
+  handleSalvarVinculo: (competenciaVencimento?: string | null) => void
   descontoJuros?: string
   setDescontoJuros?: (val: string) => void
   renovarCiclo?: boolean
@@ -26,6 +44,22 @@ export function TerminalCobranca({
   totalDevido,
   pagamento,
   setPagamento,
+  competenciaVencimento,
+  setCompetenciaVencimento,
+  competencias,
+  totalCompetenciasPendentes,
+  evidenciasPorCompetencia,
+  pagamentosSemCompetencia,
+  reciboHistoricoId,
+  setReciboHistoricoId,
+  competenciaRegularizacaoVencimento,
+  setCompetenciaRegularizacaoVencimento,
+  handleVincularPagamentoAntigo,
+  vinculosPorCompetencia,
+  vinculoEmEdicao,
+  handleEditarVinculo,
+  setVinculoEmEdicao,
+  handleSalvarVinculo,
   descontoJuros = '',
   setDescontoJuros,
   renovarCiclo = false,
@@ -38,6 +72,25 @@ export function TerminalCobranca({
   formatBRL,
   formatDate
 }: TerminalCobrancaProps) {
+  // Competência representa uma data de vencimento, não um instante. Formatar
+  // pelos campos UTC evita que meia-noite UTC apareça como o dia anterior no Brasil.
+  const formatCompetenciaDate = (value: Date | string) => {
+    const date = new Date(value)
+    return `${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}/${date.getUTCFullYear()}`
+  }
+  const [modalCompetenciaAberto, setModalCompetenciaAberto] = useState(false)
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  const competenciaAtual = competencias
+    .filter((item) => Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01)
+    .sort((a, b) => +new Date(a.vencimento) - +new Date(b.vencimento))[0]
+  const vencimentoAtual = competenciaAtual ? new Date(competenciaAtual.vencimento) : null
+  if (vencimentoAtual) vencimentoAtual.setHours(0, 0, 0, 0)
+  const diasParaVencer = vencimentoAtual ? Math.ceil((vencimentoAtual.getTime() - hoje.getTime()) / (24 * 60 * 60 * 1000)) : null
+  const ultimaCompetenciaPaga = [...competencias]
+    .filter((item) => Math.max(item.valorPrevisto - item.valorPago, 0) <= 0.01)
+    .sort((a, b) => +new Date(b.vencimento) - +new Date(a.vencimento))[0]
+
   return (
     <div className="bg-slate-950 rounded-[3rem] p-8 text-white relative shadow-2xl overflow-hidden sticky top-6 border border-white/5">
       {/* Background Effects */}
@@ -74,6 +127,97 @@ export function TerminalCobranca({
         {/* Payment Action */}
         <div className="space-y-4 pt-6 border-t border-white/10">
           <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Registrar Recebimento / Renegociação</p>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Por competência</p>
+              <p className="text-xs font-black text-amber-300">Total: {formatBRL(totalCompetenciasPendentes)}</p>
+            </div>
+            {ultimaCompetenciaPaga ? (
+              <p className="mb-3 text-xs font-bold text-emerald-300">Último mês pago: {formatCompetenciaDate(ultimaCompetenciaPaga.vencimento)}</p>
+            ) : null}
+            {competenciaAtual && diasParaVencer !== null ? (
+              <p className={`mb-3 rounded-xl px-3 py-2 text-xs font-black ${
+                diasParaVencer < 0
+                  ? 'bg-orange-500/15 text-orange-300'
+                  : diasParaVencer <= 10
+                    ? 'bg-amber-400/15 text-amber-200'
+                    : 'bg-blue-500/15 text-blue-200'
+              }`}>
+                {diasParaVencer < 0
+                  ? `Vencido há ${Math.abs(diasParaVencer)} dia${Math.abs(diasParaVencer) === 1 ? '' : 's'} · ${formatCompetenciaDate(competenciaAtual.vencimento)}`
+                  : diasParaVencer === 0
+                    ? `Vence hoje · ${formatCompetenciaDate(competenciaAtual.vencimento)}`
+                    : diasParaVencer <= 10
+                      ? `Vence em ${diasParaVencer} dias · ${formatCompetenciaDate(competenciaAtual.vencimento)}`
+                      : `Próximo vencimento: ${formatCompetenciaDate(competenciaAtual.vencimento)}`}
+              </p>
+            ) : null}
+            <div className="space-y-2">
+              {competencias.map((item) => {
+                const pendente = Math.max(item.valorPrevisto - item.valorPago, 0)
+                const venceNoFuturo = new Date(item.vencimento) > new Date()
+                const chave = new Date(item.vencimento).toISOString().slice(0, 10)
+                const evidencia = evidenciasPorCompetencia.get(chave)
+                const historicoId = vinculosPorCompetencia.get(chave)
+                return <div key={item.id} className="flex items-center justify-between text-xs">
+                  <span className="text-white/75">{formatCompetenciaDate(item.vencimento)}</span>
+                  <span className="flex items-center gap-2"><span className={pendente <= 0.01 ? 'font-bold text-emerald-300' : venceNoFuturo ? 'font-bold text-blue-300' : 'font-bold text-orange-300'}>{pendente <= 0.01 ? `Pago confirmado em ${formatDate(evidencia?.data ?? item.pagoEm ?? item.vencimento)}${evidencia ? evidencia.fonte === 'RECIBO' ? ' · recibo' : ' · auditoria' : ' · registro'}` : venceNoFuturo ? `A vencer ${formatBRL(pendente)}` : `Vencido ${formatBRL(pendente)}`}</span>{historicoId ? <button type="button" onClick={() => handleEditarVinculo(historicoId, new Date(item.vencimento).toISOString())} className="grid h-7 w-7 place-items-center rounded-md border border-white/15 bg-white/5 text-white/60 transition-colors hover:bg-white/15 hover:text-white" aria-label={`Editar vínculo de ${formatCompetenciaDate(item.vencimento)}`}><Pencil className="h-3.5 w-3.5" /></button> : null}</span>
+                </div>
+              })}
+            </div>
+            {pagamentosSemCompetencia.length > 0 ? (
+              <button type="button" onClick={() => setModalCompetenciaAberto(true)} className="mt-4 text-[10px] font-black uppercase tracking-widest text-red-400 transition-colors hover:text-red-300">Regularizar pagamento antigo</button>
+            ) : null}
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-white/50 mb-1 block">Pagamento referente a</label>
+            <select value={competenciaVencimento} onChange={(e) => setCompetenciaVencimento(e.target.value)} disabled={isPending} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white outline-none">
+              <option value="" className="text-slate-900">Pagamento avulso (sem competência)</option>
+              {competencias.filter((item) => Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01).map((item) => (
+                <option key={item.id} value={new Date(item.vencimento).toISOString()} className="text-slate-900">{formatCompetenciaDate(item.vencimento)} · pendente {formatBRL(Math.max(item.valorPrevisto - item.valorPago, 0))}</option>
+              ))}
+            </select>
+          </div>
+          {modalCompetenciaAberto ? createPortal(<div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4">
+          <button type="button" aria-label="Fechar ações por competência" onClick={() => setModalCompetenciaAberto(false)} disabled={isPending} className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm" />
+          <div role="dialog" aria-modal="true" aria-labelledby="competencia-modal-title" className="relative z-10 w-full max-w-lg rounded-[2rem] border border-white/10 bg-slate-950 p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div><p className="text-xs font-black uppercase tracking-[0.2em] text-red-300">Regularização</p><h2 id="competencia-modal-title" className="mt-1 text-xl font-black text-white">Vincular pagamento antigo</h2></div>
+              <button type="button" onClick={() => setModalCompetenciaAberto(false)} disabled={isPending} className="rounded-full px-3 py-1 text-xl font-black text-white/50 hover:bg-white/10 hover:text-white">×</button>
+            </div>
+          <div className="space-y-3">
+            <p className="text-xs leading-relaxed text-white/60">Selecione o recibo antigo e o mês correspondente. Essa ação não desconta novamente juros, principal ou saldo do contrato.</p>
+            {pagamentosSemCompetencia.length > 0 ? <div>
+              <label className="text-[10px] font-bold text-white/50 mb-1 block">Recibo antigo sem competência</label>
+              <select value={reciboHistoricoId} onChange={(e) => setReciboHistoricoId(e.target.value)} disabled={isPending} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white outline-none">
+                <option value="">Selecione o recibo antigo</option>
+                {pagamentosSemCompetencia.map((item) => <option key={item.id} value={item.id}>{formatDate(item.createdAt)} · {item.descricao.slice(0, 75)}</option>)}
+              </select>
+            </div> : null}
+            <div>
+              <label className="text-[10px] font-bold text-white/50 mb-1 block">Competência a vincular</label>
+              <select value={competenciaRegularizacaoVencimento} onChange={(e) => setCompetenciaRegularizacaoVencimento(e.target.value)} disabled={isPending} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white outline-none">
+                <option value="" className="text-slate-900">Selecione o mês a regularizar</option>
+                {competencias.map((item) => (
+                  <option key={item.id} value={new Date(item.vencimento).toISOString()} className="text-slate-900">{formatCompetenciaDate(item.vencimento)} · {Math.max(item.valorPrevisto - item.valorPago, 0) <= 0.01 ? 'pago' : `pendente ${formatBRL(Math.max(item.valorPrevisto - item.valorPago, 0))}`}</option>
+                ))}
+              </select>
+            </div>
+            <button type="button" disabled={isPending || !reciboHistoricoId || !competenciaRegularizacaoVencimento} onClick={async () => { if (await handleVincularPagamentoAntigo()) setModalCompetenciaAberto(false) }} className="w-full rounded-2xl bg-violet-500 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-40">Vincular recibo à competência</button>
+          </div>
+          </div>
+          </div>, document.body) : null}
+          {vinculoEmEdicao ? createPortal(<div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4">
+            <button type="button" aria-label="Fechar edição de vínculo" onClick={() => setVinculoEmEdicao(null)} disabled={isPending} className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm" />
+            <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-lg rounded-[2rem] border border-white/10 bg-slate-950 p-6 shadow-2xl">
+              <h2 className="text-xl font-black text-white">Editar vínculo do recibo</h2>
+              <p className="mt-2 text-xs leading-relaxed text-white/60">Troque a competência ou remova o vínculo. O saldo geral do contrato não será alterado.</p>
+              <select value={vinculoEmEdicao.vencimento} onChange={(e) => setVinculoEmEdicao({ ...vinculoEmEdicao, vencimento: e.target.value })} disabled={isPending} className="mt-5 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white outline-none">
+                {competencias.map((item) => <option key={item.id} value={new Date(item.vencimento).toISOString()} className="text-slate-900">{formatCompetenciaDate(item.vencimento)}</option>)}
+              </select>
+              <div className="mt-5 flex gap-3"><button type="button" onClick={() => handleSalvarVinculo(null)} disabled={isPending} className="rounded-2xl border border-red-500/40 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-red-300 disabled:opacity-40">Remover vínculo</button><button type="button" onClick={() => handleSalvarVinculo(vinculoEmEdicao.vencimento)} disabled={isPending} className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-white disabled:opacity-40">Salvar vínculo</button></div>
+            </div>
+          </div>, document.body) : null}
           <div className="space-y-3">
             <div>
               <label className="text-[10px] font-bold text-white/50 mb-1 block">Valor Recebido (Caixa)</label>

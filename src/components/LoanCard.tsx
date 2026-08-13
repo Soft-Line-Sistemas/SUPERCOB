@@ -64,6 +64,7 @@ interface LoanCardProps {
   canOpenPaymentTerminal?: boolean;
   canConfirmMonthlyPayment?: boolean;
   isMonthlyPaymentSettled?: boolean;
+  monthlyPaymentPill?: { label: string; tone: 'paid' | 'overdue' } | null;
   isConfirmMonthlyPaymentPending?: boolean;
 }
 
@@ -89,6 +90,7 @@ export function LoanCard({
   canOpenPaymentTerminal = false,
   canConfirmMonthlyPayment = false,
   isMonthlyPaymentSettled = false,
+  monthlyPaymentPill = null,
   isConfirmMonthlyPaymentPending = false,
 }: LoanCardProps) {
   const config = statusConfig[loan.status];
@@ -158,13 +160,13 @@ export function LoanCard({
             </button>
           ) : null}
 
-          {isMonthlyPaymentSettled ? (
+          {monthlyPaymentPill ? (
             <div
-              className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 shadow-sm"
-              title="Pagamento do mês já confirmado"
+              className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider shadow-sm ${monthlyPaymentPill.tone === 'overdue' ? 'border-orange-200 bg-orange-100 text-orange-700' : 'border-emerald-200 bg-emerald-100 text-emerald-700'}`}
+              title={monthlyPaymentPill.tone === 'overdue' ? 'Competência atual vencida' : 'Pagamento da competência atual confirmado'}
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Pago
+              {monthlyPaymentPill.label}
             </div>
           ) : null}
 

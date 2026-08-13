@@ -7,6 +7,7 @@ import { auth } from '@/auth'
 import { logSystemAction } from '@/lib/audit'
 import { isAdminRole } from '@/lib/admin-auth'
 import { archiveEmprestimo, unarchiveEmprestimo } from '@/lib/archive'
+import { calculateEstimatedMonthlyPayment } from '@/lib/installments'
 
 export async function getEmprestimos(filters?: {
   status?: string;
@@ -127,6 +128,9 @@ export async function getEmprestimos(filters?: {
       orderBy: { createdAt: 'desc' as const },
       take: 120,
       select: { createdAt: true, descricao: true },
+    },
+    competencias: {
+      select: { vencimento: true, valorPrevisto: true, valorPago: true },
     },
   })
   type EmprestimoListItem = Prisma.EmprestimoGetPayload<{ select: typeof selectFields }>
@@ -341,6 +345,25 @@ export async function createEmprestimo(data: {
   const emprestimo = await prisma.emprestimo.create({
     data: createData,
   })
+
+  // Cada parcela tem sua própria competência e vencimento; assim uma baixa
+  // referente a julho não altera a competência de agosto.
+  const parcelas = Number(data.quantidadeParcelas ?? 0)
+  if (Number.isInteger(parcelas) && parcelas > 0) {
+    const valorPrevisto = calculateEstimatedMonthlyPayment({
+      valor: data.valor,
+      jurosMes: data.jurosMes,
+      quantidadeParcelas: parcelas,
+    }) ?? 0
+    const primeiroVencimento = new Date(data.vencimento)
+    await prisma.competenciaEmprestimo.createMany({
+      data: Array.from({ length: parcelas }, (_, index) => {
+        const vencimento = new Date(primeiroVencimento)
+        vencimento.setUTCMonth(vencimento.getUTCMonth() + index)
+        return { emprestimoId: emprestimo.id, vencimento, valorPrevisto }
+      }),
+    })
+  }
 
   await logSystemAction({
     entidade: 'EMPRESTIMO',

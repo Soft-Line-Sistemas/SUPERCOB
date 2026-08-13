@@ -6,6 +6,7 @@ import { Search, UserPlus, Receipt, LayoutDashboard, Users, FileText, ChevronRig
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { globalSearch } from '@/app/(dashboard)/global-search-actions'
+import { includesSearchText } from '@/lib/search-text'
 
 type CommandItem = {
   id: string
@@ -89,11 +90,10 @@ export function CommandPalette({ isOpen, setIsOpen }: { isOpen: boolean; setIsOp
   const filteredItems = useMemo(() => {
     let base = items
     if (search) {
-      const s = search.toLowerCase()
       base = items.filter(i => 
-        i.title.toLowerCase().includes(s) || 
-        i.subtitle.toLowerCase().includes(s) || 
-        i.category.toLowerCase().includes(s)
+        includesSearchText(i.title, search) ||
+        includesSearchText(i.subtitle, search) ||
+        includesSearchText(i.category, search)
       )
     }
 

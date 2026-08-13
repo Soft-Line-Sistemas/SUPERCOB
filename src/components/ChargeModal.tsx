@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Calendar, Search, User, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { includesSearchText } from '@/lib/search-text'
 
 type ChargeFormData = {
   clienteId: string
@@ -146,7 +147,6 @@ export function ChargeModal({
   }, [clientQuery, clientes, open])
 
   const query = clientQuery.trim()
-  const queryLower = query.toLowerCase()
   const queryDigits = query.replace(/\D/g, '')
   const sortedResults = [...results].sort((a, b) => {
     const score = (c: { nome: string; cpf?: string | null; whatsapp?: string | null }) => {
@@ -154,7 +154,7 @@ export function ChargeModal({
       const whats = (c.whatsapp ?? '').replace(/\D/g, '')
       if (queryDigits && (cpf === queryDigits || whats === queryDigits)) return 300
       if (queryDigits && (cpf.startsWith(queryDigits) || whats.startsWith(queryDigits))) return 200
-      if (queryLower && c.nome.toLowerCase().includes(queryLower)) return 100
+      if (query && includesSearchText(c.nome, query)) return 100
       return 0
     }
     const diff = score(b) - score(a)

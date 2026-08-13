@@ -136,6 +136,7 @@ model Emprestimo {
   cliente             Cliente               @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   usuario             Usuario?              @relation(fields: [usuarioId], references: [id])
   historico           EmprestimoHistorico[]
+  competencias        CompetenciaEmprestimo[]
   whatsappDispatches  WhatsappAutomationDispatch[]
 
   @@index([status])
@@ -143,6 +144,20 @@ model Emprestimo {
   @@index([usuarioId])
   @@index([clienteId])
   @@index([vencimento])
+}
+
+model CompetenciaEmprestimo {
+  id             String     @id @default(cuid())
+  emprestimoId   String
+  vencimento     DateTime
+  valorPrevisto  Float
+  valorPago      Float      @default(0)
+  pagoEm         DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  emprestimo     Emprestimo @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
+  recibos        EmprestimoHistorico[]
+
 }
 
 model WhatsappAutomationConfig {
@@ -228,8 +243,10 @@ model EmprestimoHistorico {
   createdAt    DateTime   @default(now())
   createdById  String?
   tipo         String?    @db.VarChar(20)
+  competenciaId String?
   createdBy    Usuario?   @relation("EmprestimoHistoricoCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   emprestimo   Emprestimo @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
+  competencia  CompetenciaEmprestimo? @relation(fields: [competenciaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([emprestimoId])
   @@index([tipo])

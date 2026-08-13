@@ -8,6 +8,7 @@ const {
   mockFindUnique,
   mockUpdate,
   mockDelete,
+  mockCreateManyCompetencias,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockRevalidatePath: vi.fn(),
@@ -16,6 +17,7 @@ const {
   mockFindUnique: vi.fn(),
   mockUpdate: vi.fn(),
   mockDelete: vi.fn(),
+  mockCreateManyCompetencias: vi.fn(),
 }))
 
 vi.mock('@/auth', () => ({ auth: mockAuth }))
@@ -29,6 +31,7 @@ vi.mock('@/lib/prisma', () => ({
       update: mockUpdate,
       delete: mockDelete,
     },
+    competenciaEmprestimo: { createMany: mockCreateManyCompetencias },
   },
 }))
 
@@ -42,6 +45,7 @@ describe('emprestimos actions - quantidadeParcelas', () => {
     mockFindUnique.mockResolvedValue({ id: 'loan-1', quantidadeParcelas: 12, usuarioId: 'u1' })
     mockUpdate.mockResolvedValue({ id: 'loan-1' })
     mockLogSystemAction.mockResolvedValue(undefined)
+    mockCreateManyCompetencias.mockResolvedValue({ count: 0 })
   })
 
   it('permite criar contrato sem quantidadeParcelas', async () => {
@@ -82,6 +86,9 @@ describe('emprestimos actions - quantidadeParcelas', () => {
         }),
       }),
     )
+    expect(mockCreateManyCompetencias).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.arrayContaining([expect.objectContaining({ emprestimoId: 'loan-1', valorPrevisto: 350 })]),
+    }))
   })
 
   it('permite editar contrato removendo quantidadeParcelas', async () => {

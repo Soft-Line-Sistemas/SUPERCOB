@@ -17,7 +17,7 @@ export default async function EmprestimoDetailsPage({ params }: { params: Promis
   const role = (session.user as any).role as string
   const userId = (session.user as any).id as string
 
-  const [loan, allUsers] = await Promise.all([
+  const [loan, allUsers, auditorias] = await Promise.all([
     prisma.emprestimo.findUnique({
       where: { id },
       include: {
@@ -27,6 +27,7 @@ export default async function EmprestimoDetailsPage({ params }: { params: Promis
           include: { createdBy: { select: { nome: true } } },
           orderBy: { createdAt: 'desc' }
         },
+        competencias: { orderBy: { vencimento: 'desc' } },
         whatsappDispatches: {
           include: { rule: { select: { title: true } } },
           orderBy: { createdAt: 'desc' },
@@ -38,7 +39,12 @@ export default async function EmprestimoDetailsPage({ params }: { params: Promis
       where: { isActive: true }, 
       select: { id: true, nome: true },
       orderBy: { nome: 'asc' }
-    }) : Promise.resolve([])
+    }) : Promise.resolve([]),
+    prisma.auditoriaGeral.findMany({
+      where: { entidade: 'EMPRESTIMO', entidadeId: id, acao: 'PAYMENT' },
+      select: { id: true, detalhes: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    })
   ])
 
   if (!loan) notFound()
@@ -60,6 +66,7 @@ export default async function EmprestimoDetailsPage({ params }: { params: Promis
 
   const emprestimoParaUI = {
     ...loan,
+    auditorias,
     historico: [...loan.historico, ...eventosWhatsapp].sort(
       (a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt),
     ),

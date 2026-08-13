@@ -64,6 +64,7 @@ interface Loan {
   cobrancaAtiva?: boolean;
   inadimplente?: boolean;
   historico?: { createdAt: Date | string; descricao?: string | null }[];
+  competencias?: { vencimento: Date | string; valorPrevisto: number; valorPago: number }[];
 }
 
 interface LoansProps {
@@ -672,7 +673,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     const monthlyCharge = getMonthlyChargeAmount(loan)
     if (monthlyCharge <= 0) return false
 
-    return getPaidAmountInCurrentMonth(loan) + 0.01 < monthlyCharge
+    return !isMonthlyPaymentSettled(loan)
   }
 
   const canConfirmMonthlyPayment = (loan: Loan) => {
@@ -682,17 +683,29 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     const monthlyCharge = getMonthlyChargeAmount(loan)
     if (monthlyCharge <= 0) return false
 
-    return getPaidAmountInCurrentMonth(loan) + 0.01 < monthlyCharge
+    return !isMonthlyPaymentSettled(loan)
   }
 
   const isMonthlyPaymentSettled = (loan: Loan) => {
     if (loan.id.startsWith('draft-')) return false
     if (!MONTHLY_PAYMENT_STATUSES.includes(loan.status)) return false
+    if (!loan.vencimento) return false
+    const vencimentoAtual = new Date(loan.vencimento).toISOString().slice(0, 10)
+    const competenciaAtual = loan.competencias?.find((item) => new Date(item.vencimento).toISOString().slice(0, 10) === vencimentoAtual)
+    return Boolean(competenciaAtual && competenciaAtual.valorPago + 0.01 >= competenciaAtual.valorPrevisto)
+  }
 
-    const monthlyCharge = getMonthlyChargeAmount(loan)
-    if (monthlyCharge <= 0) return false
-
-    return getPaidAmountInCurrentMonth(loan) + 0.01 >= monthlyCharge
+  const getMonthlyPaymentPill = (loan: Loan) => {
+    // A sinalização na lista só começa depois que o contrato entrou no
+    // controle por competência; recibos antigos isolados não geram pill.
+    if (!loan.vencimento || (loan.competencias?.length ?? 0) === 0) return null
+    const date = new Date(loan.vencimento)
+    const referencia = `${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}`
+    if (isMonthlyPaymentSettled(loan)) return { label: `Pago ${referencia}`, tone: 'paid' as const }
+    const hoje = new Date()
+    const hojeUtc = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
+    const vencimentoUtc = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+    return vencimentoUtc < hojeUtc ? { label: `Vencido ${referencia}`, tone: 'overdue' as const } : null
   }
 
   const paymentConfirmationDetails = useMemo(() => {
@@ -1150,6 +1163,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 canOpenPaymentTerminal={canOpenPaymentTerminal(loan)}
                 canConfirmMonthlyPayment={canConfirmMonthlyPayment(loan)}
                 isMonthlyPaymentSettled={isMonthlyPaymentSettled(loan)}
+                monthlyPaymentPill={getMonthlyPaymentPill(loan)}
                 isConfirmMonthlyPaymentPending={isPaymentPending && directMonthlyPaymentLoanId === loan.id}
               />
             ))}
@@ -1213,9 +1227,9 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                             ) : null}
                           </div>
                         ) : null}
-                        {isMonthlyPaymentSettled(loan) ? (
-                          <span className="mt-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700">
-                            Pago
+                        {getMonthlyPaymentPill(loan) ? (
+                          <span className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${getMonthlyPaymentPill(loan)?.tone === 'overdue' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {getMonthlyPaymentPill(loan)?.label}
                           </span>
                         ) : null}
                       </td>

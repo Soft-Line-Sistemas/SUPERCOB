@@ -6,6 +6,7 @@ import { createUsuario, updateUsuario, deleteUsuario } from '@/app/(dashboard)/u
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isAdminRole } from '@/lib/admin-auth';
+import { includesSearchText } from '@/lib/search-text';
 
 interface Usuario {
   id: string;
@@ -36,8 +37,8 @@ export function Users({ initialUsers, myRole }: UsersProps) {
   });
 
   const filteredUsers = initialUsers.filter(user =>
-    user.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    includesSearchText(user.nome, searchTerm) ||
+    includesSearchText(user.email, searchTerm)
   );
 
   const handleOpenModal = (user?: Usuario) => {

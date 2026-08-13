@@ -17,7 +17,7 @@ import {
   Filter,
   ArrowUpDown
 } from 'lucide-react'
-import { addEmprestimoHistorico, addPagamentoParcial, setEmprestimoStatus, updateLoanUser } from './actions'
+import { addEmprestimoHistorico, addPagamentoParcial, setEmprestimoStatus, updateLoanUser, vincularPagamentoHistoricoACompetencia, atualizarVinculoPagamentoHistorico } from './actions'
 import { WhatsAppTemplates } from '@/components/WhatsAppTemplates'
 import { calculateLoanInterest } from '@/lib/loan-interest'
 import { calculateCurrentInstallment, calculateCurrentInstallmentAmounts } from '@/lib/installments'
@@ -35,6 +35,7 @@ type HistoricoEvento = {
   descricao: string
   createdAt: Date | string
   tipo?: string | null
+  competenciaId?: string | null
   createdBy?: { nome: string } | null
 }
 
@@ -84,6 +85,8 @@ type EmprestimoDetalhes = {
   usuario?: { id?: string; nome: string } | null
   historico: HistoricoEvento[]
   jurosPagos?: number | null
+  competencias?: { id: string; vencimento: Date | string; valorPrevisto: number; valorPago: number; pagoEm?: Date | string | null }[]
+  auditorias?: { id: string; detalhes?: string | null; createdAt: Date | string }[]
 }
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
@@ -142,6 +145,10 @@ export function ContractDetails({
   const [descricao, setDescricao] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [pagamento, setPagamento] = useState('')
+  const [reciboHistoricoId, setReciboHistoricoId] = useState('')
+  const [vinculoEmEdicao, setVinculoEmEdicao] = useState<{ historicoId: string; vencimento: string } | null>(null)
+  const [competenciaVencimento, setCompetenciaVencimento] = useState('')
+  const [competenciaRegularizacaoVencimento, setCompetenciaRegularizacaoVencimento] = useState('')
   const [descontoJuros, setDescontoJuros] = useState('')
   const [renovarCiclo, setRenovarCiclo] = useState(false)
   const [paymentConfirmationValue, setPaymentConfirmationValue] = useState<number | null>(null)
@@ -173,6 +180,79 @@ export function ContractDetails({
   } = calculateLoanInterest({ ...emprestimo, valorPago })
   const installmentProgress = calculateCurrentInstallment({ ...emprestimo, valorPago, status })
   const installmentAmounts = calculateCurrentInstallmentAmounts(emprestimo)
+  const competencias = useMemo(() => {
+    const existentes = new Map((emprestimo.competencias ?? []).map((item) => [new Date(item.vencimento).toISOString().slice(0, 10), item]))
+    const referencia = emprestimo.vencimento ? new Date(emprestimo.vencimento) : null
+    // Mantém também a próxima competência disponível para recebimento
+    // antecipado, mas ela só entra no total depois que vencer.
+    const sugestoes = referencia ? [-1, 0, 1].map((offset) => {
+      const vencimento = new Date(Date.UTC(referencia.getUTCFullYear(), referencia.getUTCMonth() + offset, referencia.getUTCDate()))
+      const key = vencimento.toISOString().slice(0, 10)
+      return existentes.get(key) ?? { id: key, vencimento, valorPrevisto: installmentAmounts?.valorParcela ?? jurosBase, valorPago: 0, pagoEm: null }
+    }) : []
+    return [...existentes.values(), ...sugestoes.filter((item) => !existentes.has(new Date(item.vencimento).toISOString().slice(0, 10)))]
+      .sort((a, b) => +new Date(a.vencimento) - +new Date(b.vencimento))
+  }, [emprestimo.competencias, emprestimo.vencimento, installmentAmounts?.valorParcela, jurosBase])
+  const totalCompetenciasPendentes = competencias.reduce((sum, item) => (
+    new Date(item.vencimento) <= new Date() ? sum + Math.max(item.valorPrevisto - item.valorPago, 0) : sum
+  ), 0)
+  const evidenciasPorCompetencia = useMemo(() => {
+    const evidencias = new Map<string, { data: Date | string; fonte: 'RECIBO' | 'AUDITORIA' }>()
+    const registrar = (texto: string | null | undefined, data: Date | string, fonte: 'RECIBO' | 'AUDITORIA') => {
+      const match = texto?.match(/Referente à competência de (\d{2})\/(\d{2})\/(\d{4})/)
+      if (!match) return
+      const chave = `${match[3]}-${match[2]}-${match[1]}`
+      if (!evidencias.has(chave)) evidencias.set(chave, { data, fonte })
+    }
+    emprestimo.historico.filter((evento) => evento.tipo === 'PAGAMENTO').forEach((evento) => registrar(evento.descricao, evento.createdAt, 'RECIBO'))
+    emprestimo.auditorias?.forEach((auditoria) => registrar(auditoria.detalhes, auditoria.createdAt, 'AUDITORIA'))
+    return evidencias
+  }, [emprestimo.historico, emprestimo.auditorias])
+  const pagamentosSemCompetencia = useMemo(() => emprestimo.historico.filter((evento) => (
+    evento.tipo === 'PAGAMENTO' && !evento.competenciaId && !/Referente à competência de \d{2}\/\d{2}\/\d{4}/i.test(evento.descricao)
+  )), [emprestimo.historico])
+  const vinculosPorCompetencia = useMemo(() => {
+    const vinculos = new Map<string, string>()
+    emprestimo.historico.forEach((evento) => {
+      if (!evento.competenciaId) return
+      const competencia = emprestimo.competencias?.find((item) => item.id === evento.competenciaId)
+      if (competencia) vinculos.set(new Date(competencia.vencimento).toISOString().slice(0, 10), evento.id)
+    })
+    return vinculos
+  }, [emprestimo.historico, emprestimo.competencias])
+
+  const handleVincularPagamentoAntigo = () => {
+    if (!reciboHistoricoId || !competenciaRegularizacaoVencimento) {
+      toast.error('Selecione o recibo antigo e a competência.')
+      return Promise.resolve(false)
+    }
+    return new Promise<boolean>((resolve) => startTransition(async () => {
+      try {
+        await vincularPagamentoHistoricoACompetencia({ emprestimoId: emprestimo.id, historicoId: reciboHistoricoId, competenciaVencimento: competenciaRegularizacaoVencimento })
+        setReciboHistoricoId('')
+        setCompetenciaRegularizacaoVencimento('')
+        toast.success('Recibo antigo vinculado sem novo abatimento no contrato.')
+        router.refresh()
+        resolve(true)
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Erro ao regularizar recibo.')
+        resolve(false)
+      }
+    })
+    )
+  }
+  const handleEditarVinculo = (historicoId: string, vencimento: string) => setVinculoEmEdicao({ historicoId, vencimento })
+  const handleSalvarVinculo = (competenciaVencimento?: string | null) => {
+    if (!vinculoEmEdicao) return
+    startTransition(async () => {
+      try {
+        await atualizarVinculoPagamentoHistorico({ emprestimoId: emprestimo.id, historicoId: vinculoEmEdicao.historicoId, competenciaVencimento })
+        setVinculoEmEdicao(null)
+        toast.success(competenciaVencimento ? 'Vínculo atualizado sem novo abatimento.' : 'Vínculo removido sem alterar o saldo geral.')
+        router.refresh()
+      } catch (error) { toast.error(error instanceof Error ? error.message : 'Erro ao editar vínculo.') }
+    })
+  }
   const canFinish = status !== 'QUITADO' && status !== 'CANCELADO' && restante <= 0 && jurosPendente <= 0
   const paymentConfirmation = useMemo(() => {
     if (paymentConfirmationValue === null) return null
@@ -254,12 +334,14 @@ export function ContractDetails({
           valor: v,
           descontoJuros: descJuros,
           renovarCiclo,
+          competenciaVencimento: competenciaVencimento || undefined,
         })
         setValorPago(Number((updated as any).valorPago ?? 0) || 0)
         setStatus((updated as any).status)
         setQuitadoEm((updated as any).quitadoEm)
         setEventos((prev) => [...prev, ...(novosEventos as any)].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)))
         setPagamento('')
+        setCompetenciaVencimento('')
         setDescontoJuros('')
         setRenovarCiclo(false)
         setPaymentConfirmationValue(null)
@@ -371,6 +453,22 @@ export function ContractDetails({
             totalDevido={totalDevido}
             pagamento={pagamento}
             setPagamento={setPagamento}
+            competenciaVencimento={competenciaVencimento}
+            setCompetenciaVencimento={setCompetenciaVencimento}
+            competencias={competencias}
+            totalCompetenciasPendentes={totalCompetenciasPendentes}
+            evidenciasPorCompetencia={evidenciasPorCompetencia}
+            pagamentosSemCompetencia={pagamentosSemCompetencia}
+            reciboHistoricoId={reciboHistoricoId}
+            setReciboHistoricoId={setReciboHistoricoId}
+            competenciaRegularizacaoVencimento={competenciaRegularizacaoVencimento}
+            setCompetenciaRegularizacaoVencimento={setCompetenciaRegularizacaoVencimento}
+            handleVincularPagamentoAntigo={handleVincularPagamentoAntigo}
+            vinculosPorCompetencia={vinculosPorCompetencia}
+            vinculoEmEdicao={vinculoEmEdicao}
+            handleEditarVinculo={handleEditarVinculo}
+            setVinculoEmEdicao={setVinculoEmEdicao}
+            handleSalvarVinculo={handleSalvarVinculo}
             descontoJuros={descontoJuros}
             setDescontoJuros={setDescontoJuros}
             renovarCiclo={renovarCiclo}

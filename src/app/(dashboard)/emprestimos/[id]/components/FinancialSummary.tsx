@@ -79,7 +79,7 @@ export function FinancialSummary({
           </div>
         </div>
         <div className="bg-white dark:bg-slate-950 p-8 group/item">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-red-500 transition-colors">Juros Pendente</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-red-500 transition-colors">Juros pendentes do contrato</p>
           <p className="text-2xl font-black text-red-600 dark:text-red-500">{formatBRL(jurosPendente)}</p>
           <p className="text-[10px] font-bold text-slate-400 mt-2">
             {usesDailyLateInterest ? `${daysLate} dias em atraso` : `${monthsAccrued} meses acumulados`}
@@ -87,7 +87,7 @@ export function FinancialSummary({
         </div>
         {!installmentAmounts ? (
           <div className="bg-white dark:bg-slate-950 p-8 group/item">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-blue-500 transition-colors">Juros Atual</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-blue-500 transition-colors">Juros do mês</p>
             <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{formatBRL(currentInterest)}</p>
             <p className="text-[10px] font-bold text-slate-400 mt-2">Valor mensal pela taxa contratada</p>
           </div>
@@ -110,7 +110,7 @@ export function FinancialSummary({
               <p className="text-[10px] font-bold text-slate-400 mt-2">Parcela {installmentProgress.current}/{installmentProgress.total}</p>
             </div>
             <div className="bg-white dark:bg-slate-950 p-8 group/item">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-blue-500 transition-colors">Juros Atual</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover/item:text-blue-500 transition-colors">Juros do mês</p>
               <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{formatBRL(installmentAmounts.jurosAtual)}</p>
               <p className="text-[10px] font-bold text-slate-400 mt-2">Incluído na parcela do mês</p>
             </div>
