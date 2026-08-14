@@ -121,7 +121,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [loading, setLoading] = useState(false);
   const [quickFilterLoading, setQuickFilterLoading] = useState<{
-    filter: 'inadimplente' | 'pagos'
+    filter: 'inadimplente' | 'pagos' | 'quitados'
     active: boolean
   } | null>(null)
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
@@ -296,17 +296,21 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
 
   const overdueFilter = searchParams.get('overdue')
   const inadimplenteFilter = searchParams.get('inadimplente') === '1'
-  const pagosFilter = searchParams.get('status') === 'QUITADO'
+  const pagosCompetenciaFilter = searchParams.get('pagosCompetencia') === '1'
+  const quitadosFilter = searchParams.get('status') === 'QUITADO'
   const lifecycleFilter = searchParams.get('lifecycle')
 
   useEffect(() => {
     if (quickFilterLoading?.filter === 'inadimplente' && inadimplenteFilter === quickFilterLoading.active) {
       setQuickFilterLoading(null)
     }
-    if (quickFilterLoading?.filter === 'pagos' && pagosFilter === quickFilterLoading.active) {
+    if (quickFilterLoading?.filter === 'pagos' && pagosCompetenciaFilter === quickFilterLoading.active) {
       setQuickFilterLoading(null)
     }
-  }, [inadimplenteFilter, pagosFilter, quickFilterLoading])
+    if (quickFilterLoading?.filter === 'quitados' && quitadosFilter === quickFilterLoading.active) {
+      setQuickFilterLoading(null)
+    }
+  }, [inadimplenteFilter, pagosCompetenciaFilter, quickFilterLoading, quitadosFilter])
 
   const getSummaryCardClass = (state: string | null) => {
     if (state === 'no' || state === 'open') return 'border-red-300 ring-2 ring-red-100'
@@ -367,23 +371,54 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const toggleInadimplenteFilter = () => {
     setQuickFilterLoading({ filter: 'inadimplente', active: !inadimplenteFilter })
     const next = new URLSearchParams(searchParams.toString())
-    if (inadimplenteFilter) next.delete('inadimplente')
-    else next.set('inadimplente', '1')
+    if (inadimplenteFilter) {
+      next.delete('inadimplente')
+    } else {
+      next.set('inadimplente', '1')
+      next.delete('pagosCompetencia')
+      next.delete('lifecycle')
+      if (quitadosFilter) {
+        next.delete('status')
+        setFilters((current) => ({ ...current, status: '' }))
+      }
+    }
     next.delete('page')
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
   }
 
-  const togglePagosFilter = () => {
-    setQuickFilterLoading({ filter: 'pagos', active: !pagosFilter })
+  const togglePagosCompetenciaFilter = () => {
+    setQuickFilterLoading({ filter: 'pagos', active: !pagosCompetenciaFilter })
     const next = new URLSearchParams(searchParams.toString())
-    if (pagosFilter) next.delete('status')
-    else {
-      next.set('status', 'QUITADO')
+    if (pagosCompetenciaFilter) {
+      next.delete('pagosCompetencia')
+    } else {
+      next.set('pagosCompetencia', '1')
       next.delete('lifecycle')
+      next.delete('inadimplente')
+      if (quitadosFilter) {
+        next.delete('status')
+        setFilters((current) => ({ ...current, status: '' }))
+      }
     }
     next.delete('page')
-    setFilters((current) => ({ ...current, status: pagosFilter ? '' : 'QUITADO' }))
+    router.replace(`${pathname}?${next.toString()}`)
+    router.refresh()
+  }
+
+  const toggleQuitadosFilter = () => {
+    setQuickFilterLoading({ filter: 'quitados', active: !quitadosFilter })
+    const next = new URLSearchParams(searchParams.toString())
+    if (quitadosFilter) {
+      next.delete('status')
+    } else {
+      next.set('status', 'QUITADO')
+      next.delete('lifecycle')
+      next.delete('inadimplente')
+      next.delete('pagosCompetencia')
+    }
+    next.delete('page')
+    setFilters((current) => ({ ...current, status: quitadosFilter ? '' : 'QUITADO' }))
     router.replace(`${pathname}?${next.toString()}`)
     router.refresh()
   }
@@ -1083,8 +1118,10 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         setViewMode={setViewMode}
         inadimplenteOnly={inadimplenteFilter}
         onToggleInadimplente={toggleInadimplenteFilter}
-        pagosOnly={pagosFilter}
-        onTogglePagos={togglePagosFilter}
+        competenciaPagaOnly={pagosCompetenciaFilter}
+        onToggleCompetenciaPaga={togglePagosCompetenciaFilter}
+        quitadosOnly={quitadosFilter}
+        onToggleQuitados={toggleQuitadosFilter}
         quickFilterLoading={quickFilterLoading?.filter ?? null}
       />
 

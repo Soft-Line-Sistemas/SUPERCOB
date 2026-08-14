@@ -34,9 +34,11 @@ interface LoanFiltersProps {
   setViewMode: React.Dispatch<React.SetStateAction<'grid' | 'list'>>
   inadimplenteOnly: boolean
   onToggleInadimplente: () => void
-  pagosOnly: boolean
-  onTogglePagos: () => void
-  quickFilterLoading: 'inadimplente' | 'pagos' | null
+  competenciaPagaOnly: boolean
+  onToggleCompetenciaPaga: () => void
+  quitadosOnly: boolean
+  onToggleQuitados: () => void
+  quickFilterLoading: 'inadimplente' | 'pagos' | 'quitados' | null
 }
 
 export function LoanFilters({
@@ -58,8 +60,10 @@ export function LoanFilters({
   setViewMode,
   inadimplenteOnly,
   onToggleInadimplente,
-  pagosOnly,
-  onTogglePagos,
+  competenciaPagaOnly,
+  onToggleCompetenciaPaga,
+  quitadosOnly,
+  onToggleQuitados,
   quickFilterLoading,
 }: LoanFiltersProps) {
   return (
@@ -136,16 +140,30 @@ export function LoanFilters({
 
         <button
           type="button"
-          onClick={onTogglePagos}
+          onClick={onToggleCompetenciaPaga}
           disabled={quickFilterLoading !== null}
           className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-black transition-all shadow-sm border ${
-            pagosOnly
+            competenciaPagaOnly
               ? 'border-emerald-600 bg-emerald-600 text-white'
               : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
           } disabled:cursor-wait disabled:opacity-75`}
         >
           {quickFilterLoading === 'pagos' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
           {quickFilterLoading === 'pagos' ? 'Carregando...' : 'Pagos'}
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggleQuitados}
+          disabled={quickFilterLoading !== null}
+          className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-black transition-all shadow-sm border ${
+            quitadosOnly
+              ? 'border-blue-600 bg-blue-600 text-white'
+              : 'border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100'
+          } disabled:cursor-wait disabled:opacity-75`}
+        >
+          {quickFilterLoading === 'quitados' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+          {quickFilterLoading === 'quitados' ? 'Carregando...' : 'Quitados'}
         </button>
 
         <button

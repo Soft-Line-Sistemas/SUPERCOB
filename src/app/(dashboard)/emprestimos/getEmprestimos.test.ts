@@ -326,4 +326,66 @@ describe('emprestimos actions - ordenacao e dashboard', () => {
     expect(result.total).toBe(1)
     expect(result.summary.vencidos).toBe(1)
   })
+
+  it('filtra contratos com a competência do mês atual integralmente paga', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } })
+    const now = new Date()
+    const competenciaAtual = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 10))
+
+    mockFindMany
+      .mockResolvedValueOnce([
+        {
+          id: 'l1',
+          status: 'ABERTO',
+          valor: 1000,
+          cobrancaAtiva: true,
+          vencimento: competenciaAtual,
+          createdAt: competenciaAtual,
+          cliente: { nome: 'Ana', whatsapp: '71999999999' },
+          competencias: [{ valorPrevisto: 100, valorPago: 100 }],
+        },
+        {
+          id: 'l2',
+          status: 'ABERTO',
+          valor: 1000,
+          cobrancaAtiva: true,
+          vencimento: competenciaAtual,
+          createdAt: competenciaAtual,
+          cliente: { nome: 'Bruno', whatsapp: '71988888888' },
+          competencias: [{ valorPrevisto: 100, valorPago: 99 }],
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'l1',
+          clienteId: 'c1',
+          usuarioId: 'u1',
+          valor: 1000,
+          quantidadeParcelas: 10,
+          valorPago: 100,
+          jurosMes: 10,
+          jurosAtrasoDia: 0,
+          vencimento: competenciaAtual,
+          quitadoEm: null,
+          status: 'ABERTO',
+          observacao: null,
+          createdAt: competenciaAtual,
+          cobrancaAtiva: true,
+          jurosPagos: 0,
+          cliente: { nome: 'Ana', email: 'ana@x.com', whatsapp: '71999999999' },
+          usuario: { nome: 'Gerente 1' },
+          historico: [],
+          competencias: [{ vencimento: competenciaAtual, valorPrevisto: 100, valorPago: 100 }],
+        },
+      ])
+
+    const result = await getEmprestimos({ pagosCompetenciaOnly: true, page: 1, pageSize: 10 })
+
+    expect(result.total).toBe(1)
+    expect(result.items.map((item) => item.id)).toEqual(['l1'])
+    expect(mockFindMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ where: { id: { in: ['l1'] } } }),
+    )
+  })
 })

@@ -24,6 +24,7 @@ export async function getEmprestimos(filters?: {
   sort?: 'newest' | 'az';
   overdue?: 'yes' | 'no';
   inadimplenteOnly?: boolean;
+  pagosCompetenciaOnly?: boolean;
   lifecycle?: 'open' | 'closed';
 }) {
   const session = await auth()
@@ -48,7 +49,7 @@ export async function getEmprestimos(filters?: {
     where.status = { in: ['ABERTO', 'NEGOCIACAO'] }
   } else if (filters?.lifecycle === 'closed') {
     where.status = { in: ['QUITADO', 'CANCELADO'] }
-  } else {
+  } else if (!filters?.pagosCompetenciaOnly) {
     // Default: only show open/active contracts by default
     where.status = { in: ['ABERTO', 'NEGOCIACAO'] }
   }
@@ -145,6 +146,15 @@ export async function getEmprestimos(filters?: {
     cliente: {
       select: { nome: true, whatsapp: true },
     },
+    competencias: {
+      where: {
+        vencimento: {
+          gte: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)),
+          lt: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1)),
+        },
+      },
+      select: { valorPrevisto: true, valorPago: true },
+    },
   })
   type EmprestimoCandidate = Prisma.EmprestimoGetPayload<{ select: typeof candidateFields }>
 
@@ -153,6 +163,7 @@ export async function getEmprestimos(filters?: {
     return !Number.isNaN(day) && day >= 1 && day <= 31
   })()
   const hasContactOnlyFilter = Boolean(filters?.contactOnly)
+  const hasPagosCompetenciaFilter = Boolean(filters?.pagosCompetenciaOnly)
   const overdueFilter = filters?.overdue
 
   if (hasVencimentoDayFilter && !where.vencimento) {
@@ -164,6 +175,7 @@ export async function getEmprestimos(filters?: {
     status: string
     vencimento: Date | null
     cliente: { whatsapp: string | null }
+    competencias?: { valorPrevisto: number; valorPago: number }[]
   }) => {
     if (overdueFilter === 'yes') {
       const isOverdue =
@@ -190,6 +202,13 @@ export async function getEmprestimos(filters?: {
       const hasWhatsapp = normalizeDigits(loan.cliente.whatsapp).length >= 10
       const notPaid = loan.status !== 'QUITADO' && loan.status !== 'CANCELADO'
       if (!hasWhatsapp || !notPaid) return false
+    }
+
+    if (hasPagosCompetenciaFilter) {
+      const competenciaAtualFoiPaga = (loan.competencias ?? []).some(
+        (competencia) => competencia.valorPago + 0.01 >= competencia.valorPrevisto,
+      )
+      if (!competenciaAtualFoiPaga) return false
     }
 
     return true
@@ -251,7 +270,7 @@ export async function getEmprestimos(filters?: {
     : candidates.filter((loan) => loan.status !== 'CANCELADO')
 
   const filteredCandidates =
-    hasVencimentoDayFilter || hasContactOnlyFilter || overdueFilter === 'yes' || overdueFilter === 'no'
+    hasVencimentoDayFilter || hasContactOnlyFilter || hasPagosCompetenciaFilter || overdueFilter === 'yes' || overdueFilter === 'no'
       ? visibleCandidates.filter(matchesSpecialFilters)
       : visibleCandidates
 

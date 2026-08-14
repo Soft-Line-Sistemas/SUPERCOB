@@ -37,6 +37,27 @@ function addMonthlyOccurrence(date: Date, preferredDay: number) {
   return new Date(Date.UTC(year, month, Math.min(preferredDay, lastDayOfNextMonth), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds(), date.getUTCMilliseconds()))
 }
 
+function occurrenceInCurrentMonth(date: Date, preferredDay: number, todayStart: Date) {
+  const year = todayStart.getUTCFullYear()
+  const month = todayStart.getUTCMonth()
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(
+    year,
+    month,
+    Math.min(preferredDay, lastDay),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+    date.getUTCMilliseconds(),
+  ))
+}
+
+function isSameUtcCalendarDate(first: Date, second: Date) {
+  return first.getUTCFullYear() === second.getUTCFullYear()
+    && first.getUTCMonth() === second.getUTCMonth()
+    && first.getUTCDate() === second.getUTCDate()
+}
+
 async function buildDueDayData(filters: any, enforcedUsuarioId?: string) {
   const parsedDays = Number(filters?.upcomingDays)
   const upcomingDays = Number.isInteger(parsedDays) && parsedDays >= 1 && parsedDays <= 3650 ? parsedDays : 30
@@ -63,15 +84,22 @@ async function buildDueDayData(filters: any, enforcedUsuarioId?: string) {
     if (filters.estado) where.cliente.estado = { contains: filters.estado }
   }
 
+  const todayStart = saoPauloDayStartUtc(todayYMDInSaoPaulo())
+  const currentMonthStart = new Date(Date.UTC(todayStart.getUTCFullYear(), todayStart.getUTCMonth(), 1))
+  const nextMonthStart = new Date(Date.UTC(todayStart.getUTCFullYear(), todayStart.getUTCMonth() + 1, 1))
   const loans = await prisma.emprestimo.findMany({
     where,
     select: {
       valor: true, valorPago: true, jurosMes: true, jurosAtrasoDia: true, jurosPagos: true,
       jurosPagosNoInicioCiclo: true, jurosCicloIniciadoEm: true, quantidadeParcelas: true,
-      status: true, vencimento: true, createdAt: true, cliente: { select: { nome: true, whatsapp: true } },
+      status: true, vencimento: true, createdAt: true,
+      cliente: { select: { nome: true, whatsapp: true } },
+      competencias: {
+        where: { vencimento: { gte: currentMonthStart, lt: nextMonthStart } },
+        select: { vencimento: true, valorPrevisto: true, valorPago: true },
+      },
     },
   })
-  const todayStart = saoPauloDayStartUtc(todayYMDInSaoPaulo())
   const upcomingEnd = saoPauloDayStartUtc(addDaysYMD(todayYMDInSaoPaulo(), upcomingDays + 1))
   const groups = new Map<number, { client: string; whatsapp: string | null; jurosAtual: number; isAcordo: boolean; parcelaAtual: number; parcelaTotal: number; valorParcela: number; isPaid: boolean; isCurrent: boolean }[]>()
 
@@ -87,7 +115,16 @@ async function buildDueDayData(filters: any, enforcedUsuarioId?: string) {
     const progress = isAcordo ? calculateCurrentInstallment(loan) : null
     const amounts = isAcordo ? calculateCurrentInstallmentAmounts(loan) : null
     const interest = calculateLoanInterest(loan)
-    const isCurrent = loan.status !== 'QUITADO' && interest.jurosPendente <= 0.01
+    // A marcação de "pago" no documento é da competência do mês corrente,
+    // não do saldo global de juros do contrato. Assim, uma quitação de mês
+    // anterior não marca por engano o vencimento listado para este mês.
+    const currentOccurrence = occurrenceInCurrentMonth(loan.vencimento, preferredDay, todayStart)
+    const currentCompetencia = loan.competencias.find((competencia) =>
+      isSameUtcCalendarDate(competencia.vencimento, currentOccurrence),
+    )
+    const isCurrent = loan.status !== 'QUITADO'
+      && Boolean(currentCompetencia)
+      && currentCompetencia!.valorPago + 0.01 >= currentCompetencia!.valorPrevisto
     if (!includeCurrent && isCurrent) continue
     const entry = {
       client: loan.cliente.nome,

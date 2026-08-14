@@ -34,6 +34,7 @@ export default async function EmprestimosPage({
     sort,
     overdue,
     inadimplenteOnly: params.inadimplente === '1',
+    pagosCompetenciaOnly: params.pagosCompetencia === '1',
     lifecycle,
   }
   const clienteId = params.clienteId as string
