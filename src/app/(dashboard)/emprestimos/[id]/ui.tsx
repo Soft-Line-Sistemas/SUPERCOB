@@ -20,6 +20,7 @@ import {
 import { addEmprestimoHistorico, addPagamentoParcial, setEmprestimoStatus, updateLoanUser, vincularPagamentoHistoricoACompetencia, atualizarVinculoPagamentoHistorico } from './actions'
 import { WhatsAppTemplates } from '@/components/WhatsAppTemplates'
 import { calculateLoanInterest } from '@/lib/loan-interest'
+import { suggestedCompetenciaDates } from '@/lib/competencias'
 import { calculateCurrentInstallment, calculateCurrentInstallmentAmounts } from '@/lib/installments'
 import { DocumentsTab } from '@/components/loans/DocumentsTab'
 import { DossieHeader } from './components/DossieHeader'
@@ -195,18 +196,13 @@ export function ContractDetails({
     ]))
     const vencimentoContrato = emprestimo.vencimento ? new Date(emprestimo.vencimento) : null
     const agora = new Date()
-    // As competências acompanham o mês corrente usando o dia de vencimento do
-    // contrato; o vencimento original não deve congelar a lista no mês da criação.
-    const referencia = vencimentoContrato
-      ? new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), vencimentoContrato.getUTCDate()))
-      : null
     // Mostra o mês anterior, o atual e o próximo. A competência futura
-    // permite receber juros antecipadamente, sem entrar no total vencido.
-    const sugestoes = referencia ? [-1, 0, 1].map((offset) => {
-      const vencimento = new Date(Date.UTC(referencia.getUTCFullYear(), referencia.getUTCMonth() + offset, referencia.getUTCDate()))
+    // permite receber juros antecipadamente, sem entrar no total vencido. Em
+    // contratos novos, não cria competências antes do primeiro vencimento.
+    const sugestoes = suggestedCompetenciaDates(vencimentoContrato, agora).map((vencimento) => {
       const key = vencimento.toISOString().slice(0, 10)
       return existentes.get(key) ?? { id: key, vencimento, valorPrevisto: valorCompetencia, valorPago: 0, pagoEm: null }
-    }) : []
+    })
     return [...existentes.values(), ...sugestoes.filter((item) => !existentes.has(new Date(item.vencimento).toISOString().slice(0, 10)))]
       .sort((a, b) => +new Date(a.vencimento) - +new Date(b.vencimento))
   }, [acordoSemJuros, emprestimo.competencias, emprestimo.vencimento, installmentAmounts?.valorParcela, jurosBase])

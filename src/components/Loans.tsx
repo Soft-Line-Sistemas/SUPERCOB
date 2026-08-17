@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChargeModal } from './ChargeModal';
 import { parseDateInputToUTCNoon } from '@/lib/date-utils'
+import { suggestedCompetenciaDates } from '@/lib/competencias'
 import {
   calculateCurrentInstallment,
   calculateCurrentInstallmentAmounts,
@@ -241,21 +242,12 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     )
     const vencimentoContrato = loan.vencimento ? new Date(loan.vencimento) : null
     const agora = new Date()
-    const referencia = vencimentoContrato
-      ? new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), vencimentoContrato.getUTCDate()))
-      : null
     const valorPrevisto = getMonthlyChargeAmount(loan)
-    const sugestoes = referencia
-      ? [-1, 0, 1].map((offset) => {
-          const vencimento = new Date(Date.UTC(
-            referencia.getUTCFullYear(),
-            referencia.getUTCMonth() + offset,
-            referencia.getUTCDate(),
-          ))
+    const sugestoes = suggestedCompetenciaDates(vencimentoContrato, agora)
+      .map((vencimento) => {
           const key = vencimento.toISOString().slice(0, 10)
           return existentes.get(key) ?? { vencimento, valorPrevisto, valorPago: 0 }
         })
-      : []
 
     return [...existentes.values(), ...sugestoes.filter((item) => !existentes.has(new Date(item.vencimento).toISOString().slice(0, 10)))]
       .sort((a, b) => +new Date(a.vencimento) - +new Date(b.vencimento))

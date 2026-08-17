@@ -194,13 +194,13 @@ export function TerminalCobranca({
           </div>
           <div>
             <label className="text-[10px] font-bold text-white/50 mb-1 block">{acordoSemJuros ? 'Parcela referente a' : 'Pagamento referente a'} <span className="text-red-300">*</span></label>
-            <select value={competenciaVencimento} onChange={(e) => setCompetenciaVencimento(e.target.value)} disabled={isPending} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white outline-none [color-scheme:dark]">
-              <option value="" className="text-slate-900">Selecione o mês de referência</option>
+            <select value={competenciaVencimento} onChange={(e) => setCompetenciaVencimento(e.target.value)} disabled={isPending} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white outline-none">
+              <option value="" className="text-black">Selecione o mês de referência</option>
               {competencias.filter((item) => {
                 const chave = new Date(item.vencimento).toISOString().slice(0, 10)
                 return Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01 && !evidenciasPorCompetencia.has(chave)
               }).map((item) => (
-                <option key={item.id} value={new Date(item.vencimento).toISOString()} className="text-slate-900">{formatCompetenciaDate(item.vencimento)} · pendente {formatBRL(Math.max(item.valorPrevisto - item.valorPago, 0))}</option>
+                <option key={item.id} value={new Date(item.vencimento).toISOString()} className="text-black">{formatCompetenciaDate(item.vencimento)} · pendente {formatBRL(Math.max(item.valorPrevisto - item.valorPago, 0))}</option>
               ))}
             </select>
             {competenciaSelecionada && diasDaCompetenciaSelecionada !== null ? (
@@ -239,17 +239,17 @@ export function TerminalCobranca({
             <p className="text-xs leading-relaxed text-white/60">Selecione o recibo antigo e o mês correspondente. Essa ação não desconta novamente juros, principal ou saldo do contrato.</p>
             {pagamentosSemCompetencia.length > 0 ? <div>
               <label className="text-[10px] font-bold text-white/50 mb-1 block">Recibo antigo sem competência</label>
-              <select value={reciboHistoricoId} onChange={(e) => setReciboHistoricoId(e.target.value)} disabled={isPending} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white outline-none [color-scheme:dark]">
-                <option value="">Selecione o recibo antigo</option>
-                {pagamentosSemCompetencia.map((item) => <option key={item.id} value={item.id}>{formatDate(item.createdAt)} · {item.descricao.slice(0, 75)}</option>)}
+              <select value={reciboHistoricoId} onChange={(e) => setReciboHistoricoId(e.target.value)} disabled={isPending} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-white outline-none">
+                <option value="" className="text-black">Selecione o recibo antigo</option>
+                {pagamentosSemCompetencia.map((item) => <option key={item.id} value={item.id} className="text-black">{formatDate(item.createdAt)} · {item.descricao.slice(0, 75)}</option>)}
               </select>
             </div> : null}
             <div>
               <label className="text-[10px] font-bold text-white/50 mb-1 block">Competência a vincular</label>
-              <select value={competenciaRegularizacaoVencimento} onChange={(e) => setCompetenciaRegularizacaoVencimento(e.target.value)} disabled={isPending} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white outline-none [color-scheme:dark]">
-                <option value="" className="text-slate-900">Selecione o mês a regularizar</option>
+              <select value={competenciaRegularizacaoVencimento} onChange={(e) => setCompetenciaRegularizacaoVencimento(e.target.value)} disabled={isPending} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white outline-none">
+                <option value="" className="text-black">Selecione o mês a regularizar</option>
                 {competencias.map((item) => (
-                  <option key={item.id} value={new Date(item.vencimento).toISOString()} className="text-slate-900">{formatCompetenciaDate(item.vencimento)} · {Math.max(item.valorPrevisto - item.valorPago, 0) <= 0.01 ? 'pago' : `pendente ${formatBRL(Math.max(item.valorPrevisto - item.valorPago, 0))}`}</option>
+                  <option key={item.id} value={new Date(item.vencimento).toISOString()} className="text-black">{formatCompetenciaDate(item.vencimento)} · {Math.max(item.valorPrevisto - item.valorPago, 0) <= 0.01 ? 'pago' : `pendente ${formatBRL(Math.max(item.valorPrevisto - item.valorPago, 0))}`}</option>
                 ))}
               </select>
             </div>
@@ -262,8 +262,8 @@ export function TerminalCobranca({
             <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-lg rounded-[2rem] border border-white/10 bg-slate-950 p-6 shadow-2xl">
               <h2 className="text-xl font-black text-white">Editar vínculo do recibo</h2>
               <p className="mt-2 text-xs leading-relaxed text-white/60">Troque a competência ou remova o vínculo. O saldo geral do contrato não será alterado.</p>
-              <select value={vinculoEmEdicao.vencimento} onChange={(e) => setVinculoEmEdicao({ ...vinculoEmEdicao, vencimento: e.target.value })} disabled={isPending} className="mt-5 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white outline-none [color-scheme:dark]">
-                {competencias.map((item) => <option key={item.id} value={new Date(item.vencimento).toISOString()} className="text-slate-900">{formatCompetenciaDate(item.vencimento)}</option>)}
+              <select value={vinculoEmEdicao.vencimento} onChange={(e) => setVinculoEmEdicao({ ...vinculoEmEdicao, vencimento: e.target.value })} disabled={isPending} className="mt-5 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white outline-none">
+                {competencias.map((item) => <option key={item.id} value={new Date(item.vencimento).toISOString()} className="text-black">{formatCompetenciaDate(item.vencimento)}</option>)}
               </select>
               <div className="mt-5 flex gap-3"><button type="button" onClick={() => handleSalvarVinculo(null)} disabled={isPending} className="rounded-2xl border border-red-500/40 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-red-300 disabled:opacity-40">Remover vínculo</button><button type="button" onClick={() => handleSalvarVinculo(vinculoEmEdicao.vencimento)} disabled={isPending} className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-white disabled:opacity-40">Salvar vínculo</button></div>
             </div>
