@@ -213,7 +213,9 @@ export function ContractDetails({
   // Juros de competência futura ainda não venceram e, portanto, não impedem
   // a amortização do principal quando todos os juros exigíveis estão quitados.
   const podeAplicarPrincipal = jurosPendente <= 0.01
-  const jurosCobraveisNaCompetencia = competenciaSelecionadaFutura ? jurosBase : jurosPendente
+  const jurosCobraveisNaCompetencia = competenciaSelecionada
+    ? Math.max(competenciaSelecionada.valorPrevisto - competenciaSelecionada.valorPago, 0)
+    : jurosPendente
   const evidenciasPorCompetencia = useMemo(() => {
     const evidencias = new Map<string, { data: Date | string; fonte: 'RECIBO' | 'AUDITORIA' }>()
     const registrar = (texto: string | null | undefined, data: Date | string, fonte: 'RECIBO' | 'AUDITORIA') => {

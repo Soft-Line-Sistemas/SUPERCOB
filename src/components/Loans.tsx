@@ -796,23 +796,29 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     return vencimentoUtc < hojeUtc ? { label: `Vencido ${referencia}`, tone: 'overdue' as const } : null
   }
 
-  const paymentConfirmationDetails = useMemo(() => {
+  const paymentConfirmationDetails = (() => {
     if (!paymentConfirmation) return null
 
     const { loan, valor, aplicarPrincipal } = paymentConfirmation
     const financials = calculateLoanInterest(loan)
-    const paraJuros = aplicarPrincipal ? 0 : Math.min(valor, financials.jurosPendente)
+    const competencia = getPaymentCompetencias(loan).find((item) => (
+      new Date(item.vencimento).toISOString() === paymentConfirmation.competenciaVencimento
+    ))
+    const jurosDaCompetencia = competencia
+      ? Math.max(competencia.valorPrevisto - competencia.valorPago, 0)
+      : financials.jurosPendente
+    const paraJuros = aplicarPrincipal ? 0 : Math.min(valor, jurosDaCompetencia)
     const paraPrincipal = aplicarPrincipal ? valor : 0
 
     return {
       valor,
-      jurosPendente: financials.jurosPendente,
+      jurosPendente: jurosDaCompetencia,
       paraJuros,
       paraPrincipal,
-      jurosRestanteApos: Math.max(financials.jurosPendente - paraJuros, 0),
+      jurosRestanteApos: Math.max(jurosDaCompetencia - paraJuros, 0),
       principalRestanteApos: Math.max(financials.principalRestante - paraPrincipal, 0),
     }
-  }, [paymentConfirmation])
+  })()
 
   const paymentCompetencias = paymentConfirmation?.kind === 'monthly'
     ? getPaymentCompetencias(paymentConfirmation.loan)

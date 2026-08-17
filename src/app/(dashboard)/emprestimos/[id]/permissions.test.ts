@@ -95,7 +95,9 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
 
   it('registra juros na competência mesmo quando a data enviada contém horário', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
-    mockCalculateLoanInterest.mockReturnValue({ principalRestante: 100, jurosPendente: 10, jurosBase: 10 })
+    // O mês anterior pode estar quitado (juros pendentes gerais em zero), mas
+    // o juro da competência escolhida ainda deve poder ser recebido.
+    mockCalculateLoanInterest.mockReturnValue({ principalRestante: 100, jurosPendente: 0, jurosBase: 10 })
     mockUpdate.mockResolvedValue({ ...contract, status: 'NEGOCIACAO', jurosPagos: 10 })
 
     await expect(addPagamentoParcial({

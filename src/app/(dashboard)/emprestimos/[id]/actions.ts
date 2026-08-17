@@ -191,10 +191,21 @@ export async function addPagamentoParcial(input: {
     throw new Error('O principal só pode ser abatido após quitar todos os juros pendentes.')
   }
 
+  // O recebimento é sempre referente ao mês escolhido. Mesmo que o cálculo
+  // geral de juros esteja zerado após o mês anterior, a competência atual
+  // continua podendo receber o juro mensal dela.
+  const competenciaAtual = await prisma.competenciaEmprestimo.findFirst({
+    where: { emprestimoId: input.emprestimoId, vencimento: competenciaVencimento },
+  })
+  const jurosCobraveisNaCompetencia = Math.max(
+    (competenciaAtual?.valorPrevisto ?? jurosBase) - (competenciaAtual?.valorPago ?? 0),
+    0,
+  )
+
   let pagamentoParaJuros = 0
   let pagamentoParaPrincipal = 0
 
-  const jurosCobraveis = competenciaFutura ? jurosBase : jurosPendente
+  const jurosCobraveis = jurosCobraveisNaCompetencia
   if (aplicarPrincipal) {
     pagamentoParaPrincipal = valor
   } else if (valor <= jurosCobraveis + 0.01) {
@@ -244,9 +255,6 @@ export async function addPagamentoParcial(input: {
     // A competência mensal representa a cobrança de juros. Principal só é
     // registrado mediante confirmação explícita, nunca como parte automática da mensalidade.
     const valorPrevisto = jurosBase
-    const competenciaAtual = await prisma.competenciaEmprestimo.findFirst({
-      where: { emprestimoId: input.emprestimoId, vencimento: competenciaVencimento },
-    })
     const novoPago = (competenciaAtual?.valorPago ?? 0) + valor
     if (competenciaAtual) {
       competenciaId = competenciaAtual.id
