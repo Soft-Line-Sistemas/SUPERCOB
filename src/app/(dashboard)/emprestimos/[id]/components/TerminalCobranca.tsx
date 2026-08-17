@@ -16,6 +16,7 @@ interface TerminalCobrancaProps {
   aplicarPrincipal: boolean
   setAplicarPrincipal: (val: boolean) => void
   competenciaSelecionadaFutura: boolean
+  acordoSemJuros: boolean
   competencias: { id: string; vencimento: Date | string; valorPrevisto: number; valorPago: number; pagoEm?: Date | string | null }[]
   totalCompetenciasPendentes: number
   evidenciasPorCompetencia: Map<string, { data: Date | string; fonte: 'RECIBO' | 'AUDITORIA' }>
@@ -56,6 +57,7 @@ export function TerminalCobranca({
   aplicarPrincipal,
   setAplicarPrincipal,
   competenciaSelecionadaFutura,
+  acordoSemJuros,
   competencias,
   totalCompetenciasPendentes,
   evidenciasPorCompetencia,
@@ -146,10 +148,10 @@ export function TerminalCobranca({
 
         {/* Payment Action */}
         <div className="space-y-4 pt-6 border-t border-white/10">
-          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Registrar Recebimento / Renegociação</p>
+          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">{acordoSemJuros ? 'Registrar parcela do acordo' : 'Registrar Recebimento / Renegociação'}</p>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Por competência</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/50">{acordoSemJuros ? 'Parcelas do acordo' : 'Por competência'}</p>
               <p className="text-xs font-black text-amber-300">Total: {formatBRL(totalCompetenciasPendentes)}</p>
             </div>
             {ultimaCompetenciaPaga ? (
@@ -191,7 +193,7 @@ export function TerminalCobranca({
             ) : null}
           </div>
           <div>
-            <label className="text-[10px] font-bold text-white/50 mb-1 block">Pagamento referente a <span className="text-red-300">*</span></label>
+            <label className="text-[10px] font-bold text-white/50 mb-1 block">{acordoSemJuros ? 'Parcela referente a' : 'Pagamento referente a'} <span className="text-red-300">*</span></label>
             <select value={competenciaVencimento} onChange={(e) => setCompetenciaVencimento(e.target.value)} disabled={isPending} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white outline-none">
               <option value="" className="text-slate-900">Selecione o mês de referência</option>
               {competencias.filter((item) => {
@@ -323,7 +325,7 @@ export function TerminalCobranca({
                   className="w-4 h-4 rounded border-white/20 text-violet-600 focus:ring-violet-500 bg-white/5"
                   disabled={isPending}
                 />
-                <span className="text-xs font-semibold text-violet-100">Abater este pagamento do principal</span>
+                <span className="text-xs font-semibold text-violet-100">{acordoSemJuros ? 'Confirmar abatimento desta parcela no principal' : 'Abater este pagamento do principal'}</span>
               </label>
             ) : null}
 

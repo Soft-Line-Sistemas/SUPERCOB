@@ -1736,7 +1736,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 </p>
               )}
 
-              {paymentConfirmationDetails.jurosPendente <= 0.01 ? (
+              {paymentConfirmationDetails.jurosPendente <= 0.01 || (Number(paymentConfirmation.loan.jurosMes ?? 0) <= 0.01 && Number(paymentConfirmation.loan.quantidadeParcelas ?? 0) > 0) ? (
                 <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-4 text-sm text-violet-900 transition-colors hover:bg-violet-500/15 dark:text-violet-100">
                   <input
                     type="checkbox"

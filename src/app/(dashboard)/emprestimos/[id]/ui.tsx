@@ -182,14 +182,16 @@ export function ContractDetails({
   } = calculateLoanInterest({ ...emprestimo, valorPago })
   const installmentProgress = calculateCurrentInstallment({ ...emprestimo, valorPago, status })
   const installmentAmounts = calculateCurrentInstallmentAmounts(emprestimo)
+  const acordoSemJuros = jurosBase <= 0.01 && Boolean(installmentAmounts?.valorParcela)
   const competencias = useMemo(() => {
     // Contratos sem juros mensais não possuem cobrança por competência. Não
     // crie meses sintéticos com valor zero, pois 0 previsto/0 pago parecia
     // indevidamente como um pagamento confirmado no dossiê.
-    if (jurosBase <= 0.01) return []
+    const valorCompetencia = acordoSemJuros ? installmentAmounts?.valorParcela ?? 0 : jurosBase
+    if (valorCompetencia <= 0.01) return []
     const existentes = new Map((emprestimo.competencias ?? []).map((item) => [
       new Date(item.vencimento).toISOString().slice(0, 10),
-      { ...item, valorPrevisto: jurosBase },
+      { ...item, valorPrevisto: valorCompetencia },
     ]))
     const vencimentoContrato = emprestimo.vencimento ? new Date(emprestimo.vencimento) : null
     const agora = new Date()
@@ -203,11 +205,11 @@ export function ContractDetails({
     const sugestoes = referencia ? [-1, 0, 1].map((offset) => {
       const vencimento = new Date(Date.UTC(referencia.getUTCFullYear(), referencia.getUTCMonth() + offset, referencia.getUTCDate()))
       const key = vencimento.toISOString().slice(0, 10)
-      return existentes.get(key) ?? { id: key, vencimento, valorPrevisto: jurosBase, valorPago: 0, pagoEm: null }
+      return existentes.get(key) ?? { id: key, vencimento, valorPrevisto: valorCompetencia, valorPago: 0, pagoEm: null }
     }) : []
     return [...existentes.values(), ...sugestoes.filter((item) => !existentes.has(new Date(item.vencimento).toISOString().slice(0, 10)))]
       .sort((a, b) => +new Date(a.vencimento) - +new Date(b.vencimento))
-  }, [emprestimo.competencias, emprestimo.vencimento, jurosBase])
+  }, [acordoSemJuros, emprestimo.competencias, emprestimo.vencimento, installmentAmounts?.valorParcela, jurosBase])
   const competenciaSelecionada = competencias.find((item) => new Date(item.vencimento).toISOString() === competenciaVencimento)
   const competenciaSelecionadaFutura = Boolean(competenciaSelecionada && (() => {
     const data = new Date(competenciaSelecionada.vencimento)
@@ -523,6 +525,7 @@ export function ContractDetails({
             aplicarPrincipal={aplicarPrincipal}
             setAplicarPrincipal={setAplicarPrincipal}
             competenciaSelecionadaFutura={competenciaSelecionadaFutura}
+            acordoSemJuros={acordoSemJuros}
             competencias={competencias}
             totalCompetenciasPendentes={totalCompetenciasPendentes}
             evidenciasPorCompetencia={evidenciasPorCompetencia}

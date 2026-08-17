@@ -164,6 +164,9 @@ export async function addPagamentoParcial(input: {
   if (!input.competenciaVencimento) throw new Error('Selecione obrigatoriamente a competência referente ao pagamento.')
 
   const { jurosPendente, jurosBase } = calculateLoanInterest(emprestimoAtual)
+  const quantidadeParcelas = Number(emprestimoAtual.quantidadeParcelas ?? 0)
+  const acordoSemJuros = Number(emprestimoAtual.jurosMes ?? 0) <= 0.01 && Number.isInteger(quantidadeParcelas) && quantidadeParcelas > 0
+  const valorParcelaAcordo = acordoSemJuros ? emprestimoAtual.valor / quantidadeParcelas : 0
 
   const competenciaInformada = new Date(input.competenciaVencimento)
   // A competência é mensal; horário e fuso não podem criar uma segunda
@@ -184,10 +187,10 @@ export async function addPagamentoParcial(input: {
   const mesCompetencia = competenciaVencimento.getUTCFullYear() * 12 + competenciaVencimento.getUTCMonth()
   if (mesCompetencia > mesAtual + 1) throw new Error('Só é permitido antecipar os juros da competência do próximo mês.')
   const competenciaFutura = mesCompetencia > mesAtual
-  if (competenciaFutura && jurosPendente > 0.01) {
+  if (!acordoSemJuros && competenciaFutura && jurosPendente > 0.01) {
     throw new Error('Existem juros pendentes. Regularize-os antes de antecipar juros de competências futuras.')
   }
-  if (aplicarPrincipal && jurosPendente > 0.01) {
+  if (!acordoSemJuros && aplicarPrincipal && jurosPendente > 0.01) {
     throw new Error('O principal só pode ser abatido após quitar todos os juros pendentes.')
   }
 
@@ -198,7 +201,7 @@ export async function addPagamentoParcial(input: {
     where: { emprestimoId: input.emprestimoId, vencimento: competenciaVencimento },
   })
   const jurosCobraveisNaCompetencia = Math.max(
-    (competenciaAtual?.valorPrevisto ?? jurosBase) - (competenciaAtual?.valorPago ?? 0),
+    (competenciaAtual?.valorPrevisto ?? (acordoSemJuros ? valorParcelaAcordo : jurosBase)) - (competenciaAtual?.valorPago ?? 0),
     0,
   )
 
@@ -206,7 +209,11 @@ export async function addPagamentoParcial(input: {
   let pagamentoParaPrincipal = 0
 
   const jurosCobraveis = jurosCobraveisNaCompetencia
-  if (aplicarPrincipal) {
+  if (acordoSemJuros) {
+    if (!aplicarPrincipal) throw new Error('Confirme a opção de abatimento no principal para registrar uma parcela do acordo.')
+    if (valor > jurosCobraveisNaCompetencia + 0.01) throw new Error(`O pagamento excede o saldo desta parcela (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(jurosCobraveisNaCompetencia)}).`)
+    pagamentoParaPrincipal = valor
+  } else if (aplicarPrincipal) {
     pagamentoParaPrincipal = valor
   } else if (valor <= jurosCobraveis + 0.01) {
     pagamentoParaJuros = valor
@@ -254,7 +261,7 @@ export async function addPagamentoParcial(input: {
   {
     // A competência mensal representa a cobrança de juros. Principal só é
     // registrado mediante confirmação explícita, nunca como parte automática da mensalidade.
-    const valorPrevisto = jurosBase
+    const valorPrevisto = acordoSemJuros ? valorParcelaAcordo : jurosBase
     const novoPago = (competenciaAtual?.valorPago ?? 0) + valor
     if (competenciaAtual) {
       competenciaId = competenciaAtual.id
@@ -283,6 +290,8 @@ export async function addPagamentoParcial(input: {
     desc += ` (${fmt.format(pagamentoParaJuros)} em juros e ${fmt.format(pagamentoParaPrincipal)} no principal).`
   } else if (!jaAbatidoAnteriormente && pagamentoParaJuros > 0) {
     desc += ` (Aplicado em juros).`
+  } else if (!jaAbatidoAnteriormente && acordoSemJuros) {
+    desc += ` (Parcela do acordo aplicada ao principal com confirmação explícita).`
   } else if (!jaAbatidoAnteriormente) {
     desc += ` (Aplicado no principal com confirmação explícita).`
   }

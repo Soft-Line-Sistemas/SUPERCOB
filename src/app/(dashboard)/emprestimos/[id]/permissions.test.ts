@@ -118,6 +118,24 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
     }))
   })
 
+  it('registra parcela de acordo sem juros somente com confirmação de principal', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
+    mockFindUnique.mockResolvedValue({ ...contract, jurosMes: 0, quantidadeParcelas: 4 })
+    mockCalculateLoanInterest.mockReturnValue({ principalRestante: 100, jurosPendente: 0, jurosBase: 0 })
+    mockUpdate.mockResolvedValue({ ...contract, valorPago: 25, status: 'NEGOCIACAO' })
+
+    await expect(addPagamentoParcial({
+      emprestimoId: 'loan-1', valor: 25, competenciaVencimento: '2026-08-08T00:00:00.000Z',
+    })).rejects.toThrow('Confirme a opção de abatimento no principal')
+
+    await expect(addPagamentoParcial({
+      emprestimoId: 'loan-1', valor: 25, competenciaVencimento: '2026-08-08T00:00:00.000Z', aplicarPrincipal: true,
+    })).resolves.toBeTruthy()
+    expect(mockCompetenciaCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ valorPrevisto: 25, valorPago: 25 }),
+    }))
+  })
+
   it('permite Escritório reabrir contrato', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
 
