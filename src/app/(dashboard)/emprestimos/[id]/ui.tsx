@@ -183,6 +183,10 @@ export function ContractDetails({
   const installmentProgress = calculateCurrentInstallment({ ...emprestimo, valorPago, status })
   const installmentAmounts = calculateCurrentInstallmentAmounts(emprestimo)
   const competencias = useMemo(() => {
+    // Contratos sem juros mensais não possuem cobrança por competência. Não
+    // crie meses sintéticos com valor zero, pois 0 previsto/0 pago parecia
+    // indevidamente como um pagamento confirmado no dossiê.
+    if (jurosBase <= 0.01) return []
     const existentes = new Map((emprestimo.competencias ?? []).map((item) => [
       new Date(item.vencimento).toISOString().slice(0, 10),
       { ...item, valorPrevisto: jurosBase },
