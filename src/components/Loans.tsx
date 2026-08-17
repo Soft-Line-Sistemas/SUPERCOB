@@ -759,7 +759,9 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     const monthlyCharge = getMonthlyChargeAmount(loan)
     if (monthlyCharge <= 0) return false
 
-    return !isMonthlyPaymentSettled(loan)
+    // Um mês já pago não encerra o terminal: ainda pode existir a competência
+    // atual ou a próxima para receber. Ex.: "Pago 17/07" deve permitir cobrar 17/08.
+    return getPaymentCompetencias(loan).some((item) => Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01)
   }
 
   const canConfirmMonthlyPayment = (loan: Loan) => {
@@ -769,7 +771,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     const monthlyCharge = getMonthlyChargeAmount(loan)
     if (monthlyCharge <= 0) return false
 
-    return !isMonthlyPaymentSettled(loan)
+    return getPaymentCompetencias(loan).some((item) => Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01)
   }
 
   const isMonthlyPaymentSettled = (loan: Loan) => {
