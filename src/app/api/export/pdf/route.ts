@@ -109,7 +109,12 @@ async function buildDueDayData(filters: any, enforcedUsuarioId?: string) {
     if (!loan.vencimento) continue
     let nextOccurrence = new Date(loan.vencimento)
     const preferredDay = nextOccurrence.getUTCDate()
-    while (nextOccurrence.getTime() < todayStart.getTime()) nextOccurrence = addMonthlyOccurrence(nextOccurrence, preferredDay)
+    if (dueMode === 'CURRENT_MONTH') {
+      nextOccurrence = occurrenceInCurrentMonth(nextOccurrence, preferredDay, todayStart)
+      if (nextOccurrence.getTime() < loan.vencimento.getTime()) continue
+    } else {
+      while (nextOccurrence.getTime() < todayStart.getTime()) nextOccurrence = addMonthlyOccurrence(nextOccurrence, preferredDay)
+    }
     if (dueMode === 'CURRENT_MONTH' && nextOccurrence.getTime() >= nextMonthStart.getTime()) continue
     if (dueMode === 'UPCOMING' && nextOccurrence.getTime() >= upcomingEnd.getTime()) continue
 

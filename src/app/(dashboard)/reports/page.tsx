@@ -53,6 +53,21 @@ function addMonthlyOccurrence(date: Date, preferredDay: number) {
   ))
 }
 
+function occurrenceInCurrentMonth(date: Date, preferredDay: number, todayStart: Date) {
+  const year = todayStart.getUTCFullYear()
+  const month = todayStart.getUTCMonth()
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(
+    year,
+    month,
+    Math.min(preferredDay, lastDay),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+    date.getUTCMilliseconds(),
+  ))
+}
+
 function saoPauloDayStartUtc(ymd: string) {
   const p = parseYMD(ymd)
   if (!p) return new Date()
@@ -243,8 +258,13 @@ export default async function ReportsPage({
     if (!loan.vencimento) continue
     let nextOccurrence = new Date(loan.vencimento)
     const preferredDay = nextOccurrence.getUTCDate()
-    while (nextOccurrence.getTime() < todayStart.getTime()) {
-      nextOccurrence = addMonthlyOccurrence(nextOccurrence, preferredDay)
+    if (dueMode === 'CURRENT_MONTH') {
+      nextOccurrence = occurrenceInCurrentMonth(nextOccurrence, preferredDay, todayStart)
+      if (nextOccurrence.getTime() < loan.vencimento.getTime()) continue
+    } else {
+      while (nextOccurrence.getTime() < todayStart.getTime()) {
+        nextOccurrence = addMonthlyOccurrence(nextOccurrence, preferredDay)
+      }
     }
     if (dueMode === 'CURRENT_MONTH' && nextOccurrence.getTime() >= dueMonthEnd.getTime()) continue
     if (dueMode === 'UPCOMING' && nextOccurrence.getTime() >= upcomingEnd.getTime()) continue
@@ -424,9 +444,16 @@ export default async function ReportsPage({
     let occurrence = new Date(loan.vencimento!)
     const preferredDay = occurrence.getUTCDate()
     let occurrenceIndex = 1
-    while (occurrence.getTime() < todayStart.getTime()) {
-      occurrence = addMonthlyOccurrence(occurrence, preferredDay)
-      occurrenceIndex++
+    if (dueMode === 'CURRENT_MONTH') {
+      occurrence = occurrenceInCurrentMonth(occurrence, preferredDay, todayStart)
+      if (occurrence.getTime() < loan.vencimento!.getTime()) continue
+      occurrenceIndex = (occurrence.getUTCFullYear() - loan.vencimento!.getUTCFullYear()) * 12
+        + occurrence.getUTCMonth() - loan.vencimento!.getUTCMonth() + 1
+    } else {
+      while (occurrence.getTime() < todayStart.getTime()) {
+        occurrence = addMonthlyOccurrence(occurrence, preferredDay)
+        occurrenceIndex++
+      }
     }
 
     if (dueMode === 'CURRENT_MONTH' && occurrence.getTime() >= dueMonthEnd.getTime()) continue

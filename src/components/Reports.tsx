@@ -113,7 +113,7 @@ export function Reports({
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('reports-due-day-preferences-v6')
+      const saved = localStorage.getItem('reports-due-day-preferences-v7')
       if (!saved) return
       const preferences = JSON.parse(saved)
       if (Number.isInteger(preferences.dayStart) && preferences.dayStart >= 1 && preferences.dayStart <= 31) setDueDayStart(preferences.dayStart)
@@ -139,7 +139,7 @@ export function Reports({
 
   useEffect(() => {
     if (!isDueDayPreferencesLoaded) return
-    localStorage.setItem('reports-due-day-preferences-v6', JSON.stringify({
+    localStorage.setItem('reports-due-day-preferences-v7', JSON.stringify({
       dayStart: dueDayStart,
       dayEnd: dueDayEnd,
       upcomingDays: dueDayUpcomingDays,
