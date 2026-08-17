@@ -5,7 +5,6 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { logSystemAction } from '@/lib/audit'
 import { calculateLoanInterest } from '@/lib/loan-interest'
-import { calculateEstimatedMonthlyPayment } from '@/lib/installments'
 
 export async function addEmprestimoHistorico(input: { emprestimoId: string; descricao: string }) {
   const session = await auth()
@@ -138,6 +137,7 @@ export async function addPagamentoParcial(input: {
   descontoJuros?: number
   renovarCiclo?: boolean
   competenciaVencimento?: string
+  aplicarPrincipal?: boolean
   jaAbatidoAnteriormente?: boolean
 }) {
   const session = await auth()
@@ -148,6 +148,7 @@ export async function addPagamentoParcial(input: {
 
   const descontoJuros = Math.max(0, Number(input.descontoJuros) || 0)
   const renovarCiclo = Boolean(input.renovarCiclo)
+  const aplicarPrincipal = Boolean(input.aplicarPrincipal)
   const jaAbatidoAnteriormente = Boolean(input.jaAbatidoAnteriormente)
 
   const createdById = (session.user as any).id as string | undefined
@@ -160,19 +161,37 @@ export async function addPagamentoParcial(input: {
   }
   if (emprestimoAtual.status === 'CANCELADO') throw new Error('Contrato cancelado')
 
-  const { jurosPendente } = calculateLoanInterest(emprestimoAtual)
+  if (!input.competenciaVencimento) throw new Error('Selecione obrigatoriamente a competência referente ao pagamento.')
+
+  const { jurosPendente, jurosBase } = calculateLoanInterest(emprestimoAtual)
+
+  const competenciaVencimento = new Date(input.competenciaVencimento)
+  if (Number.isNaN(competenciaVencimento.getTime())) throw new Error('Competência inválida')
+  if (emprestimoAtual.vencimento && competenciaVencimento.getUTCDate() !== emprestimoAtual.vencimento.getUTCDate()) {
+    throw new Error('A competência deve usar o mesmo dia de vencimento do contrato.')
+  }
+  const hoje = new Date()
+  const mesAtual = hoje.getUTCFullYear() * 12 + hoje.getUTCMonth()
+  const mesCompetencia = competenciaVencimento.getUTCFullYear() * 12 + competenciaVencimento.getUTCMonth()
+  if (mesCompetencia > mesAtual + 1) throw new Error('Só é permitido antecipar os juros da competência do próximo mês.')
+  const competenciaFutura = mesCompetencia > mesAtual
+  if (competenciaFutura && jurosPendente > 0.01) {
+    throw new Error('Existem juros pendentes. Regularize-os antes de antecipar juros de competências futuras.')
+  }
+  if (aplicarPrincipal && jurosPendente > 0.01) {
+    throw new Error('O principal só pode ser abatido após quitar todos os juros pendentes.')
+  }
 
   let pagamentoParaJuros = 0
   let pagamentoParaPrincipal = 0
 
-  if (valor <= jurosPendente) {
-    // Pagamento cobre apenas parte ou o total do juros pendente
+  const jurosCobraveis = competenciaFutura ? jurosBase : jurosPendente
+  if (aplicarPrincipal) {
+    pagamentoParaPrincipal = valor
+  } else if (valor <= jurosCobraveis + 0.01) {
     pagamentoParaJuros = valor
-    pagamentoParaPrincipal = 0
   } else {
-    // Pagamento cobre todo o juros e o resto vai para o principal
-    pagamentoParaJuros = jurosPendente
-    pagamentoParaPrincipal = valor - jurosPendente
+    throw new Error(`O pagamento excede os juros desta competência (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(jurosCobraveis)}). Para abater o principal, quite os juros e marque a opção específica.`)
   }
 
   const novoJurosPagos = (emprestimoAtual.jurosPagos || 0) + pagamentoParaJuros
@@ -192,17 +211,6 @@ export async function addPagamentoParcial(input: {
   }
 
   const shouldResetCycle = renovarCiclo || descontoJuros > 0
-  let competenciaVencimento: Date | null = null
-  if (input.competenciaVencimento) {
-    competenciaVencimento = new Date(input.competenciaVencimento)
-    if (Number.isNaN(competenciaVencimento.getTime())) throw new Error('Competência inválida')
-    if (emprestimoAtual.vencimento && competenciaVencimento.getUTCDate() !== emprestimoAtual.vencimento.getUTCDate()) {
-      throw new Error('A competência deve usar o mesmo dia de vencimento do contrato.')
-    }
-  }
-  if (jaAbatidoAnteriormente && !competenciaVencimento) {
-    throw new Error('Selecione a competência que já foi abatida anteriormente.')
-  }
   if (jaAbatidoAnteriormente && (descontoJuros > 0 || renovarCiclo)) {
     throw new Error('Um registro já abatido não pode aplicar desconto ou renovar o ciclo de juros.')
   }
@@ -222,25 +230,26 @@ export async function addPagamentoParcial(input: {
         },
       })
 
-  if (competenciaVencimento) {
-    const valorPrevisto = calculateEstimatedMonthlyPayment({
-      valor: emprestimoAtual.valor,
-      jurosMes: emprestimoAtual.jurosMes,
-      quantidadeParcelas: emprestimoAtual.quantidadeParcelas,
-    }) ?? calculateLoanInterest(emprestimoAtual).jurosBase
+  let competenciaId: string | null = null
+  {
+    // A competência mensal representa a cobrança de juros. Principal só é
+    // registrado mediante confirmação explícita, nunca como parte automática da mensalidade.
+    const valorPrevisto = jurosBase
     const competenciaAtual = await prisma.competenciaEmprestimo.findFirst({
       where: { emprestimoId: input.emprestimoId, vencimento: competenciaVencimento },
     })
     const novoPago = (competenciaAtual?.valorPago ?? 0) + valor
     if (competenciaAtual) {
+      competenciaId = competenciaAtual.id
       await prisma.competenciaEmprestimo.update({
         where: { id: competenciaAtual.id },
-        data: { valorPago: novoPago, pagoEm: novoPago + 0.01 >= competenciaAtual.valorPrevisto ? new Date() : competenciaAtual.pagoEm },
+        data: { valorPrevisto, valorPago: novoPago, pagoEm: novoPago + 0.01 >= valorPrevisto ? new Date() : competenciaAtual.pagoEm },
       })
     } else {
-      await prisma.competenciaEmprestimo.create({
+      const competenciaCriada = await prisma.competenciaEmprestimo.create({
         data: { emprestimoId: input.emprestimoId, vencimento: competenciaVencimento, valorPrevisto, valorPago: valor, pagoEm: valor + 0.01 >= valorPrevisto ? new Date() : null },
       })
+      competenciaId = competenciaCriada.id
     }
   }
 
@@ -248,6 +257,7 @@ export async function addPagamentoParcial(input: {
   
   let desc = `Pagamento registrado: ${fmt.format(valor)}.`
   if (competenciaVencimento) desc += ` Referente à competência de ${competenciaVencimento.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}.`
+  if (competenciaFutura && !aplicarPrincipal) desc += ' Juros do próximo mês recebidos antecipadamente.'
   if (jaAbatidoAnteriormente) desc += ' Já abatido anteriormente: somente a competência foi registrada; os totais do contrato não foram alterados.'
   if (descontoJuros > 0) {
     desc += ` Desconto concedido nos juros: ${fmt.format(descontoJuros)}.`
@@ -257,7 +267,7 @@ export async function addPagamentoParcial(input: {
   } else if (!jaAbatidoAnteriormente && pagamentoParaJuros > 0) {
     desc += ` (Aplicado em juros).`
   } else if (!jaAbatidoAnteriormente) {
-    desc += ` (Aplicado no principal).`
+    desc += ` (Aplicado no principal com confirmação explícita).`
   }
   if (!jaAbatidoAnteriormente && shouldResetCycle) {
     desc += ` Ciclo de juros renovado.`
@@ -268,7 +278,8 @@ export async function addPagamentoParcial(input: {
       emprestimoId: input.emprestimoId,
       descricao: desc,
       createdById,
-      tipo: 'PAGAMENTO'
+      tipo: 'PAGAMENTO',
+      competenciaId,
     },
     include: { createdBy: { select: { nome: true } } },
   })
@@ -334,9 +345,7 @@ export async function vincularPagamentoHistoricoACompetencia(input: {
     throw new Error('A competência deve usar o mesmo dia de vencimento do contrato.')
   }
 
-  const valorPrevisto = calculateEstimatedMonthlyPayment({
-    valor: emprestimo.valor, jurosMes: emprestimo.jurosMes, quantidadeParcelas: emprestimo.quantidadeParcelas,
-  }) ?? calculateLoanInterest(emprestimo).jurosBase
+  const valorPrevisto = calculateLoanInterest(emprestimo).jurosBase
   const referencia = vencimento.toLocaleDateString('pt-BR', { timeZone: 'UTC' })
   const competencia = await prisma.$transaction(async (tx) => {
     let competenciaAtual = await tx.competenciaEmprestimo.findFirst({ where: { emprestimoId: emprestimo.id, vencimento } })
@@ -392,7 +401,7 @@ export async function atualizarVinculoPagamentoHistorico(input: {
 
   const antigo = await prisma.competenciaEmprestimo.findUnique({ where: { id: recibo.competenciaId } })
   if (!antigo) throw new Error('Competência vinculada não encontrada.')
-  const valorPrevisto = calculateEstimatedMonthlyPayment({ valor: emprestimo.valor, jurosMes: emprestimo.jurosMes, quantidadeParcelas: emprestimo.quantidadeParcelas }) ?? calculateLoanInterest(emprestimo).jurosBase
+  const valorPrevisto = calculateLoanInterest(emprestimo).jurosBase
   const descricaoBase = recibo.descricao.replace(/\s*Regularizado: referente à competência de \d{2}\/\d{2}\/\d{4}\./, '')
 
   await prisma.$transaction(async (tx) => {

@@ -136,6 +136,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     valor: number
     descontoJuros?: number
     renovarCiclo?: boolean
+    competenciaVencimento?: string
+    aplicarPrincipal?: boolean
     kind: 'monthly' | 'custom'
   } | null>(null)
   const [pagamentoRapido, setPagamentoRapido] = useState('')
@@ -226,6 +228,55 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         quantidadeParcelas: loan.quantidadeParcelas,
       }) ?? calculateLoanInterest(loan).jurosBase
     )
+  }
+
+  const formatCompetenciaDate = (value: Date | string) => {
+    const date = new Date(value)
+    return `${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}/${date.getUTCFullYear()}`
+  }
+
+  const getPaymentCompetencias = (loan: Loan) => {
+    const existentes = new Map(
+      (loan.competencias ?? []).map((item) => [new Date(item.vencimento).toISOString().slice(0, 10), item]),
+    )
+    const vencimentoContrato = loan.vencimento ? new Date(loan.vencimento) : null
+    const agora = new Date()
+    const referencia = vencimentoContrato
+      ? new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), vencimentoContrato.getUTCDate()))
+      : null
+    const valorPrevisto = getMonthlyChargeAmount(loan)
+    const sugestoes = referencia
+      ? [-1, 0, 1].map((offset) => {
+          const vencimento = new Date(Date.UTC(
+            referencia.getUTCFullYear(),
+            referencia.getUTCMonth() + offset,
+            referencia.getUTCDate(),
+          ))
+          const key = vencimento.toISOString().slice(0, 10)
+          return existentes.get(key) ?? { vencimento, valorPrevisto, valorPago: 0 }
+        })
+      : []
+
+    return [...existentes.values(), ...sugestoes.filter((item) => !existentes.has(new Date(item.vencimento).toISOString().slice(0, 10)))]
+      .sort((a, b) => +new Date(a.vencimento) - +new Date(b.vencimento))
+  }
+
+  const openMonthlyPaymentConfirmation = (loan: Loan) => {
+    const valor = getMonthlyChargeAmount(loan)
+    if (!Number.isFinite(valor) || valor <= 0) {
+      toast.error('Pagamento mensal indisponível para este contrato.')
+      return
+    }
+
+    const competencia = getPaymentCompetencias(loan)
+      .find((item) => Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01)
+
+    setPaymentConfirmation({
+      loan,
+      valor,
+      competenciaVencimento: competencia ? new Date(competencia.vencimento).toISOString() : undefined,
+      kind: 'monthly',
+    })
   }
 
   const getCurrentInstallment = (loan: Loan) => {
@@ -746,19 +797,36 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const paymentConfirmationDetails = useMemo(() => {
     if (!paymentConfirmation) return null
 
-    const { loan, valor } = paymentConfirmation
+    const { loan, valor, aplicarPrincipal } = paymentConfirmation
     const financials = calculateLoanInterest(loan)
-    const paraJuros = Math.min(valor, financials.jurosPendente)
-    const paraPrincipal = Math.max(valor - paraJuros, 0)
+    const paraJuros = aplicarPrincipal ? 0 : Math.min(valor, financials.jurosPendente)
+    const paraPrincipal = aplicarPrincipal ? valor : 0
 
     return {
       valor,
       jurosPendente: financials.jurosPendente,
       paraJuros,
       paraPrincipal,
+      jurosRestanteApos: Math.max(financials.jurosPendente - paraJuros, 0),
       principalRestanteApos: Math.max(financials.principalRestante - paraPrincipal, 0),
     }
   }, [paymentConfirmation])
+
+  const paymentCompetencias = paymentConfirmation?.kind === 'monthly'
+    ? getPaymentCompetencias(paymentConfirmation.loan)
+    : []
+  const totalCompetenciasPendentes = (() => {
+    const hoje = new Date()
+    const hojeUtc = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
+    return paymentCompetencias.reduce((total, item) => {
+      const vencimento = new Date(item.vencimento)
+      const vencimentoUtc = Date.UTC(vencimento.getUTCFullYear(), vencimento.getUTCMonth(), vencimento.getUTCDate())
+      return vencimentoUtc <= hojeUtc ? total + Math.max(item.valorPrevisto - item.valorPago, 0) : total
+    }, 0)
+  })()
+  const competenciaSelecionada = paymentCompetencias.find((item) => (
+    new Date(item.vencimento).toISOString() === paymentConfirmation?.competenciaVencimento
+  ))
 
   const handleOpenPaymentTerminal = (loan: Loan) => {
     if (!canOpenPaymentTerminal(loan)) return
@@ -868,19 +936,26 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     }
 
     const descJuros = parseBRL(descontoJurosRapido)
+    const competencia = getPaymentCompetencias(paymentTerminalLoan)
+      .find((item) => Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01)
+    if (!competencia) {
+      toast.error('Não há competência disponível para este pagamento.')
+      return
+    }
 
     setPaymentConfirmation({
       loan: paymentTerminalLoan,
       valor,
       descontoJuros: descJuros,
       renovarCiclo: renovarCicloRapido,
+      competenciaVencimento: new Date(competencia.vencimento).toISOString(),
       kind: 'custom',
     })
   }
 
   const handleConfirmPayment = () => {
     if (!paymentConfirmation) return
-    const { loan, valor, descontoJuros, renovarCiclo, kind } = paymentConfirmation
+    const { loan, valor, descontoJuros, renovarCiclo, competenciaVencimento, aplicarPrincipal, kind } = paymentConfirmation
 
     setDirectMonthlyPaymentLoanId(loan.id)
     startPaymentTransition(async () => {
@@ -890,6 +965,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
           valor,
           descontoJuros,
           renovarCiclo,
+          competenciaVencimento,
+          aplicarPrincipal,
         })
         toast.success(kind === 'monthly' ? 'Pagamento integral do mês confirmado.' : 'Pagamento e negociação registrados.')
         setPaymentConfirmation(null)
@@ -1183,12 +1260,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 onExportDossie={handleOpenChargeDelivery}
                 onOpenPaymentTerminal={handleOpenPaymentTerminal}
                 onConfirmMonthlyPayment={(loan) => {
-                  const valor = getMonthlyChargeAmount(loan)
-                  if (!Number.isFinite(valor) || valor <= 0) {
-                    toast.error('Pagamento mensal indisponível para este contrato.')
-                    return
-                  }
-                  setPaymentConfirmation({ loan, valor, kind: 'monthly' })
+                  openMonthlyPaymentConfirmation(loan)
                 }}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
@@ -1308,12 +1380,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                             <button
                               type="button"
                               onClick={() => {
-                                const valor = getMonthlyChargeAmount(loan)
-                                if (!Number.isFinite(valor) || valor <= 0) {
-                                  toast.error('Pagamento mensal indisponível para este contrato.')
-                                  return
-                                }
-                                setPaymentConfirmation({ loan, valor, kind: 'monthly' })
+                                openMonthlyPaymentConfirmation(loan)
                               }}
                               disabled={isPaymentPending && directMonthlyPaymentLoanId === loan.id}
                               className="group inline-flex flex-col items-center gap-1 text-xs transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
@@ -1564,8 +1631,66 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
               </div>
 
               <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                Será registrado um pagamento de <strong>{formatCurrency(paymentConfirmationDetails.valor)}</strong> no contrato. O sistema aplica o valor primeiro aos juros pendentes e só então ao principal.
+                Será registrado um pagamento de <strong>{formatCurrency(paymentConfirmationDetails.valor)}</strong> no contrato. {paymentConfirmation.aplicarPrincipal ? 'O valor será abatido do principal.' : 'O valor será aplicado somente aos juros da competência selecionada.'}
               </p>
+
+              {paymentConfirmation.kind === 'monthly' ? (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Por competência</p>
+                    <p className="text-sm font-black text-amber-600 dark:text-amber-300">Total: {formatCurrency(totalCompetenciasPendentes)}</p>
+                  </div>
+
+                  {competenciaSelecionada ? (() => {
+                    const hoje = new Date()
+                    const vencimento = new Date(competenciaSelecionada.vencimento)
+                    const hojeUtc = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
+                    const vencimentoUtc = Date.UTC(vencimento.getUTCFullYear(), vencimento.getUTCMonth(), vencimento.getUTCDate())
+                    const dias = Math.floor((hojeUtc - vencimentoUtc) / (24 * 60 * 60 * 1000))
+                    return (
+                      <p className={`mt-3 rounded-xl px-3 py-2 text-xs font-black ${dias > 0 ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' : dias === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200' : 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200'}`}>
+                        {dias > 0
+                          ? `Vencido há ${dias} dia${dias === 1 ? '' : 's'} · ${formatCompetenciaDate(competenciaSelecionada.vencimento)}`
+                          : dias === 0
+                            ? `Vence hoje · ${formatCompetenciaDate(competenciaSelecionada.vencimento)}`
+                            : `A vencer · ${formatCompetenciaDate(competenciaSelecionada.vencimento)}`}
+                      </p>
+                    )
+                  })() : null}
+
+                  <div className="mt-3 space-y-1.5">
+                    {paymentCompetencias.map((item) => {
+                      const pendente = Math.max(item.valorPrevisto - item.valorPago, 0)
+                      const vencido = new Date(item.vencimento).getTime() < new Date().setHours(0, 0, 0, 0)
+                      return (
+                        <div key={new Date(item.vencimento).toISOString()} className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-600 dark:text-slate-300">{formatCompetenciaDate(item.vencimento)}</span>
+                          <span className={pendente <= 0.01 ? 'font-bold text-emerald-600 dark:text-emerald-300' : vencido ? 'font-bold text-orange-600 dark:text-orange-300' : 'font-bold text-blue-600 dark:text-blue-300'}>
+                            {pendente <= 0.01 ? 'Pago' : `${vencido ? 'Vencido' : 'A vencer'} ${formatCurrency(pendente)}`}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <label className="mt-4 block text-xs font-bold text-slate-500 dark:text-slate-400">
+                    Pagamento referente a <span className="text-red-500">*</span>
+                    <select
+                      value={paymentConfirmation.competenciaVencimento ?? ''}
+                      onChange={(event) => setPaymentConfirmation((current) => current ? { ...current, competenciaVencimento: event.target.value || undefined } : current)}
+                      disabled={isPaymentPending}
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-800 dark:text-white"
+                    >
+                      <option value="">Selecione o mês de referência</option>
+                      {paymentCompetencias.filter((item) => Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01).map((item) => (
+                        <option key={new Date(item.vencimento).toISOString()} value={new Date(item.vencimento).toISOString()}>
+                          {formatCompetenciaDate(item.vencimento)} · pendente {formatCurrency(Math.max(item.valorPrevisto - item.valorPago, 0))}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : null}
 
               <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
@@ -1580,21 +1705,47 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Aplicação em juros</p>
                   <p className="mt-1 font-black text-slate-900 dark:text-white">{formatCurrency(paymentConfirmationDetails.paraJuros)}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Amortização do principal</p>
-                  <p className="mt-1 font-black text-slate-900 dark:text-white">{formatCurrency(paymentConfirmationDetails.paraPrincipal)}</p>
-                </div>
+                {paymentConfirmation.aplicarPrincipal ? (
+                  <div className="rounded-2xl border border-violet-200 p-4 dark:border-violet-500/20">
+                    <p className="text-xs font-bold uppercase tracking-wider text-violet-700 dark:text-violet-300">Amortização do principal</p>
+                    <p className="mt-1 font-black text-slate-900 dark:text-white">{formatCurrency(paymentConfirmationDetails.paraPrincipal)}</p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Juros restantes nesta cobrança</p>
+                    <p className="mt-1 font-black text-slate-900 dark:text-white">{formatCurrency(paymentConfirmationDetails.jurosRestanteApos)}</p>
+                  </div>
+                )}
               </div>
 
-              <p className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:bg-white/5 dark:text-slate-300">
-                Principal estimado após o pagamento: <strong className="text-slate-900 dark:text-white">{formatCurrency(paymentConfirmationDetails.principalRestanteApos)}</strong>.
-              </p>
+              {paymentConfirmation.aplicarPrincipal ? (
+                <p className="mt-4 rounded-2xl bg-violet-50 px-4 py-3 text-sm text-violet-800 dark:bg-violet-500/10 dark:text-violet-100">
+                  Principal estimado após o pagamento: <strong>{formatCurrency(paymentConfirmationDetails.principalRestanteApos)}</strong>.
+                </p>
+              ) : (
+                <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-100">
+                  Este recebimento será aplicado somente aos juros. <strong>O principal não será alterado.</strong>
+                </p>
+              )}
+
+              {paymentConfirmationDetails.jurosPendente <= 0.01 ? (
+                <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-4 text-sm text-violet-900 transition-colors hover:bg-violet-500/15 dark:text-violet-100">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(paymentConfirmation.aplicarPrincipal)}
+                    onChange={(event) => setPaymentConfirmation((current) => current ? { ...current, aplicarPrincipal: event.target.checked } : current)}
+                    disabled={isPaymentPending}
+                    className="h-4 w-4 rounded border-violet-400 text-violet-600 focus:ring-violet-500"
+                  />
+                  <span><strong>Abater do principal</strong><br /><span className="text-xs opacity-80">Esta é a única forma de autorizar cobrança do principal.</span></span>
+                </label>
+              ) : null}
 
               <div className="mt-6 flex gap-3">
                 <button
                   type="button"
                   onClick={() => setPaymentConfirmation(null)}
-                  disabled={isPaymentPending}
+                  disabled={isPaymentPending || !paymentConfirmation.competenciaVencimento}
                   className="flex-1 rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15"
                 >
                   Cancelar

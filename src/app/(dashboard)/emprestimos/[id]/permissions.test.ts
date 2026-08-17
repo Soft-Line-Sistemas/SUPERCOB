@@ -5,6 +5,8 @@ const {
   mockFindUnique,
   mockUpdate,
   mockHistoricoCreate,
+  mockCompetenciaFindFirst,
+  mockCompetenciaCreate,
   mockRevalidatePath,
   mockCalculateLoanInterest,
 } = vi.hoisted(() => ({
@@ -12,6 +14,8 @@ const {
   mockFindUnique: vi.fn(),
   mockUpdate: vi.fn(),
   mockHistoricoCreate: vi.fn(),
+  mockCompetenciaFindFirst: vi.fn(),
+  mockCompetenciaCreate: vi.fn(),
   mockRevalidatePath: vi.fn(),
   mockCalculateLoanInterest: vi.fn(),
 }))
@@ -24,6 +28,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     emprestimo: { findUnique: mockFindUnique, update: mockUpdate },
     emprestimoHistorico: { create: mockHistoricoCreate },
+    competenciaEmprestimo: { findFirst: mockCompetenciaFindFirst, create: mockCompetenciaCreate },
   },
 }))
 
@@ -48,6 +53,8 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
     mockFindUnique.mockResolvedValue(contract)
     mockUpdate.mockResolvedValue({ ...contract, status: 'QUITADO' })
     mockHistoricoCreate.mockResolvedValue({ id: 'event-1' })
+    mockCompetenciaFindFirst.mockResolvedValue(null)
+    mockCompetenciaCreate.mockResolvedValue({ id: 'competencia-1' })
     mockCalculateLoanInterest.mockReturnValue({ principalRestante: 0, jurosPendente: 0 })
   })
 
@@ -74,7 +81,7 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
     const role = 'OPERADOR'
     mockAuth.mockResolvedValue({ user: { id: role === 'OPERADOR' ? 'op-1' : 'esc-1', role } })
 
-    await expect(addPagamentoParcial({ emprestimoId: 'loan-1', valor: 100 }))
+    await expect(addPagamentoParcial({ emprestimoId: 'loan-1', valor: 100, competenciaVencimento: '2026-08-08T00:00:00.000Z', aplicarPrincipal: true }))
       .rejects.toThrow('Este pagamento quitaria o contrato.')
     expect(mockUpdate).not.toHaveBeenCalled()
   })
@@ -82,7 +89,7 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
   it('permite Escritório registrar pagamento que quita o contrato', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
 
-    await expect(addPagamentoParcial({ emprestimoId: 'loan-1', valor: 100 })).resolves.toBeTruthy()
+    await expect(addPagamentoParcial({ emprestimoId: 'loan-1', valor: 100, competenciaVencimento: '2026-08-08T00:00:00.000Z', aplicarPrincipal: true })).resolves.toBeTruthy()
     expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'QUITADO' }) }))
   })
 

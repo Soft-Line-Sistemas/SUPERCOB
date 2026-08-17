@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState, useTransition } from 'react'
+import React, { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { 
@@ -148,6 +148,7 @@ export function ContractDetails({
   const [reciboHistoricoId, setReciboHistoricoId] = useState('')
   const [vinculoEmEdicao, setVinculoEmEdicao] = useState<{ historicoId: string; vencimento: string } | null>(null)
   const [competenciaVencimento, setCompetenciaVencimento] = useState('')
+  const [aplicarPrincipal, setAplicarPrincipal] = useState(false)
   const [competenciaRegularizacaoVencimento, setCompetenciaRegularizacaoVencimento] = useState('')
   const [descontoJuros, setDescontoJuros] = useState('')
   const [renovarCiclo, setRenovarCiclo] = useState(false)
@@ -181,21 +182,37 @@ export function ContractDetails({
   const installmentProgress = calculateCurrentInstallment({ ...emprestimo, valorPago, status })
   const installmentAmounts = calculateCurrentInstallmentAmounts(emprestimo)
   const competencias = useMemo(() => {
-    const existentes = new Map((emprestimo.competencias ?? []).map((item) => [new Date(item.vencimento).toISOString().slice(0, 10), item]))
-    const referencia = emprestimo.vencimento ? new Date(emprestimo.vencimento) : null
-    // Mantém também a próxima competência disponível para recebimento
-    // antecipado, mas ela só entra no total depois que vencer.
+    const existentes = new Map((emprestimo.competencias ?? []).map((item) => [
+      new Date(item.vencimento).toISOString().slice(0, 10),
+      { ...item, valorPrevisto: jurosBase },
+    ]))
+    const vencimentoContrato = emprestimo.vencimento ? new Date(emprestimo.vencimento) : null
+    const agora = new Date()
+    // As competências acompanham o mês corrente usando o dia de vencimento do
+    // contrato; o vencimento original não deve congelar a lista no mês da criação.
+    const referencia = vencimentoContrato
+      ? new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), vencimentoContrato.getUTCDate()))
+      : null
+    // Mostra o mês anterior, o atual e o próximo. A competência futura
+    // permite receber juros antecipadamente, sem entrar no total vencido.
     const sugestoes = referencia ? [-1, 0, 1].map((offset) => {
       const vencimento = new Date(Date.UTC(referencia.getUTCFullYear(), referencia.getUTCMonth() + offset, referencia.getUTCDate()))
       const key = vencimento.toISOString().slice(0, 10)
-      return existentes.get(key) ?? { id: key, vencimento, valorPrevisto: installmentAmounts?.valorParcela ?? jurosBase, valorPago: 0, pagoEm: null }
+      return existentes.get(key) ?? { id: key, vencimento, valorPrevisto: jurosBase, valorPago: 0, pagoEm: null }
     }) : []
     return [...existentes.values(), ...sugestoes.filter((item) => !existentes.has(new Date(item.vencimento).toISOString().slice(0, 10)))]
       .sort((a, b) => +new Date(a.vencimento) - +new Date(b.vencimento))
-  }, [emprestimo.competencias, emprestimo.vencimento, installmentAmounts?.valorParcela, jurosBase])
-  const totalCompetenciasPendentes = competencias.reduce((sum, item) => (
-    new Date(item.vencimento) <= new Date() ? sum + Math.max(item.valorPrevisto - item.valorPago, 0) : sum
-  ), 0)
+  }, [emprestimo.competencias, emprestimo.vencimento, jurosBase])
+  const competenciaSelecionada = competencias.find((item) => new Date(item.vencimento).toISOString() === competenciaVencimento)
+  const competenciaSelecionadaFutura = Boolean(competenciaSelecionada && (() => {
+    const data = new Date(competenciaSelecionada.vencimento)
+    const agora = new Date()
+    return data.getUTCFullYear() * 12 + data.getUTCMonth() > agora.getUTCFullYear() * 12 + agora.getUTCMonth()
+  })())
+  // Juros de competência futura ainda não venceram e, portanto, não impedem
+  // a amortização do principal quando todos os juros exigíveis estão quitados.
+  const podeAplicarPrincipal = jurosPendente <= 0.01
+  const jurosCobraveisNaCompetencia = competenciaSelecionadaFutura ? jurosBase : jurosPendente
   const evidenciasPorCompetencia = useMemo(() => {
     const evidencias = new Map<string, { data: Date | string; fonte: 'RECIBO' | 'AUDITORIA' }>()
     const registrar = (texto: string | null | undefined, data: Date | string, fonte: 'RECIBO' | 'AUDITORIA') => {
@@ -208,6 +225,24 @@ export function ContractDetails({
     emprestimo.auditorias?.forEach((auditoria) => registrar(auditoria.detalhes, auditoria.createdAt, 'AUDITORIA'))
     return evidencias
   }, [emprestimo.historico, emprestimo.auditorias])
+  const totalCompetenciasPendentes = competencias.reduce((sum, item) => {
+    const chave = new Date(item.vencimento).toISOString().slice(0, 10)
+    return new Date(item.vencimento) <= new Date() && !evidenciasPorCompetencia.has(chave)
+      ? sum + Math.max(item.valorPrevisto - item.valorPago, 0)
+      : sum
+  }, 0)
+  const competenciaRecomendada = useMemo(() => competencias
+    .filter((item) => {
+      const chave = new Date(item.vencimento).toISOString().slice(0, 10)
+      return Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01 && !evidenciasPorCompetencia.has(chave)
+    })
+    .sort((a, b) => +new Date(a.vencimento) - +new Date(b.vencimento))[0], [competencias, evidenciasPorCompetencia])
+
+  useEffect(() => {
+    if (!competenciaVencimento && competenciaRecomendada) {
+      setCompetenciaVencimento(new Date(competenciaRecomendada.vencimento).toISOString())
+    }
+  }, [competenciaVencimento, competenciaRecomendada])
   const pagamentosSemCompetencia = useMemo(() => emprestimo.historico.filter((evento) => (
     evento.tipo === 'PAGAMENTO' && !evento.competenciaId && !/Referente à competência de \d{2}\/\d{2}\/\d{4}/i.test(evento.descricao)
   )), [emprestimo.historico])
@@ -256,8 +291,8 @@ export function ContractDetails({
   const canFinish = status !== 'QUITADO' && status !== 'CANCELADO' && restante <= 0 && jurosPendente <= 0
   const paymentConfirmation = useMemo(() => {
     if (paymentConfirmationValue === null) return null
-    const paraJuros = Math.min(paymentConfirmationValue, jurosPendente)
-    const paraPrincipal = Math.max(paymentConfirmationValue - paraJuros, 0)
+    const paraJuros = aplicarPrincipal ? 0 : Math.min(paymentConfirmationValue, jurosCobraveisNaCompetencia)
+    const paraPrincipal = aplicarPrincipal ? paymentConfirmationValue : 0
     const descJuros = parseBRL(descontoJuros)
 
     return {
@@ -266,9 +301,10 @@ export function ContractDetails({
       renovarCiclo,
       paraJuros,
       paraPrincipal,
+      jurosRestanteApos: Math.max(jurosCobraveisNaCompetencia - paraJuros, 0),
       principalRestanteApos: Math.max(restante - paraPrincipal, 0),
     }
-  }, [jurosPendente, paymentConfirmationValue, restante, descontoJuros, renovarCiclo])
+  }, [jurosCobraveisNaCompetencia, paymentConfirmationValue, restante, descontoJuros, renovarCiclo, aplicarPrincipal])
 
   const priorityLevel = useMemo(() => {
     if (status === 'QUITADO' || status === 'CANCELADO') return 'BLOQUEADO'
@@ -320,6 +356,14 @@ export function ContractDetails({
       toast.error('Informe um valor válido.')
       return
     }
+    if (!competenciaVencimento) {
+      toast.error('Selecione o mês a que este pagamento se refere.')
+      return
+    }
+    if (aplicarPrincipal && !podeAplicarPrincipal) {
+      toast.error('O principal só pode ser abatido após quitar todos os juros pendentes.')
+      return
+    }
     setPaymentConfirmationValue(v)
   }
 
@@ -334,7 +378,8 @@ export function ContractDetails({
           valor: v,
           descontoJuros: descJuros,
           renovarCiclo,
-          competenciaVencimento: competenciaVencimento || undefined,
+          competenciaVencimento,
+          aplicarPrincipal,
         })
         setValorPago(Number((updated as any).valorPago ?? 0) || 0)
         setStatus((updated as any).status)
@@ -342,6 +387,7 @@ export function ContractDetails({
         setEventos((prev) => [...prev, ...(novosEventos as any)].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)))
         setPagamento('')
         setCompetenciaVencimento('')
+        setAplicarPrincipal(false)
         setDescontoJuros('')
         setRenovarCiclo(false)
         setPaymentConfirmationValue(null)
@@ -454,7 +500,11 @@ export function ContractDetails({
             pagamento={pagamento}
             setPagamento={setPagamento}
             competenciaVencimento={competenciaVencimento}
-            setCompetenciaVencimento={setCompetenciaVencimento}
+            setCompetenciaVencimento={(value) => { setCompetenciaVencimento(value); setAplicarPrincipal(false) }}
+            podeAplicarPrincipal={podeAplicarPrincipal}
+            aplicarPrincipal={aplicarPrincipal}
+            setAplicarPrincipal={setAplicarPrincipal}
+            competenciaSelecionadaFutura={competenciaSelecionadaFutura}
             competencias={competencias}
             totalCompetenciasPendentes={totalCompetenciasPendentes}
             evidenciasPorCompetencia={evidenciasPorCompetencia}
@@ -505,7 +555,7 @@ export function ContractDetails({
             </div>
 
             <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Será registrado um pagamento de <strong>{formatBRL(paymentConfirmation.valor)}</strong>. O valor é aplicado primeiro aos juros pendentes e, depois, ao principal.
+              Será registrado um pagamento de <strong>{formatBRL(paymentConfirmation.valor)}</strong>{competenciaSelecionada ? <> referente a <strong>{formatDate(competenciaSelecionada.vencimento)}</strong></> : null}. {aplicarPrincipal ? 'O valor será abatido do principal.' : 'O valor será aplicado somente aos juros desta competência.'}
             </p>
 
             <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
@@ -515,21 +565,34 @@ export function ContractDetails({
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Juros pendentes</p>
-                <p className="mt-1 font-black text-slate-900 dark:text-white">{formatBRL(jurosPendente)}</p>
+                <p className="mt-1 font-black text-slate-900 dark:text-white">{formatBRL(jurosCobraveisNaCompetencia)}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Aplicação em juros</p>
                 <p className="mt-1 font-black text-slate-900 dark:text-white">{formatBRL(paymentConfirmation.paraJuros)}</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Amortização do principal</p>
-                <p className="mt-1 font-black text-slate-900 dark:text-white">{formatBRL(paymentConfirmation.paraPrincipal)}</p>
-              </div>
+              {aplicarPrincipal ? (
+                <div className="rounded-2xl border border-violet-200 p-4 dark:border-violet-500/20">
+                  <p className="text-xs font-bold uppercase tracking-wider text-violet-600 dark:text-violet-300">Amortização do principal</p>
+                  <p className="mt-1 font-black text-slate-900 dark:text-white">{formatBRL(paymentConfirmation.paraPrincipal)}</p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Juros restantes nesta cobrança</p>
+                  <p className="mt-1 font-black text-slate-900 dark:text-white">{formatBRL(paymentConfirmation.jurosRestanteApos)}</p>
+                </div>
+              )}
             </div>
 
-            <p className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:bg-white/5 dark:text-slate-300">
-              Principal estimado após o pagamento: <strong className="text-slate-900 dark:text-white">{formatBRL(paymentConfirmation.principalRestanteApos)}</strong>.
-            </p>
+            {aplicarPrincipal ? (
+              <p className="mt-4 rounded-2xl bg-violet-50 px-4 py-3 text-sm text-violet-800 dark:bg-violet-500/10 dark:text-violet-100">
+                Principal estimado após o pagamento: <strong>{formatBRL(paymentConfirmation.principalRestanteApos)}</strong>.
+              </p>
+            ) : (
+              <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-100">
+                Este recebimento será aplicado somente aos juros da competência selecionada. <strong>O principal não será alterado.</strong>
+              </p>
+            )}
 
             <div className="mt-6 flex gap-3">
               <button type="button" onClick={() => setPaymentConfirmationValue(null)} disabled={isPending} className="flex-1 rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-40 dark:bg-white/10 dark:text-slate-200">Cancelar</button>
