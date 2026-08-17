@@ -15,7 +15,7 @@ type ReportsFilters = {
   estado: string
   usuarioId?: string
   upcomingDays: number
-  nextDuePerContract: boolean
+  dueMode: 'CURRENT_MONTH' | 'NEXT_DUE' | 'UPCOMING'
   includeInadimplentes: boolean
   includePaid: boolean
 }
@@ -85,7 +85,7 @@ export function Reports({
   const [dueDayStart, setDueDayStart] = useState(1)
   const [dueDayEnd, setDueDayEnd] = useState(31)
   const [dueDayUpcomingDays, setDueDayUpcomingDays] = useState(30)
-  const [dueDayNextDuePerContract, setDueDayNextDuePerContract] = useState(true)
+  const [dueDayMode, setDueDayMode] = useState<ReportsFilters['dueMode']>('CURRENT_MONTH')
   const [dueDayIncludeInadimplentes, setDueDayIncludeInadimplentes] = useState(true)
   const [dueDayIncludePaid, setDueDayIncludePaid] = useState(false)
   const [dueDayIncludeCurrent, setDueDayIncludeCurrent] = useState(true)
@@ -119,7 +119,7 @@ export function Reports({
       if (Number.isInteger(preferences.dayStart) && preferences.dayStart >= 1 && preferences.dayStart <= 31) setDueDayStart(preferences.dayStart)
       if (Number.isInteger(preferences.dayEnd) && preferences.dayEnd >= 1 && preferences.dayEnd <= 31) setDueDayEnd(preferences.dayEnd)
       if (Number.isInteger(preferences.upcomingDays) && preferences.upcomingDays >= 1 && preferences.upcomingDays <= 3650) setDueDayUpcomingDays(preferences.upcomingDays)
-      if (typeof preferences.nextDuePerContract === 'boolean') setDueDayNextDuePerContract(preferences.nextDuePerContract)
+      if (preferences.dueMode === 'CURRENT_MONTH' || preferences.dueMode === 'NEXT_DUE' || preferences.dueMode === 'UPCOMING') setDueDayMode(preferences.dueMode)
       if (typeof preferences.includeInadimplentes === 'boolean') setDueDayIncludeInadimplentes(preferences.includeInadimplentes)
       if (typeof preferences.includePaid === 'boolean') setDueDayIncludePaid(preferences.includePaid)
       if (typeof preferences.includeCurrent === 'boolean') setDueDayIncludeCurrent(preferences.includeCurrent)
@@ -143,7 +143,7 @@ export function Reports({
       dayStart: dueDayStart,
       dayEnd: dueDayEnd,
       upcomingDays: dueDayUpcomingDays,
-      nextDuePerContract: dueDayNextDuePerContract,
+      dueMode: dueDayMode,
       includeInadimplentes: dueDayIncludeInadimplentes,
       includePaid: dueDayIncludePaid,
       includeCurrent: dueDayIncludeCurrent,
@@ -155,7 +155,7 @@ export function Reports({
       onlyInadimplentes: dueDayOnlyInadimplentes,
       onlyAgreement: dueDayOnlyAgreement,
     }))
-  }, [dueDayStart, dueDayEnd, dueDayUpcomingDays, dueDayNextDuePerContract, dueDayIncludeInadimplentes, dueDayIncludePaid, dueDayIncludeCurrent, dueDayIncludeWhatsapp, dueDayMarkPaid, dueDayMarkCurrent, dueDayStrikePaid, dueDayStrikeCurrent, dueDayOnlyInadimplentes, dueDayOnlyAgreement, isDueDayPreferencesLoaded])
+  }, [dueDayStart, dueDayEnd, dueDayUpcomingDays, dueDayMode, dueDayIncludeInadimplentes, dueDayIncludePaid, dueDayIncludeCurrent, dueDayIncludeWhatsapp, dueDayMarkPaid, dueDayMarkCurrent, dueDayStrikePaid, dueDayStrikeCurrent, dueDayOnlyInadimplentes, dueDayOnlyAgreement, isDueDayPreferencesLoaded])
 
   useEffect(() => {
     if (!isDueDayRangeOpen || !isDueDayPreviewVisible) {
@@ -184,7 +184,7 @@ export function Reports({
             filters: {
               ...filters,
               upcomingDays: dueDayUpcomingDays,
-              nextDuePerContract: dueDayNextDuePerContract,
+              dueMode: dueDayMode,
               includeInadimplentes: dueDayIncludeInadimplentes,
               includePaid: dueDayIncludePaid,
               includeCurrent: dueDayIncludeCurrent,
@@ -218,7 +218,7 @@ export function Reports({
       window.clearTimeout(timeout)
       controller.abort()
     }
-  }, [isDueDayRangeOpen, isDueDayPreviewVisible, dueDayStart, dueDayEnd, dueDayUpcomingDays, dueDayNextDuePerContract, dueDayIncludeInadimplentes, dueDayIncludePaid, dueDayIncludeCurrent, dueDayIncludeWhatsapp, dueDayMarkPaid, dueDayMarkCurrent, dueDayStrikePaid, dueDayStrikeCurrent, dueDayOnlyInadimplentes, dueDayOnlyAgreement, filters, report])
+  }, [isDueDayRangeOpen, isDueDayPreviewVisible, dueDayStart, dueDayEnd, dueDayUpcomingDays, dueDayMode, dueDayIncludeInadimplentes, dueDayIncludePaid, dueDayIncludeCurrent, dueDayIncludeWhatsapp, dueDayMarkPaid, dueDayMarkCurrent, dueDayStrikePaid, dueDayStrikeCurrent, dueDayOnlyInadimplentes, dueDayOnlyAgreement, filters, report])
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -285,7 +285,7 @@ export function Reports({
     handleExportSection('dueDay', {
       ...filters,
       upcomingDays: dueDayUpcomingDays,
-      nextDuePerContract: dueDayNextDuePerContract,
+      dueMode: dueDayMode,
       includeInadimplentes: dueDayIncludeInadimplentes,
       includePaid: dueDayIncludePaid,
       includeCurrent: dueDayIncludeCurrent,
@@ -331,7 +331,7 @@ export function Reports({
     if (draftFilters.estado) sp.set('estado', draftFilters.estado)
     if (!isManager && draftFilters.usuarioId) sp.set('usuarioId', draftFilters.usuarioId)
     sp.set('upcomingDays', String(draftFilters.upcomingDays))
-    sp.set('nextDuePerContract', String(draftFilters.nextDuePerContract))
+    sp.set('dueMode', draftFilters.dueMode)
     sp.set('includeInadimplentes', String(draftFilters.includeInadimplentes))
     sp.set('includePaid', String(draftFilters.includePaid))
     router.push(`/reports?${sp.toString()}`)
@@ -446,9 +446,11 @@ export function Reports({
               Juros a Vencer
             </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              {filters.nextDuePerContract
-                ? 'Próximo vencimento de cada contrato ativo.'
-                : `Vencimentos nos próximos ${filters.upcomingDays} dias.`}
+              {filters.dueMode === 'CURRENT_MONTH'
+                ? 'Vencimentos restantes deste mês.'
+                : filters.dueMode === 'NEXT_DUE'
+                  ? 'Próximo vencimento de cada contrato ativo.'
+                  : `Vencimentos nos próximos ${filters.upcomingDays} dias.`}
             </p>
           </div>
           <span className="bg-indigo-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg uppercase">
@@ -803,18 +805,22 @@ export function Reports({
                   <div className="rounded-2xl border border-gold-200 bg-gold-50/50 p-4 dark:border-gold-500/20 dark:bg-gold-500/5">
                     <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-300">Quais vencimentos devem aparecer?</p>
                     <label className="flex cursor-pointer items-start gap-3 text-sm text-slate-700 dark:text-slate-300">
-                      <input type="radio" name="upcoming-mode" checked={draftFilters.nextDuePerContract} onChange={() => setDraftFilters({ ...draftFilters, nextDuePerContract: true })} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
+                      <input type="radio" name="upcoming-mode" checked={draftFilters.dueMode === 'CURRENT_MONTH'} onChange={() => setDraftFilters({ ...draftFilters, dueMode: 'CURRENT_MONTH' })} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
+                      <span><span className="block font-bold">Mostrar somente os vencimentos deste mês</span><span className="block text-xs text-slate-500 dark:text-slate-400">Padrão: não exibe contratos cujo primeiro vencimento é no próximo mês.</span></span>
+                    </label>
+                    <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-700 dark:text-slate-300">
+                      <input type="radio" name="upcoming-mode" checked={draftFilters.dueMode === 'NEXT_DUE'} onChange={() => setDraftFilters({ ...draftFilters, dueMode: 'NEXT_DUE' })} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
                       <span>
                         <span className="block font-bold">Mostrar somente o próximo vencimento de cada contrato</span>
                         <span className="block text-xs text-slate-500 dark:text-slate-400">Ex.: se um contrato vence dia 10 e outro dia 25, será exibido o próximo vencimento de cada um.</span>
                       </span>
                     </label>
                     <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-700 dark:text-slate-300">
-                      <input type="radio" name="upcoming-mode" checked={!draftFilters.nextDuePerContract} onChange={() => setDraftFilters({ ...draftFilters, nextDuePerContract: false })} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
+                      <input type="radio" name="upcoming-mode" checked={draftFilters.dueMode === 'UPCOMING'} onChange={() => setDraftFilters({ ...draftFilters, dueMode: 'UPCOMING' })} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
                       <span className="font-bold">Mostrar os que estão a vencer nos próximos</span>
                     </label>
                     <div className="mt-2 flex items-center gap-3">
-                      <input id="upcoming-days" type="number" min="1" max="3650" value={draftFilters.upcomingDays} disabled={draftFilters.nextDuePerContract} onChange={(e) => {
+                      <input id="upcoming-days" type="number" min="1" max="3650" value={draftFilters.upcomingDays} disabled={draftFilters.dueMode !== 'UPCOMING'} onChange={(e) => {
                         const value = Number(e.target.value)
                         setDraftFilters({ ...draftFilters, upcomingDays: Number.isFinite(value) ? value : 30 })
                       }} className="w-24 px-4 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl outline-none disabled:cursor-not-allowed disabled:opacity-50" />
@@ -826,7 +832,7 @@ export function Reports({
                 <div className="pt-8 flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setDraftFilters({ startDate: '', endDate: '', status: '', cidade: '', estado: '', usuarioId: '', upcomingDays: 30, nextDuePerContract: true, includeInadimplentes: false, includePaid: false })}
+                    onClick={() => setDraftFilters({ startDate: '', endDate: '', status: '', cidade: '', estado: '', usuarioId: '', upcomingDays: 30, dueMode: 'CURRENT_MONTH', includeInadimplentes: false, includePaid: false })}
                     className="flex-1 py-3.5 px-4 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-100 font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                   >
                     Limpar
@@ -993,15 +999,19 @@ export function Reports({
               <div className="rounded-2xl border border-gold-200 bg-gold-50/50 p-4 dark:border-gold-500/20 dark:bg-gold-500/5">
                 <p className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Quais vencimentos devem aparecer?</p>
                 <label className="flex cursor-pointer items-start gap-3 text-sm text-slate-700 dark:text-slate-200">
-                  <input type="radio" name="due-day-upcoming-mode" checked={dueDayNextDuePerContract} onChange={() => setDueDayNextDuePerContract(true)} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
+                  <input type="radio" name="due-day-upcoming-mode" checked={dueDayMode === 'CURRENT_MONTH'} onChange={() => setDueDayMode('CURRENT_MONTH')} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
+                  <span><span className="block font-bold">Mostrar somente os vencimentos deste mês</span><span className="block text-xs text-slate-500 dark:text-slate-400">Padrão: não inclui o primeiro vencimento do próximo mês.</span></span>
+                </label>
+                <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-700 dark:text-slate-200">
+                  <input type="radio" name="due-day-upcoming-mode" checked={dueDayMode === 'NEXT_DUE'} onChange={() => setDueDayMode('NEXT_DUE')} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
                   <span><span className="block font-bold">Mostrar somente o próximo vencimento de cada contrato</span><span className="block text-xs text-slate-500 dark:text-slate-400">Ex.: se um contrato vence dia 10 e outro dia 25, será exibido o próximo vencimento de cada um.</span></span>
                 </label>
                 <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-700 dark:text-slate-200">
-                  <input type="radio" name="due-day-upcoming-mode" checked={!dueDayNextDuePerContract} onChange={() => setDueDayNextDuePerContract(false)} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
+                  <input type="radio" name="due-day-upcoming-mode" checked={dueDayMode === 'UPCOMING'} onChange={() => setDueDayMode('UPCOMING')} className="mt-0.5 h-4 w-4 border-slate-300 text-gold-600 focus:ring-gold-500" />
                   <span className="font-bold">Mostrar os que estão a vencer nos próximos</span>
                 </label>
                 <div className="mt-2 flex items-center gap-3">
-                  <input id="due-day-upcoming-days" type="number" min="1" max="3650" step="1" value={dueDayUpcomingDays} disabled={dueDayNextDuePerContract} onChange={(event) => setDueDayUpcomingDays(Number(event.target.value))} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-gold-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" />
+                  <input id="due-day-upcoming-days" type="number" min="1" max="3650" step="1" value={dueDayUpcomingDays} disabled={dueDayMode !== 'UPCOMING'} onChange={(event) => setDueDayUpcomingDays(Number(event.target.value))} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-gold-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" />
                   <span className="text-sm text-slate-500 dark:text-slate-400">dias</span>
                 </div>
               </div>

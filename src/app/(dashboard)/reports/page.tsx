@@ -91,20 +91,23 @@ export default async function ReportsPage({
   const estadoParam = Array.isArray(params.estado) ? params.estado[0] : params.estado
   const usuarioIdParam = Array.isArray(params.usuarioId) ? params.usuarioId[0] : params.usuarioId
   const upcomingDaysParam = Array.isArray(params.upcomingDays) ? params.upcomingDays[0] : params.upcomingDays
-  const nextDuePerContractParam = Array.isArray(params.nextDuePerContract) ? params.nextDuePerContract[0] : params.nextDuePerContract
+  const dueModeParam = Array.isArray(params.dueMode) ? params.dueMode[0] : params.dueMode
   const includeInadimplentesParam = Array.isArray(params.includeInadimplentes) ? params.includeInadimplentes[0] : params.includeInadimplentes
   const includePaidParam = Array.isArray(params.includePaid) ? params.includePaid[0] : params.includePaid
   const parsedUpcomingDays = Number(upcomingDaysParam)
   const upcomingDays = Number.isInteger(parsedUpcomingDays) && parsedUpcomingDays >= 1 && parsedUpcomingDays <= 3650
     ? parsedUpcomingDays
     : 30
-  const nextDuePerContract = nextDuePerContractParam !== 'false'
+  const dueMode = dueModeParam === 'NEXT_DUE' || dueModeParam === 'UPCOMING'
+    ? dueModeParam
+    : 'CURRENT_MONTH'
   const includeInadimplentes = includeInadimplentesParam === 'true'
   const includePaid = includePaidParam === 'true'
 
   const todayYMD = todayYMDInSaoPaulo()
   const todayStart = saoPauloDayStartUtc(todayYMD)
   const upcomingEnd = saoPauloDayStartUtc(addDaysYMD(todayYMD, upcomingDays + 1))
+  const dueMonthEnd = new Date(Date.UTC(todayStart.getUTCFullYear(), todayStart.getUTCMonth() + 1, 1))
   const defaultEndYMD = todayYMD
   const defaultStartYMD = addMonthsYMD(defaultEndYMD, -6)
 
@@ -243,7 +246,8 @@ export default async function ReportsPage({
     while (nextOccurrence.getTime() < todayStart.getTime()) {
       nextOccurrence = addMonthlyOccurrence(nextOccurrence, preferredDay)
     }
-    if (!nextDuePerContract && nextOccurrence.getTime() >= upcomingEnd.getTime()) continue
+    if (dueMode === 'CURRENT_MONTH' && nextOccurrence.getTime() >= dueMonthEnd.getTime()) continue
+    if (dueMode === 'UPCOMING' && nextOccurrence.getTime() >= upcomingEnd.getTime()) continue
     const day = nextOccurrence.getUTCDate()
     const interest = calculateLoanInterest(loan)
     const quantidadeParcelas = loan.quantidadeParcelas ?? 0
@@ -425,7 +429,8 @@ export default async function ReportsPage({
       occurrenceIndex++
     }
 
-    if (!nextDuePerContract && occurrence.getTime() >= upcomingEnd.getTime()) continue
+    if (dueMode === 'CURRENT_MONTH' && occurrence.getTime() >= dueMonthEnd.getTime()) continue
+    if (dueMode === 'UPCOMING' && occurrence.getTime() >= upcomingEnd.getTime()) continue
     const monthlyAmount = Number(loan.valor) * (Number(loan.jurosMes) / 100)
     dailyInterestData.push({
       date: occurrence.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
@@ -486,7 +491,7 @@ export default async function ReportsPage({
         estado: (estadoParam as string) || '',
         usuarioId: isManager ? '' : (usuarioIdParam as string) || '',
         upcomingDays,
-        nextDuePerContract,
+        dueMode,
         includeInadimplentes,
         includePaid,
       }}

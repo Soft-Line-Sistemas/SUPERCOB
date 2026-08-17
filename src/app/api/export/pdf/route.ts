@@ -61,7 +61,9 @@ function isSameUtcCalendarDate(first: Date, second: Date) {
 async function buildDueDayData(filters: any, enforcedUsuarioId?: string) {
   const parsedDays = Number(filters?.upcomingDays)
   const upcomingDays = Number.isInteger(parsedDays) && parsedDays >= 1 && parsedDays <= 3650 ? parsedDays : 30
-  const nextDuePerContract = filters?.nextDuePerContract !== false
+  const dueMode = filters?.dueMode === 'NEXT_DUE' || filters?.dueMode === 'UPCOMING'
+    ? filters.dueMode
+    : 'CURRENT_MONTH'
   const includeInadimplentes = filters?.includeInadimplentes === true
   const includePaid = filters?.includePaid === true || filters?.markPaid === true || filters?.strikePaid === true
   const includeCurrent = filters?.includeCurrent === true || filters?.markCurrent === true || filters?.strikeCurrent === true
@@ -108,7 +110,8 @@ async function buildDueDayData(filters: any, enforcedUsuarioId?: string) {
     let nextOccurrence = new Date(loan.vencimento)
     const preferredDay = nextOccurrence.getUTCDate()
     while (nextOccurrence.getTime() < todayStart.getTime()) nextOccurrence = addMonthlyOccurrence(nextOccurrence, preferredDay)
-    if (!nextDuePerContract && nextOccurrence.getTime() >= upcomingEnd.getTime()) continue
+    if (dueMode === 'CURRENT_MONTH' && nextOccurrence.getTime() >= nextMonthStart.getTime()) continue
+    if (dueMode === 'UPCOMING' && nextOccurrence.getTime() >= upcomingEnd.getTime()) continue
 
     const quantidadeParcelas = loan.quantidadeParcelas ?? 0
     const isAcordo = Number.isInteger(quantidadeParcelas) && quantidadeParcelas > 0
@@ -221,7 +224,11 @@ function drawFiltersLine(ctx: PdfCtx, filters: any, includePeriod: boolean = tru
     filters.status ? `Status: ${filters.status}` : null,
     filters.cidade ? `Cidade: ${filters.cidade}` : null,
     filters.estado ? `UF: ${filters.estado}` : null,
-    filters.nextDuePerContract ? 'Vencimentos exibidos: somente o próximo de cada contrato' : filters.upcomingDays ? `Vencimentos exibidos: próximos ${filters.upcomingDays} dias` : null,
+    filters.dueMode === 'NEXT_DUE'
+      ? 'Vencimentos exibidos: somente o próximo de cada contrato'
+      : filters.dueMode === 'UPCOMING' && filters.upcomingDays
+        ? `Vencimentos exibidos: próximos ${filters.upcomingDays} dias`
+        : 'Vencimentos exibidos: somente os deste mês',
   ].filter(Boolean)
   if (fParts.length > 0) {
     drawText(`CRITÉRIOS DE FILTRO: ${fParts.join(' • ')}`, { size: 8, color: rgb(0.4, 0.4, 0.4) })
