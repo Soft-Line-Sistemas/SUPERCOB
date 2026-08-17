@@ -165,7 +165,16 @@ export async function addPagamentoParcial(input: {
 
   const { jurosPendente, jurosBase } = calculateLoanInterest(emprestimoAtual)
 
-  const competenciaVencimento = new Date(input.competenciaVencimento)
+  const competenciaInformada = new Date(input.competenciaVencimento)
+  // A competência é mensal; horário e fuso não podem criar uma segunda
+  // competência para o mesmo dia, nem impedir que a já existente seja encontrada.
+  const competenciaVencimento = Number.isNaN(competenciaInformada.getTime())
+    ? competenciaInformada
+    : new Date(Date.UTC(
+        competenciaInformada.getUTCFullYear(),
+        competenciaInformada.getUTCMonth(),
+        competenciaInformada.getUTCDate(),
+      ))
   if (Number.isNaN(competenciaVencimento.getTime())) throw new Error('Competência inválida')
   if (emprestimoAtual.vencimento && competenciaVencimento.getUTCDate() !== emprestimoAtual.vencimento.getUTCDate()) {
     throw new Error('A competência deve usar o mesmo dia de vencimento do contrato.')
@@ -387,7 +396,8 @@ export async function atualizarVinculoPagamentoHistorico(input: {
   if ((userRole === 'OPERADOR' || userRole === 'GERENTE') && emprestimo.usuarioId !== createdById) throw new Error('Você só pode editar vínculos da própria carteira.')
 
   const recibo = await prisma.emprestimoHistorico.findFirst({ where: { id: input.historicoId, emprestimoId: input.emprestimoId, tipo: 'PAGAMENTO' } })
-  if (!recibo?.competenciaId) throw new Error('Este recibo não possui vínculo regularizado.')
+  const referenciaTextual = recibo?.descricao.match(/Referente à competência de \d{2}\/\d{2}\/\d{4}/i)
+  if (!recibo || (!recibo.competenciaId && !referenciaTextual)) throw new Error('Este recibo não possui vínculo regularizado.')
   const valorMatch = recibo.descricao.match(/Pagamento registrado:\s*R\$\s*([\d.]+,\d{2})/)
   const valor = valorMatch ? Number(valorMatch[1].replace(/\./g, '').replace(',', '.')) : 0
   if (!Number.isFinite(valor) || valor <= 0) throw new Error('Não foi possível identificar o valor do recibo.')
@@ -397,6 +407,22 @@ export async function atualizarVinculoPagamentoHistorico(input: {
     novoVencimento = new Date(input.competenciaVencimento)
     if (Number.isNaN(novoVencimento.getTime())) throw new Error('Competência inválida.')
     if (emprestimo.vencimento && novoVencimento.getUTCDate() !== emprestimo.vencimento.getUTCDate()) throw new Error('A competência deve usar o mesmo dia de vencimento do contrato.')
+  }
+
+  // Os vínculos históricos importados foram registrados apenas no recibo para
+  // preservar valores financeiros. Eles podem ser corrigidos por qualquer pessoa
+  // com acesso à carteira, sem criar nem abater uma competência novamente.
+  if (!recibo.competenciaId) {
+    const descricaoBase = recibo.descricao
+      .replace(/\s*Regularizado: referente à competência de \d{2}\/\d{2}\/\d{4}\./i, '')
+      .replace(/\s*Referente à competência de \d{2}\/\d{2}\/\d{4}\./i, '')
+    const descricao = novoVencimento
+      ? `${descricaoBase} Referente à competência de ${novoVencimento.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}.`
+      : descricaoBase
+    await prisma.emprestimoHistorico.update({ where: { id: recibo.id }, data: { descricao } })
+    await logSystemAction({ entidade: 'EMPRESTIMO', entidadeId: emprestimo.id, acao: 'UPDATE', detalhes: novoVencimento ? 'Referência mensal de recibo histórico alterada; sem alteração do saldo geral.' : 'Referência mensal de recibo histórico removida; sem alteração do saldo geral.' })
+    revalidatePath(`/emprestimos/${emprestimo.id}`)
+    return
   }
 
   const antigo = await prisma.competenciaEmprestimo.findUnique({ where: { id: recibo.competenciaId } })

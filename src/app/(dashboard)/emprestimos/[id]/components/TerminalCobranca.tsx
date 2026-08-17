@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { createPortal } from 'react-dom'
 import { Pencil } from 'lucide-react'
 import { WhatsAppTemplates } from '@/components/WhatsAppTemplates'
@@ -20,12 +20,14 @@ interface TerminalCobrancaProps {
   totalCompetenciasPendentes: number
   evidenciasPorCompetencia: Map<string, { data: Date | string; fonte: 'RECIBO' | 'AUDITORIA' }>
   pagamentosSemCompetencia: { id: string; descricao: string; createdAt: Date | string }[]
+  modalCompetenciaAberto: boolean
+  setModalCompetenciaAberto: (aberto: boolean) => void
   reciboHistoricoId: string
   setReciboHistoricoId: (val: string) => void
   competenciaRegularizacaoVencimento: string
   setCompetenciaRegularizacaoVencimento: (val: string) => void
   handleVincularPagamentoAntigo: () => Promise<boolean>
-  vinculosPorCompetencia: Map<string, string>
+  vinculosPorCompetencia: Map<string, string[]>
   vinculoEmEdicao: { historicoId: string; vencimento: string } | null
   handleEditarVinculo: (historicoId: string, vencimento: string) => void
   setVinculoEmEdicao: (vinculo: { historicoId: string; vencimento: string } | null) => void
@@ -58,6 +60,8 @@ export function TerminalCobranca({
   totalCompetenciasPendentes,
   evidenciasPorCompetencia,
   pagamentosSemCompetencia,
+  modalCompetenciaAberto,
+  setModalCompetenciaAberto,
   reciboHistoricoId,
   setReciboHistoricoId,
   competenciaRegularizacaoVencimento,
@@ -86,7 +90,6 @@ export function TerminalCobranca({
     const date = new Date(value)
     return `${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}/${date.getUTCFullYear()}`
   }
-  const [modalCompetenciaAberto, setModalCompetenciaAberto] = useState(false)
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
   const chaveCompetencia = (value: Date | string) => new Date(value).toISOString().slice(0, 10)
@@ -175,16 +178,16 @@ export function TerminalCobranca({
                 const venceNoFuturo = new Date(item.vencimento) > new Date()
                 const chave = new Date(item.vencimento).toISOString().slice(0, 10)
                 const evidencia = evidenciasPorCompetencia.get(chave)
-                const historicoId = vinculosPorCompetencia.get(chave)
+                const historicoIds = vinculosPorCompetencia.get(chave) ?? []
                 const pago = competenciaEstaPaga(item)
                 return <div key={item.id} className="flex items-center justify-between text-xs">
                   <span className="text-white/75">{formatCompetenciaDate(item.vencimento)}</span>
-                  <span className="flex items-center gap-2"><span className={pago ? 'font-bold text-emerald-300' : venceNoFuturo ? 'font-bold text-blue-300' : 'font-bold text-orange-300'}>{pago ? `Pago confirmado em ${formatDate(evidencia?.data ?? item.pagoEm ?? item.vencimento)}${evidencia ? evidencia.fonte === 'RECIBO' ? ' · recibo' : ' · auditoria' : ' · registro'}` : venceNoFuturo ? `A vencer ${formatBRL(pendente)}` : `Vencido ${formatBRL(pendente)}`}</span>{historicoId ? <button type="button" onClick={() => handleEditarVinculo(historicoId, new Date(item.vencimento).toISOString())} className="grid h-7 w-7 place-items-center rounded-md border border-white/15 bg-white/5 text-white/60 transition-colors hover:bg-white/15 hover:text-white" aria-label={`Editar vínculo de ${formatCompetenciaDate(item.vencimento)}`}><Pencil className="h-3.5 w-3.5" /></button> : null}</span>
+                  <span className="flex items-center gap-2"><span className={pago ? 'font-bold text-emerald-300' : venceNoFuturo ? 'font-bold text-blue-300' : 'font-bold text-orange-300'}>{pago ? `Pago confirmado em ${formatDate(evidencia?.data ?? item.pagoEm ?? item.vencimento)}${evidencia ? evidencia.fonte === 'RECIBO' ? ' · recibo' : ' · auditoria' : ' · registro'}` : venceNoFuturo ? `A vencer ${formatBRL(pendente)}` : `Vencido ${formatBRL(pendente)}`}</span>{historicoIds.map((historicoId) => <button key={historicoId} type="button" onClick={() => handleEditarVinculo(historicoId, new Date(item.vencimento).toISOString())} className="grid h-7 w-7 place-items-center rounded-md border border-white/15 bg-white/5 text-white/60 transition-colors hover:bg-white/15 hover:text-white" aria-label={`Editar vínculo de ${formatCompetenciaDate(item.vencimento)}`}><Pencil className="h-3.5 w-3.5" /></button>)}</span>
                 </div>
               })}
             </div>
             {pagamentosSemCompetencia.length > 0 ? (
-              <button type="button" onClick={() => setModalCompetenciaAberto(true)} className="mt-4 text-[10px] font-black uppercase tracking-widest text-red-400 transition-colors hover:text-red-300">Regularizar pagamento antigo</button>
+              <button type="button" onClick={() => setModalCompetenciaAberto(true)} className="mt-4 text-[10px] font-black uppercase tracking-widest text-red-400 transition-colors hover:text-red-300">Regularizar vínculo de mês/pagamento</button>
             ) : null}
           </div>
           <div>

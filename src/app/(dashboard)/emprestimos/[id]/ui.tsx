@@ -146,6 +146,7 @@ export function ContractDetails({
   const [erro, setErro] = useState<string | null>(null)
   const [pagamento, setPagamento] = useState('')
   const [reciboHistoricoId, setReciboHistoricoId] = useState('')
+  const [modalCompetenciaAberto, setModalCompetenciaAberto] = useState(false)
   const [vinculoEmEdicao, setVinculoEmEdicao] = useState<{ historicoId: string; vencimento: string } | null>(null)
   const [competenciaVencimento, setCompetenciaVencimento] = useState('')
   const [aplicarPrincipal, setAplicarPrincipal] = useState(false)
@@ -247,11 +248,22 @@ export function ContractDetails({
     evento.tipo === 'PAGAMENTO' && !evento.competenciaId && !/Referente à competência de \d{2}\/\d{2}\/\d{4}/i.test(evento.descricao)
   )), [emprestimo.historico])
   const vinculosPorCompetencia = useMemo(() => {
-    const vinculos = new Map<string, string>()
+    const vinculos = new Map<string, string[]>()
+    const adicionar = (competencia: string, historicoId: string) => {
+      vinculos.set(competencia, [...(vinculos.get(competencia) ?? []), historicoId])
+    }
     emprestimo.historico.forEach((evento) => {
-      if (!evento.competenciaId) return
-      const competencia = emprestimo.competencias?.find((item) => item.id === evento.competenciaId)
-      if (competencia) vinculos.set(new Date(competencia.vencimento).toISOString().slice(0, 10), evento.id)
+      if (evento.competenciaId) {
+        const competencia = emprestimo.competencias?.find((item) => item.id === evento.competenciaId)
+        if (competencia) adicionar(new Date(competencia.vencimento).toISOString().slice(0, 10), evento.id)
+        return
+      }
+      // Regularizações históricas feitas somente por referência textual não
+      // alteram os valores da competência, mas também precisam poder ser editadas.
+      const referencia = evento.descricao.match(/Referente à competência de (\d{2})\/(\d{2})\/(\d{4})/i)
+      if (evento.tipo === 'PAGAMENTO' && referencia) {
+        adicionar(`${referencia[3]}-${referencia[2]}-${referencia[1]}`, evento.id)
+      }
     })
     return vinculos
   }, [emprestimo.historico, emprestimo.competencias])
@@ -509,6 +521,8 @@ export function ContractDetails({
             totalCompetenciasPendentes={totalCompetenciasPendentes}
             evidenciasPorCompetencia={evidenciasPorCompetencia}
             pagamentosSemCompetencia={pagamentosSemCompetencia}
+            modalCompetenciaAberto={modalCompetenciaAberto}
+            setModalCompetenciaAberto={setModalCompetenciaAberto}
             reciboHistoricoId={reciboHistoricoId}
             setReciboHistoricoId={setReciboHistoricoId}
             competenciaRegularizacaoVencimento={competenciaRegularizacaoVencimento}
@@ -593,6 +607,20 @@ export function ContractDetails({
                 Este recebimento será aplicado somente aos juros da competência selecionada. <strong>O principal não será alterado.</strong>
               </p>
             )}
+
+            {pagamentosSemCompetencia.length > 0 ? (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  setPaymentConfirmationValue(null)
+                  setModalCompetenciaAberto(true)
+                }}
+                className="mt-4 w-full rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-800 transition-colors hover:bg-violet-100 disabled:opacity-40 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-100 dark:hover:bg-violet-500/20"
+              >
+                Regularizar vínculo de mês/pagamento
+              </button>
+            ) : null}
 
             <div className="mt-6 flex gap-3">
               <button type="button" onClick={() => setPaymentConfirmationValue(null)} disabled={isPending} className="flex-1 rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-40 dark:bg-white/10 dark:text-slate-200">Cancelar</button>

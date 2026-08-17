@@ -93,6 +93,29 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
     expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'QUITADO' }) }))
   })
 
+  it('registra juros na competência mesmo quando a data enviada contém horário', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
+    mockCalculateLoanInterest.mockReturnValue({ principalRestante: 100, jurosPendente: 10, jurosBase: 10 })
+    mockUpdate.mockResolvedValue({ ...contract, status: 'NEGOCIACAO', jurosPagos: 10 })
+
+    await expect(addPagamentoParcial({
+      emprestimoId: 'loan-1',
+      valor: 10,
+      competenciaVencimento: '2026-08-08T03:00:00.000Z',
+    })).resolves.toBeTruthy()
+
+    expect(mockCompetenciaCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        vencimento: new Date('2026-08-08T00:00:00.000Z'),
+        valorPrevisto: 10,
+        valorPago: 10,
+      }),
+    }))
+    expect(mockHistoricoCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ competenciaId: 'competencia-1' }),
+    }))
+  })
+
   it('permite Escritório reabrir contrato', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
 
