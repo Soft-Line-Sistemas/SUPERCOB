@@ -307,7 +307,7 @@ export function ChargeModal({
                     <select
                       value={formData.usuarioId}
                       onChange={(e) => setFormData((p) => ({ ...p, usuarioId: e.target.value }))}
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
                     >
                       <option value="">Não atribuído</option>
                       {colaboradores.map((c) => (
@@ -355,7 +355,7 @@ export function ChargeModal({
                         const next = Number(raw)
                         setFormData((p) => ({ ...p, jurosMes: Number.isFinite(next) ? next : 0 }))
                       }}
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
                       placeholder="0"
                     />
                   </div>
@@ -474,7 +474,7 @@ export function ChargeModal({
                         const next = Number(raw)
                         setFormData((p) => ({ ...p, jurosAtrasoDia: Number.isFinite(next) ? next : 0 }))
                       }}
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
                       placeholder="0"
                     />
                   </div>
@@ -506,7 +506,7 @@ export function ChargeModal({
                         required
                         value={formData.vencimento}
                         onChange={(e) => setFormData((p) => ({ ...p, vencimento: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all"
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
                       />
                     </div>
                   </div>

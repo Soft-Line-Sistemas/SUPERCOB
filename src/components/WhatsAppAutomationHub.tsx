@@ -766,7 +766,7 @@ function ConfigTab() {
     <div className="space-y-4">
       <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 grid md:grid-cols-4 gap-3">
         <label className="text-xs font-black text-slate-600">Automação ligada
-          <select value={String(config.enabled)} onChange={(e) => setConfig({ ...config, enabled: e.target.value === 'true' })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent">
+          <select value={String(config.enabled)} onChange={(e) => setConfig({ ...config, enabled: e.target.value === 'true' })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-slate-900 dark:text-slate-100">
             <option value="true">Ativa</option>
             <option value="false">Pausada</option>
           </select>
@@ -780,7 +780,7 @@ function ConfigTab() {
           <span className="mt-1 block text-[11px] font-medium text-slate-500">Espaco entre uma mensagem e outra na fila geral. Use 0 para nao espaciar.</span>
         </label>
         <label className="text-xs font-black text-slate-600">Enviar finais de semana
-          <select value={String(config.sendOnWeekends)} onChange={(e) => setConfig({ ...config, sendOnWeekends: e.target.value === 'true' })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent">
+          <select value={String(config.sendOnWeekends)} onChange={(e) => setConfig({ ...config, sendOnWeekends: e.target.value === 'true' })} className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-slate-900 dark:text-slate-100">
             <option value="false">Não</option>
             <option value="true">Sim</option>
           </select>
@@ -800,7 +800,7 @@ function ConfigTab() {
               title="Valor apenas para visualizacao"
               className="px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-900 text-sm text-slate-500 cursor-not-allowed"
             />
-            <select value={String(rule.enabled)} onChange={(e) => setConfig({ ...config, rules: config.rules.map((r: any) => (r.id === rule.id ? { ...r, enabled: e.target.value === 'true' } : r)) })} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-sm">
+            <select value={String(rule.enabled)} onChange={(e) => setConfig({ ...config, rules: config.rules.map((r: any) => (r.id === rule.id ? { ...r, enabled: e.target.value === 'true' } : r)) })} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-sm text-slate-900 dark:text-slate-100">
               <option value="true">Ativa</option>
               <option value="false">Pausada</option>
             </select>

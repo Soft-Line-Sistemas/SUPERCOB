@@ -223,17 +223,18 @@ export function ContractDetails({
     ? Math.max(competenciaSelecionada.valorPrevisto - competenciaSelecionada.valorPago, 0)
     : jurosPendente
   const evidenciasPorCompetencia = useMemo(() => {
-    const evidencias = new Map<string, { data: Date | string; fonte: 'RECIBO' | 'AUDITORIA' }>()
-    const registrar = (texto: string | null | undefined, data: Date | string, fonte: 'RECIBO' | 'AUDITORIA') => {
+    const evidencias = new Map<string, { data: Date | string; fonte: 'RECIBO' }>()
+    const registrar = (texto: string | null | undefined, data: Date | string) => {
       const match = texto?.match(/Referente à competência de (\d{2})\/(\d{2})\/(\d{4})/)
       if (!match) return
       const chave = `${match[3]}-${match[2]}-${match[1]}`
-      if (!evidencias.has(chave)) evidencias.set(chave, { data, fonte })
+      if (!evidencias.has(chave)) evidencias.set(chave, { data, fonte: 'RECIBO' })
     }
-    emprestimo.historico.filter((evento) => evento.tipo === 'PAGAMENTO').forEach((evento) => registrar(evento.descricao, evento.createdAt, 'RECIBO'))
-    emprestimo.auditorias?.forEach((auditoria) => registrar(auditoria.detalhes, auditoria.createdAt, 'AUDITORIA'))
+    // Auditoria registra tentativas e reversões, mas não é comprovante de
+    // recebimento. Somente recibos existentes podem marcar o mês como pago.
+    emprestimo.historico.filter((evento) => evento.tipo === 'PAGAMENTO').forEach((evento) => registrar(evento.descricao, evento.createdAt))
     return evidencias
-  }, [emprestimo.historico, emprestimo.auditorias])
+  }, [emprestimo.historico])
   const totalCompetenciasPendentes = competencias.reduce((sum, item) => {
     const chave = new Date(item.vencimento).toISOString().slice(0, 10)
     return new Date(item.vencimento) <= new Date() && !evidenciasPorCompetencia.has(chave)

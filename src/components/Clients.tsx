@@ -1027,7 +1027,7 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value === 'az' ? 'az' : 'newest')}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none shadow-sm"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none shadow-sm dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
           >
             <option value="newest">Novos primeiro</option>
             <option value="az">A-Z</option>
@@ -1336,7 +1336,7 @@ export function Clients({ initialClients, pagination, sort, summary, usuarios = 
               <select
                 value={pagination.perPage}
                 onChange={(e) => setPaginationParams(1, Number(e.target.value))}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
               >
                 {[15, 30, 50].map((value) => (
                   <option key={value} value={value}>
