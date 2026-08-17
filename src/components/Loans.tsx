@@ -260,6 +260,9 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     return [...existentes.values(), ...sugestoes.filter((item) => !existentes.has(new Date(item.vencimento).toISOString().slice(0, 10)))]
       .sort((a, b) => +new Date(a.vencimento) - +new Date(b.vencimento))
   }
+  const isAgreementLoan = (loan: Loan) => (
+    Number(loan.jurosMes ?? 0) <= 0.01 && Number(loan.quantidadeParcelas ?? 0) > 0
+  )
 
   const openMonthlyPaymentConfirmation = (loan: Loan) => {
     const valor = getMonthlyChargeAmount(loan)
@@ -275,6 +278,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       loan,
       valor,
       competenciaVencimento: competencia ? new Date(competencia.vencimento).toISOString() : undefined,
+      aplicarPrincipal: isAgreementLoan(loan),
       kind: 'monthly',
     })
   }
@@ -819,6 +823,11 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       principalRestanteApos: Math.max(financials.principalRestante - paraPrincipal, 0),
     }
   })()
+  const isAgreementPayment = Boolean(
+    paymentConfirmation
+    && Number(paymentConfirmation.loan.jurosMes ?? 0) <= 0.01
+    && Number(paymentConfirmation.loan.quantidadeParcelas ?? 0) > 0,
+  )
 
   const paymentCompetencias = paymentConfirmation?.kind === 'monthly'
     ? getPaymentCompetencias(paymentConfirmation.loan)
@@ -957,6 +966,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       descontoJuros: descJuros,
       renovarCiclo: renovarCicloRapido,
       competenciaVencimento: new Date(competencia.vencimento).toISOString(),
+      aplicarPrincipal: isAgreementLoan(paymentTerminalLoan),
       kind: 'custom',
     })
   }
@@ -1639,7 +1649,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
               </div>
 
               <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                Será registrado um pagamento de <strong>{formatCurrency(paymentConfirmationDetails.valor)}</strong> no contrato. {paymentConfirmation.aplicarPrincipal ? 'O valor será abatido do principal.' : 'O valor será aplicado somente aos juros da competência selecionada.'}
+                Será registrado um pagamento de <strong>{formatCurrency(paymentConfirmationDetails.valor)}</strong> no contrato. {isAgreementPayment ? 'Esta é uma parcela do acordo e será abatida do principal após a confirmação abaixo.' : paymentConfirmation.aplicarPrincipal ? 'O valor será abatido do principal.' : 'O valor será aplicado somente aos juros da competência selecionada.'}
               </p>
 
               {paymentConfirmation.kind === 'monthly' ? (
@@ -1702,7 +1712,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
 
               <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Juros pendentes</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAgreementPayment ? 'Saldo da parcela' : 'Juros pendentes'}</p>
                   <p className="mt-1 font-black text-slate-900 dark:text-white">{formatCurrency(paymentConfirmationDetails.jurosPendente)}</p>
                 </div>
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
@@ -1710,7 +1720,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                   <p className="mt-1 font-black text-emerald-800 dark:text-emerald-200">{formatCurrency(paymentConfirmationDetails.valor)}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Aplicação em juros</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAgreementPayment ? 'Aplicação no principal' : 'Aplicação em juros'}</p>
                   <p className="mt-1 font-black text-slate-900 dark:text-white">{formatCurrency(paymentConfirmationDetails.paraJuros)}</p>
                 </div>
                 {paymentConfirmation.aplicarPrincipal ? (
@@ -1732,11 +1742,11 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 </p>
               ) : (
                 <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-100">
-                  Este recebimento será aplicado somente aos juros. <strong>O principal não será alterado.</strong>
+                  {isAgreementPayment ? <>Marque a confirmação abaixo para registrar esta parcela do acordo. <strong>O principal não será alterado antes disso.</strong></> : <>Este recebimento será aplicado somente aos juros. <strong>O principal não será alterado.</strong></>}
                 </p>
               )}
 
-              {paymentConfirmationDetails.jurosPendente <= 0.01 || (Number(paymentConfirmation.loan.jurosMes ?? 0) <= 0.01 && Number(paymentConfirmation.loan.quantidadeParcelas ?? 0) > 0) ? (
+              {paymentConfirmationDetails.jurosPendente <= 0.01 || isAgreementPayment ? (
                 <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-4 text-sm text-violet-900 transition-colors hover:bg-violet-500/15 dark:text-violet-100">
                   <input
                     type="checkbox"
@@ -1745,7 +1755,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                     disabled={isPaymentPending}
                     className="h-4 w-4 rounded border-violet-400 text-violet-600 focus:ring-violet-500"
                   />
-                  <span><strong>Abater do principal</strong><br /><span className="text-xs opacity-80">Esta é a única forma de autorizar cobrança do principal.</span></span>
+                  <span><strong>{isAgreementPayment ? 'Confirmar abatimento desta parcela no principal' : 'Abater do principal'}</strong><br /><span className="text-xs opacity-80">Esta é a única forma de autorizar cobrança do principal.</span></span>
                 </label>
               ) : null}
 
@@ -1761,7 +1771,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 <button
                   type="button"
                   onClick={handleConfirmPayment}
-                  disabled={isPaymentPending}
+                  disabled={isPaymentPending || (isAgreementPayment && !paymentConfirmation.aplicarPrincipal)}
                   className="inline-flex flex-[1.5] items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 font-bold text-white shadow-lg shadow-emerald-600/20 transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isPaymentPending ? (

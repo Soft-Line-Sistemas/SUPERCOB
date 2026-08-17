@@ -250,8 +250,9 @@ export function ContractDetails({
   useEffect(() => {
     if (!competenciaVencimento && competenciaRecomendada) {
       setCompetenciaVencimento(new Date(competenciaRecomendada.vencimento).toISOString())
+      if (acordoSemJuros) setAplicarPrincipal(true)
     }
-  }, [competenciaVencimento, competenciaRecomendada])
+  }, [acordoSemJuros, competenciaVencimento, competenciaRecomendada])
   const pagamentosSemCompetencia = useMemo(() => emprestimo.historico.filter((evento) => (
     evento.tipo === 'PAGAMENTO' && !evento.competenciaId && !/Referente à competência de \d{2}\/\d{2}\/\d{4}/i.test(evento.descricao)
   )), [emprestimo.historico])
@@ -520,7 +521,7 @@ export function ContractDetails({
             pagamento={pagamento}
             setPagamento={setPagamento}
             competenciaVencimento={competenciaVencimento}
-            setCompetenciaVencimento={(value) => { setCompetenciaVencimento(value); setAplicarPrincipal(false) }}
+            setCompetenciaVencimento={(value) => { setCompetenciaVencimento(value); setAplicarPrincipal(acordoSemJuros) }}
             podeAplicarPrincipal={podeAplicarPrincipal}
             aplicarPrincipal={aplicarPrincipal}
             setAplicarPrincipal={setAplicarPrincipal}
