@@ -968,6 +968,11 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     if (!paymentConfirmation) return
     const { loan, valor, descontoJuros, renovarCiclo, competenciaVencimento, aplicarPrincipal, kind } = paymentConfirmation
 
+    if (!competenciaVencimento) {
+      toast.error('Selecione obrigatoriamente a competência referente ao pagamento.')
+      return
+    }
+
     setDirectMonthlyPaymentLoanId(loan.id)
     startPaymentTransition(async () => {
       try {
@@ -1757,7 +1762,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 <button
                   type="button"
                   onClick={() => setPaymentConfirmation(null)}
-                  disabled={isPaymentPending || !paymentConfirmation.competenciaVencimento}
+                  disabled={isPaymentPending}
                   className="flex-1 rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15"
                 >
                   Cancelar
@@ -1765,7 +1770,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 <button
                   type="button"
                   onClick={handleConfirmPayment}
-                  disabled={isPaymentPending || (isAgreementPayment && !paymentConfirmation.aplicarPrincipal)}
+                  disabled={isPaymentPending || !paymentConfirmation.competenciaVencimento || (isAgreementPayment && !paymentConfirmation.aplicarPrincipal)}
                   className="inline-flex flex-[1.5] items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 font-bold text-white shadow-lg shadow-emerald-600/20 transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isPaymentPending ? (
