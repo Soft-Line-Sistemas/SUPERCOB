@@ -971,7 +971,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     setDirectMonthlyPaymentLoanId(loan.id)
     startPaymentTransition(async () => {
       try {
-        await addPagamentoParcial({
+        const resultado = await addPagamentoParcial({
           emprestimoId: loan.id,
           valor,
           descontoJuros,
@@ -979,6 +979,10 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
           competenciaVencimento,
           aplicarPrincipal,
         })
+        if (!resultado.ok) {
+          toast.error(resultado.error)
+          return
+        }
         toast.success(kind === 'monthly' ? 'Pagamento integral do mês confirmado.' : 'Pagamento e negociação registrados.')
         setPaymentConfirmation(null)
         if (kind === 'custom') {

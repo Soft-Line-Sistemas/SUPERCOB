@@ -82,7 +82,7 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
     mockAuth.mockResolvedValue({ user: { id: role === 'OPERADOR' ? 'op-1' : 'esc-1', role } })
 
     await expect(addPagamentoParcial({ emprestimoId: 'loan-1', valor: 100, competenciaVencimento: '2026-08-08T00:00:00.000Z', aplicarPrincipal: true }))
-      .rejects.toThrow('Este pagamento quitaria o contrato.')
+      .resolves.toEqual(expect.objectContaining({ ok: false, error: 'Este pagamento quitaria o contrato. A conclusão deve ser feita por um administrador, gerente ou Escritório.' }))
     expect(mockUpdate).not.toHaveBeenCalled()
   })
 
@@ -118,6 +118,22 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
     }))
   })
 
+  it('permite antecipar juros do próximo mês mesmo com juros pendentes', async () => {
+    mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
+    mockCalculateLoanInterest.mockReturnValue({ principalRestante: 100, jurosPendente: 10, jurosBase: 10 })
+    mockUpdate.mockResolvedValue({ ...contract, status: 'NEGOCIACAO', jurosPagos: 10 })
+
+    await expect(addPagamentoParcial({
+      emprestimoId: 'loan-1',
+      valor: 10,
+      competenciaVencimento: '2026-09-08T00:00:00.000Z',
+    })).resolves.toBeTruthy()
+
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ jurosPagos: 10 }),
+    }))
+  })
+
   it('registra parcela de acordo sem juros somente com confirmação de principal', async () => {
     mockAuth.mockResolvedValue({ user: { id: 'esc-1', role: 'ESCRITORIO' } })
     mockFindUnique.mockResolvedValue({ ...contract, jurosMes: 0, quantidadeParcelas: 4 })
@@ -126,7 +142,7 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
 
     await expect(addPagamentoParcial({
       emprestimoId: 'loan-1', valor: 25, competenciaVencimento: '2026-08-08T00:00:00.000Z',
-    })).rejects.toThrow('Confirme a opção de abatimento no principal')
+    })).resolves.toEqual(expect.objectContaining({ ok: false, error: 'Confirme a opção de abatimento no principal para registrar uma parcela do acordo.' }))
 
     await expect(addPagamentoParcial({
       emprestimoId: 'loan-1', valor: 25, competenciaVencimento: '2026-08-08T00:00:00.000Z', aplicarPrincipal: true,
@@ -149,7 +165,7 @@ describe('detalhe do contrato - bloqueios por perfil', () => {
     await expect(addEmprestimoHistorico({ emprestimoId: 'loan-1', descricao: 'Contato realizado' }))
       .rejects.toThrow('Você só pode registrar ações nos contratos da própria carteira.')
     await expect(addPagamentoParcial({ emprestimoId: 'loan-1', valor: 10 }))
-      .rejects.toThrow('Você só pode registrar pagamentos nos contratos da própria carteira.')
+      .resolves.toEqual(expect.objectContaining({ ok: false, error: 'Você só pode registrar pagamentos nos contratos da própria carteira.' }))
   })
 
   it('bloqueia Gerente ao concluir contrato de outra carteira', async () => {

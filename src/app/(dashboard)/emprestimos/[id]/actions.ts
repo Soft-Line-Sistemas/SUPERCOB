@@ -131,7 +131,7 @@ export async function setEmprestimoStatus(input: {
   return { emprestimo: updated, evento }
 }
 
-export async function addPagamentoParcial(input: {
+type PagamentoParcialInput = {
   emprestimoId: string
   valor: number
   descontoJuros?: number
@@ -139,7 +139,23 @@ export async function addPagamentoParcial(input: {
   competenciaVencimento?: string
   aplicarPrincipal?: boolean
   jaAbatidoAnteriormente?: boolean
-}) {
+}
+
+// Ações de servidor em produção não preservam a mensagem de erros lançados.
+// Retornamos falhas esperadas para que a interface possa exibi-las em um toast.
+export async function addPagamentoParcial(input: PagamentoParcialInput) {
+  try {
+    const resultado = await addPagamentoParcialInterno(input)
+    return { ok: true as const, ...resultado }
+  } catch (error) {
+    return {
+      ok: false as const,
+      error: error instanceof Error ? error.message : 'Erro ao registrar pagamento.',
+    }
+  }
+}
+
+async function addPagamentoParcialInterno(input: PagamentoParcialInput) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -187,9 +203,6 @@ export async function addPagamentoParcial(input: {
   const mesCompetencia = competenciaVencimento.getUTCFullYear() * 12 + competenciaVencimento.getUTCMonth()
   if (mesCompetencia > mesAtual + 1) throw new Error('Só é permitido antecipar os juros da competência do próximo mês.')
   const competenciaFutura = mesCompetencia > mesAtual
-  if (!acordoSemJuros && competenciaFutura && jurosPendente > 0.01) {
-    throw new Error('Existem juros pendentes. Regularize-os antes de antecipar juros de competências futuras.')
-  }
   if (!acordoSemJuros && aplicarPrincipal && jurosPendente > 0.01) {
     throw new Error('O principal só pode ser abatido após quitar todos os juros pendentes.')
   }
