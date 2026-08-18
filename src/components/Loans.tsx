@@ -26,6 +26,7 @@ import { ColaboradorAnalytics } from './loans/ColaboradorAnalytics'
 import { BatchDossieModal } from './loans/BatchDossieModal'
 import { ChargeDeliveryModal } from './loans/ChargeDeliveryModal'
 import { PaymentTerminalModal } from './loans/PaymentTerminalModal'
+import Select from './Select';
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
 
@@ -1683,22 +1684,23 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                     })}
                   </div>
 
-                  <label className="mt-4 block text-xs font-bold text-slate-500 dark:text-slate-400">
-                    Pagamento referente a <span className="text-red-500">*</span>
-                    <select
+                  <div className="mt-4">
+                    <Select
+                      label="Pagamento referente a"
+                      required
                       value={paymentConfirmation.competenciaVencimento ?? ''}
-                      onChange={(event) => setPaymentConfirmation((current) => current ? { ...current, competenciaVencimento: event.target.value || undefined } : current)}
+                      onChange={(val) => setPaymentConfirmation((current) => current ? { ...current, competenciaVencimento: val || undefined } : current)}
                       disabled={isPaymentPending}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-800 outline-none dark:border-white/10 dark:bg-slate-800 dark:text-white"
-                    >
-                      <option value="">Selecione o mês de referência</option>
-                      {paymentCompetencias.filter((item) => Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01).map((item) => (
-                        <option key={new Date(item.vencimento).toISOString()} value={new Date(item.vencimento).toISOString()}>
-                          {formatCompetenciaDate(item.vencimento)} · pendente {formatCurrency(Math.max(item.valorPrevisto - item.valorPago, 0))}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      placeholder="Selecione o mês de referência"
+                      options={paymentCompetencias
+                        .filter((item) => Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01)
+                        .map((item) => ({
+                          value: new Date(item.vencimento).toISOString(),
+                          label: `${formatCompetenciaDate(item.vencimento)} · pendente ${formatCurrency(Math.max(item.valorPrevisto - item.valorPago, 0))}`
+                        }))
+                      }
+                    />
+                  </div>
                 </div>
               ) : null}
 

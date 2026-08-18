@@ -4,6 +4,7 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 import { Pencil } from 'lucide-react'
 import { WhatsAppTemplates } from '@/components/WhatsAppTemplates'
+import Select from '@/components/Select'
 
 interface TerminalCobrancaProps {
   emprestimo: any
@@ -193,16 +194,21 @@ export function TerminalCobranca({
             ) : null}
           </div>
           <div>
-            <label className="text-[10px] font-bold text-white/50 mb-1 block">{acordoSemJuros ? 'Parcela referente a' : 'Pagamento referente a'} <span className="text-red-300">*</span></label>
-            <select value={competenciaVencimento} onChange={(e) => setCompetenciaVencimento(e.target.value)} disabled={isPending} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white outline-none">
-              <option value="" className="text-black">Selecione o mês de referência</option>
-              {competencias.filter((item) => {
+            <Select
+              label={acordoSemJuros ? 'Parcela referente a' : 'Pagamento referente a'}
+              required
+              value={competenciaVencimento}
+              onChange={(val) => setCompetenciaVencimento(val)}
+              disabled={isPending}
+              placeholder="Selecione o mês de referência"
+              options={competencias.filter((item) => {
                 const chave = new Date(item.vencimento).toISOString().slice(0, 10)
                 return Math.max(item.valorPrevisto - item.valorPago, 0) > 0.01 && !evidenciasPorCompetencia.has(chave)
-              }).map((item) => (
-                <option key={item.id} value={new Date(item.vencimento).toISOString()} className="text-black">{formatCompetenciaDate(item.vencimento)} · pendente {formatBRL(Math.max(item.valorPrevisto - item.valorPago, 0))}</option>
-              ))}
-            </select>
+              }).map((item) => ({
+                value: new Date(item.vencimento).toISOString(),
+                label: `${formatCompetenciaDate(item.vencimento)} · pendente ${formatBRL(Math.max(item.valorPrevisto - item.valorPago, 0))}`
+              }))}
+            />
             {competenciaSelecionada && diasDaCompetenciaSelecionada !== null ? (
               <div className={`mt-3 rounded-2xl border p-3 text-xs ${
                 diasDaCompetenciaSelecionada < 0
