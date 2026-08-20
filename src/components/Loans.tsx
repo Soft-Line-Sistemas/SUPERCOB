@@ -1028,7 +1028,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     setDirectMonthlyPaymentLoanId(loan.id)
     startPaymentTransition(async () => {
       try {
-        await addPagamentoParcial({
+        const resultado = await addPagamentoParcial({
           emprestimoId: loan.id,
           valor,
           descontoJuros,
@@ -1036,6 +1036,10 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
           competenciaVencimento,
           aplicarPrincipal,
         })
+        if (!resultado.ok) {
+          toast.error(resultado.error)
+          return
+        }
         toast.success(kind === 'monthly' ? 'Pagamento integral do mês confirmado.' : 'Pagamento e negociação registrados.')
         setPaymentConfirmation(null)
         if (kind === 'custom') {
@@ -1116,7 +1120,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     }
   }
 
-  const handleBatchExportDossie = async (loanIds: string[], password?: string) => {
+  const handleBatchExportDossie = async (loanIds: string[], password?: string, keepFilesInRoot = true) => {
     if (loanIds.length === 0) {
       toast.error('Nenhum contrato elegível para exportação em lote.')
       return
@@ -1132,6 +1136,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         body: JSON.stringify({
           loanIds,
           password,
+          keepFilesInRoot,
         }),
       })
 

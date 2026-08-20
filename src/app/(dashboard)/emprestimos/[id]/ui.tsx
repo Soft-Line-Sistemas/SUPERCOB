@@ -403,7 +403,7 @@ export function ContractDetails({
     const descJuros = parseBRL(descontoJuros)
     startTransition(async () => {
       try {
-        const { emprestimo: updated, eventos: novosEventos } = await addPagamentoParcial({
+        const resultado = await addPagamentoParcial({
           emprestimoId: emprestimo.id,
           valor: v,
           descontoJuros: descJuros,
@@ -411,6 +411,11 @@ export function ContractDetails({
           competenciaVencimento,
           aplicarPrincipal,
         })
+        if (!resultado.ok) {
+          toast.error(resultado.error)
+          return
+        }
+        const { emprestimo: updated, eventos: novosEventos } = resultado
         setValorPago(Number((updated as any).valorPago ?? 0) || 0)
         setStatus((updated as any).status)
         setQuitadoEm((updated as any).quitadoEm)

@@ -15,7 +15,7 @@ export async function addEmprestimoHistorico(input: { emprestimoId: string; desc
 
   const createdById = (session.user as any).id as string | undefined
   const userRole = (session.user as any).role?.toUpperCase()
-  
+
   // Transição automática de status: ABERTO -> NEGOCIACAO ao registrar histórico (contato feito)
   const currentLoan = await prisma.emprestimo.findUnique({ where: { id: input.emprestimoId } })
   if ((userRole === 'OPERADOR' || userRole === 'GERENTE') && currentLoan?.usuarioId !== createdById) {
@@ -131,7 +131,7 @@ export async function setEmprestimoStatus(input: {
   return { emprestimo: updated, evento }
 }
 
-export async function addPagamentoParcial(input: {
+type PagamentoParcialInput = {
   emprestimoId: string
   valor: number
   descontoJuros?: number
@@ -139,7 +139,23 @@ export async function addPagamentoParcial(input: {
   competenciaVencimento?: string
   aplicarPrincipal?: boolean
   jaAbatidoAnteriormente?: boolean
-}) {
+}
+
+// Ações de servidor em produção não preservam a mensagem de erros lançados.
+// Retornamos falhas esperadas para que a interface possa exibi-las em um toast.
+export async function addPagamentoParcial(input: PagamentoParcialInput) {
+  try {
+    const resultado = await addPagamentoParcialInterno(input)
+    return { ok: true as const, ...resultado }
+  } catch (error) {
+    return {
+      ok: false as const,
+      error: error instanceof Error ? error.message : 'Erro ao registrar pagamento.',
+    }
+  }
+}
+
+async function addPagamentoParcialInterno(input: PagamentoParcialInput) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -167,10 +183,10 @@ export async function addPagamentoParcial(input: {
   const competenciaVencimento = Number.isNaN(competenciaInformada.getTime())
     ? competenciaInformada
     : new Date(Date.UTC(
-        competenciaInformada.getUTCFullYear(),
-        competenciaInformada.getUTCMonth(),
-        competenciaInformada.getUTCDate(),
-      ))
+      competenciaInformada.getUTCFullYear(),
+      competenciaInformada.getUTCMonth(),
+      competenciaInformada.getUTCDate(),
+    ))
   if (Number.isNaN(competenciaVencimento.getTime())) throw new Error('Competência inválida')
 
   const competenciaAtual = await prisma.competenciaEmprestimo.findFirst({
@@ -188,8 +204,8 @@ export async function addPagamentoParcial(input: {
   const valorEntrada = Math.max(0, Number(emprestimoAtual.valorEntrada ?? 0))
   const valorParcelaAcordo = isAcordo
     ? (Number(emprestimoAtual.valorParcela ?? 0) > 0
-        ? Number(emprestimoAtual.valorParcela)
-        : (emprestimoAtual.valor - valorEntrada) / Math.max(1, quantidadeParcelas))
+      ? Number(emprestimoAtual.valorParcela)
+      : (emprestimoAtual.valor - valorEntrada) / Math.max(1, quantidadeParcelas))
     : (acordoSemJuros ? emprestimoAtual.valor / quantidadeParcelas : 0)
 
   if (!isCompetenciaEntrada && emprestimoAtual.vencimento && competenciaVencimento.getUTCDate() !== emprestimoAtual.vencimento.getUTCDate()) {
@@ -244,7 +260,7 @@ export async function addPagamentoParcial(input: {
   if (quitado && userRole === 'OPERADOR') {
     throw new Error('Este pagamento quitaria o contrato. A conclusão deve ser feita por um administrador, gerente ou Escritório.')
   }
-  
+
   let nextStatus = emprestimoAtual.status
   if (quitado) {
     nextStatus = 'QUITADO'
@@ -262,18 +278,18 @@ export async function addPagamentoParcial(input: {
   const updated = jaAbatidoAnteriormente
     ? emprestimoAtual
     : await prisma.emprestimo.update({
-        where: { id: input.emprestimoId },
-        data: {
-          valorPago: novoValorPago,
-          jurosPagos: novoJurosPagos,
-          status: nextStatus,
-          quitadoEm: quitado ? new Date() : emprestimoAtual.quitadoEm,
-          ...(quitandoEntradaAgora ? { entradaPagaEm: new Date() } : {}),
-          ...(shouldResetCycle
-            ? { jurosPagosNoInicioCiclo: novoJurosPagos, jurosCicloIniciadoEm: new Date() }
-            : {}),
-        },
-      })
+      where: { id: input.emprestimoId },
+      data: {
+        valorPago: novoValorPago,
+        jurosPagos: novoJurosPagos,
+        status: nextStatus,
+        quitadoEm: quitado ? new Date() : emprestimoAtual.quitadoEm,
+        ...(quitandoEntradaAgora ? { entradaPagaEm: new Date() } : {}),
+        ...(shouldResetCycle
+          ? { jurosPagosNoInicioCiclo: novoJurosPagos, jurosCicloIniciadoEm: new Date() }
+          : {}),
+      },
+    })
 
   let competenciaId: string | null = null
   {
@@ -346,7 +362,7 @@ export async function addPagamentoParcial(input: {
   }
 
   const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
-  
+
   let desc = `Pagamento registrado: ${fmt.format(valor)}.`
   if (competenciaVencimento) desc += ` Referente à competência de ${competenciaVencimento.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}.`
   if (competenciaFutura && !aplicarPrincipal) desc += ' Juros do próximo mês recebidos antecipadamente.'

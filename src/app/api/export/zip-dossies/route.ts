@@ -11,8 +11,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { loanIds, password } = await req.json().catch(() => ({}))
-    const { zipBuffer, fileName } = await buildLoanZipExport({ loanIds, password })
+    const { loanIds, password, keepFilesInRoot } = await req.json().catch(() => ({}))
+    const { zipBuffer, fileName } = await buildLoanZipExport({ loanIds, password, keepFilesInRoot })
 
     return new NextResponse(zipBuffer, {
       headers: {
