@@ -1068,7 +1068,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     }
   }
 
-  const handleBatchExportDossie = async (loanIds: string[], password?: string) => {
+  const handleBatchExportDossie = async (loanIds: string[], password?: string, keepFilesInRoot = true) => {
     if (loanIds.length === 0) {
       toast.error('Nenhum contrato elegível para exportação em lote.')
       return
@@ -1084,6 +1084,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         body: JSON.stringify({
           loanIds,
           password,
+          keepFilesInRoot,
         }),
       })
 

@@ -7,7 +7,6 @@ import {
   buildLoanDossierFileName,
   buildLoanDossierPdf,
   buildLoanFolderName,
-  buildLoanSummaryText,
   sanitizeForFileName,
 } from '@/lib/loan-dossier'
 
@@ -61,23 +60,6 @@ function safeArchiveName(fileName: string) {
   const ext = path.extname(fileName)
   const base = path.basename(fileName, ext)
   return `${sanitizeForFileName(base) || 'arquivo'}${ext.toLowerCase()}`
-}
-
-function buildRootManifest(totalLoans: number, protectedZip: boolean) {
-  return [
-    'SUPERCOB :: PACOTE DE DOSSIES',
-    '',
-    `Contratos exportados: ${totalLoans}`,
-    `Zip protegido por senha: ${protectedZip ? 'sim' : 'nao'}`,
-    `Gerado em: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`,
-    '',
-    'Estrutura do pacote:',
-    '- 00-resumo-do-contrato.txt',
-    '- 01-dossie/',
-    '- 02-anexos-contrato/',
-    '- 03-documentos-cliente/',
-    '- 99-alertas-de-exportacao.txt (quando necessario)',
-  ].join('\n')
 }
 
 async function readCustomerDocument(clienteId: string, fileName: string) {
@@ -203,8 +185,8 @@ async function loadExportableLoans(loanIds: string[]) {
   return loans
 }
 
-export async function buildLoanZipExport(input: { loanIds: string[]; password?: string }) {
-  const { loanIds, password } = input
+export async function buildLoanZipExport(input: { loanIds: string[]; password?: string; keepFilesInRoot?: boolean }) {
+  const { loanIds, password, keepFilesInRoot = true } = input
 
   if (!Array.isArray(loanIds) || loanIds.length === 0) {
     throw new Error('Selecione ao menos um contrato para exportar.')
@@ -227,6 +209,7 @@ export async function buildLoanZipExport(input: { loanIds: string[]; password?: 
   const archive = createArchive(password?.trim() ? password.trim() : undefined)
   const stream = new PassThrough()
   const chunks: Buffer[] = []
+  let exportedFiles = 0
 
   stream.on('data', (chunk) => {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
@@ -239,74 +222,61 @@ export async function buildLoanZipExport(input: { loanIds: string[]; password?: 
   })
 
   archive.pipe(stream)
-  archive.append(buildRootManifest(loans.length, Boolean(password && password.trim())), { name: 'LEIA-ME.txt' })
 
   for (const loan of loans) {
     const folderName = buildLoanFolderName(loan)
     const warnings: string[] = []
     const dossierPdf = await buildLoanDossierPdf(loan)
     const dossierFileName = buildLoanDossierFileName(loan)
-
-    archive.append(Buffer.from(buildLoanSummaryText({
-      loan,
-      legacyAttachmentCount: [loan.arquivo1, loan.arquivo2, loan.arquivo3, loan.arquivo4, loan.arquivo5].filter(Boolean).length,
-      clientDocumentCount: loan.cliente.documentos.length,
-    })), {
-      name: `${folderName}/00-resumo-do-contrato.txt`,
-    })
+    const rootPrefix = `${folderName} - `
+    const archiveName = (fileName: string, directory?: string) =>
+      keepFilesInRoot
+        ? `${rootPrefix}${fileName}`
+        : `${folderName}${directory ? `/${directory}` : ''}/${fileName}`
 
     archive.append(Buffer.from(dossierPdf), {
-      name: `${folderName}/01-dossie/${dossierFileName}`,
+      name: archiveName(dossierFileName, '01-dossie'),
     })
+    exportedFiles += 1
 
     const legacyAttachments = [loan.arquivo1, loan.arquivo2, loan.arquivo3, loan.arquivo4, loan.arquivo5]
       .filter((value): value is string => Boolean(value))
 
-    if (legacyAttachments.length === 0) {
-      const note =
-        loan.cliente.documentos.length > 0
-          ? 'Este contrato não possui anexos legados em arquivo1..5. Os arquivos visíveis no dossiê estão centralizados em 03-documentos-cliente.'
-          : 'Nenhum anexo legado vinculado a este contrato.'
-
-      archive.append(note, {
-        name: `${folderName}/02-anexos-contrato/sem-anexos.txt`,
-      })
-    } else {
-      for (const [index, attachment] of legacyAttachments.entries()) {
-        const resolved = await resolveLegacyAttachment(attachment, `anexo-contrato-${index + 1}`)
-        if ('error' in resolved) {
-          warnings.push(resolved.error)
-          continue
-        }
-
-        archive.append(resolved.data, {
-          name: `${folderName}/02-anexos-contrato/${String(index + 1).padStart(2, '0')}-${resolved.fileName}`,
-        })
+    for (const [index, attachment] of legacyAttachments.entries()) {
+      const resolved = await resolveLegacyAttachment(attachment, `anexo-contrato-${index + 1}`)
+      if ('error' in resolved) {
+        warnings.push(resolved.error)
+        continue
       }
+
+      archive.append(resolved.data, {
+        name: archiveName(`anexo-contrato-${String(index + 1).padStart(2, '0')}-${resolved.fileName}`, '02-anexos-contrato'),
+      })
+      exportedFiles += 1
     }
 
-    if (loan.cliente.documentos.length === 0) {
-      archive.append('Nenhum documento adicional do cliente cadastrado.', {
-        name: `${folderName}/03-documentos-cliente/sem-documentos.txt`,
-      })
-    } else {
-      for (const [index, document] of loan.cliente.documentos.entries()) {
-        try {
-          const data = await readCustomerDocument(loan.clienteId, document.fileName)
-          archive.append(data, {
-            name: `${folderName}/03-documentos-cliente/${String(index + 1).padStart(2, '0')}-${safeArchiveName(document.originalName)}`,
-          })
-        } catch {
-          warnings.push(`Falha ao ler documento do cliente: ${document.originalName}`)
-        }
+    for (const [index, document] of loan.cliente.documentos.entries()) {
+      try {
+        const data = await readCustomerDocument(loan.clienteId, document.fileName)
+        archive.append(data, {
+          name: archiveName(`documento-cliente-${String(index + 1).padStart(2, '0')}-${safeArchiveName(document.originalName)}`, '03-documentos-cliente'),
+        })
+        exportedFiles += 1
+      } catch {
+        warnings.push(`Falha ao ler documento do cliente: ${document.originalName}`)
       }
     }
 
     if (warnings.length > 0) {
       archive.append(warnings.join('\n'), {
-        name: `${folderName}/99-alertas-de-exportacao.txt`,
+        name: archiveName('alertas-de-exportacao.txt', '99-alertas-de-exportacao'),
       })
+      exportedFiles += 1
     }
+  }
+
+  if (exportedFiles === 0) {
+    throw new Error('Não há arquivos disponíveis para exportar.')
   }
 
   await archive.finalize()

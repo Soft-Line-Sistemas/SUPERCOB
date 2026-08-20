@@ -32,7 +32,7 @@ interface BatchDossieModalProps {
   loading: boolean
   loans: BatchLoanItem[]
   onClose: () => void
-  onConfirm: (loanIds: string[], password?: string) => void
+  onConfirm: (loanIds: string[], password?: string, keepFilesInRoot?: boolean) => void
 }
 
 const FILTER_OPTIONS: Array<{ id: BatchFilter; label: string }> = [
@@ -66,6 +66,7 @@ export function BatchDossieModal({
   onConfirm,
 }: BatchDossieModalProps) {
   const [protectZip, setProtectZip] = useState(false)
+  const [keepFilesInRoot, setKeepFilesInRoot] = useState(true)
   const [password, setPassword] = useState('')
   const [activeFilter, setActiveFilter] = useState<BatchFilter>('ALL')
   const [selectedIds, setSelectedIds] = useState<string[]>(loans.map((loan) => loan.id))
@@ -327,7 +328,7 @@ export function BatchDossieModal({
                         <div>
                           <h4 className="text-sm font-black uppercase tracking-[0.25em] text-slate-900 dark:text-white">Resumo</h4>
                           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                            O zip será separado por contrato, com dossiê PDF e anexos.
+                            Por padrão, todos os arquivos ficam na raiz do ZIP, sem subpastas.
                           </p>
                         </div>
                       </div>
@@ -347,6 +348,30 @@ export function BatchDossieModal({
                           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Valor</p>
                           <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{formatCurrency(totalSelectedValue)}</p>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                      <h4 className="text-sm font-black uppercase tracking-[0.25em] text-slate-900 dark:text-white">Organização dos arquivos</h4>
+                      <div className="mt-4 flex items-center justify-between gap-4 rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
+                        <div>
+                          <p className="text-sm font-bold text-slate-900 dark:text-white">Manter arquivos na raiz do ZIP</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Evita criar pastas e subpastas no pacote.</p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={keepFilesInRoot}
+                          onClick={() => setKeepFilesInRoot((value) => !value)}
+                          disabled={loading}
+                          className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${
+                            keepFilesInRoot ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-white/10'
+                          } disabled:cursor-not-allowed disabled:opacity-60`}
+                        >
+                          <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform ${
+                            keepFilesInRoot ? 'translate-x-9' : 'translate-x-1'
+                          }`} />
+                        </button>
                       </div>
                     </div>
 
@@ -441,7 +466,7 @@ export function BatchDossieModal({
                 <button
                   type="button"
                   disabled={!canSubmit}
-                  onClick={() => onConfirm(selectedIds, protectZip ? password.trim() : undefined)}
+                  onClick={() => onConfirm(selectedIds, protectZip ? password.trim() : undefined, keepFilesInRoot)}
                   className="flex w-full items-center justify-center gap-2 rounded-[1.25rem] bg-slate-900 px-5 py-4 text-xs font-black uppercase tracking-[0.24em] text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gold-600 dark:hover:bg-gold-700 sm:w-auto sm:min-w-[17rem]"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
