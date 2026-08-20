@@ -136,6 +136,7 @@ describe('clientes actions - listagem e dashboard', () => {
           AND: expect.arrayContaining([
             {
               OR: [
+                { usuarioId: 'ger-1' },
                 { loans: { some: { usuarioId: 'ger-1' } } },
                 { id: { in: ['c-extra'] } },
               ],

@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, useTransition } from 'react';
-import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download, ChevronLeft, ChevronRight, Terminal as TerminalIcon, CheckCircle, MessageSquare, Eye, Pencil, Trash2, Archive, Loader2 } from 'lucide-react';
+import { Search, Filter, MessageCircle, Plus, X, Calendar, Info, Send, Download, ChevronLeft, ChevronRight, Terminal as TerminalIcon, CheckCircle, MessageSquare, Eye, Pencil, Trash2, Archive, Loader2, Handshake } from 'lucide-react';
 import { createEmprestimo, updateEmprestimo, deleteEmprestimo, archiveEmprestimoAction, toggleCobrancaAtiva, toggleInadimplente } from '@/app/(dashboard)/emprestimos/actions';
 import { addPagamentoParcial } from '@/app/(dashboard)/emprestimos/[id]/actions';
 import { format } from 'date-fns';
@@ -67,6 +66,12 @@ interface Loan {
   inadimplente?: boolean;
   historico?: { createdAt: Date | string; descricao?: string | null }[];
   competencias?: { vencimento: Date | string; valorPrevisto: number; valorPago: number }[];
+  tipoContrato?: 'EMPRESTIMO' | 'ACORDO';
+  valorEntrada?: number | null;
+  vencimentoEntrada?: Date | string | null;
+  entradaPagaEm?: Date | string | null;
+  regraVencimentoParcelas?: 'PAGAMENTO_ENTRADA' | 'DATA_LANCAMENTO';
+  valorParcela?: number | null;
 }
 
 interface LoansProps {
@@ -183,6 +188,11 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     jurosAtrasoDia: 0,
     vencimento: shouldAutoOpenNew ? initialVencimento : '',
     observacao: shouldAutoOpenNew ? initialObservacao : '',
+    tipoContrato: 'EMPRESTIMO' as 'EMPRESTIMO' | 'ACORDO',
+    valorEntrada: 0,
+    vencimentoEntrada: '',
+    regraVencimentoParcelas: 'PAGAMENTO_ENTRADA' as 'PAGAMENTO_ENTRADA' | 'DATA_LANCAMENTO',
+    valorParcela: 0,
   }));
 
   const formatCurrency = (value: number) => {
@@ -555,6 +565,11 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         jurosAtrasoDia: (loan.jurosAtrasoDia as any) ?? 0,
         vencimento: loan.vencimento ? format(new Date(loan.vencimento), 'yyyy-MM-dd') : '',
         observacao: loan.observacao || '',
+        tipoContrato: loan.tipoContrato || 'EMPRESTIMO',
+        valorEntrada: loan.valorEntrada ?? 0,
+        vencimentoEntrada: loan.vencimentoEntrada ? format(new Date(loan.vencimentoEntrada), 'yyyy-MM-dd') : '',
+        regraVencimentoParcelas: loan.regraVencimentoParcelas || 'PAGAMENTO_ENTRADA',
+        valorParcela: loan.valorParcela ?? 0,
       });
       setInstallmentsManuallyEdited(Boolean(loan.quantidadeParcelas))
       setInstallmentsEnabled(Boolean(loan.quantidadeParcelas))
@@ -573,6 +588,11 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         jurosAtrasoDia: 0,
         vencimento: !prefillConsumed ? initialVencimento : '',
         observacao: !prefillConsumed ? initialObservacao : '',
+        tipoContrato: 'EMPRESTIMO',
+        valorEntrada: 0,
+        vencimentoEntrada: '',
+        regraVencimentoParcelas: 'PAGAMENTO_ENTRADA',
+        valorParcela: 0,
       });
       setInstallmentsManuallyEdited(false)
       setInstallmentsEnabled(false)
@@ -581,6 +601,38 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
       setCurrentInstallmentSelection(0)
       setDiscountPaidInstallments(false)
     }
+    setIsModalOpen(true);
+  };
+
+  const handleOpenRenegociar = (loan: Loan) => {
+    setEditingLoan(loan);
+    const { totalDevido } = calculateLoanInterest(loan);
+    const saldo = Math.round(totalDevido);
+    const qtdParcelas = 10;
+    const entradaSugerida = Math.round(saldo * 0.1);
+    const valorParcelaSugerida = Math.round((saldo - entradaSugerida) / qtdParcelas);
+
+    setFormData({
+      clienteId: loan.clienteId,
+      usuarioId: loan.usuarioId || '',
+      valor: saldo,
+      quantidadeParcelas: qtdParcelas,
+      jurosMes: 0,
+      jurosAtrasoDia: 0,
+      vencimento: loan.vencimento ? format(new Date(loan.vencimento), 'yyyy-MM-dd') : '',
+      observacao: `Acordo de renegociação firmado sobre saldo devedor.`,
+      tipoContrato: 'ACORDO',
+      valorEntrada: entradaSugerida,
+      vencimentoEntrada: format(new Date(), 'yyyy-MM-dd'),
+      regraVencimentoParcelas: 'PAGAMENTO_ENTRADA',
+      valorParcela: valorParcelaSugerida,
+    });
+    setInstallmentsManuallyEdited(true);
+    setInstallmentsEnabled(true);
+    setParcelingMode('remaining');
+    setExpectedInterestPercent('100');
+    setCurrentInstallmentSelection(0);
+    setDiscountPaidInstallments(false);
     setIsModalOpen(true);
   };
 
@@ -1119,11 +1171,24 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         throw new Error('Informe o vencimento da cobrança.')
       }
 
+      const isAcordo = formData.tipoContrato === 'ACORDO'
+      const valorEntrada = Math.max(0, Number(formData.valorEntrada || 0))
+      const qtdParcelas = Number(formData.quantidadeParcelas || 0)
+      const vParcela = Math.max(0, Number(formData.valorParcela || 0))
+      const valorFinal = isAcordo && vParcela > 0
+        ? valorEntrada + qtdParcelas * vParcela
+        : formData.valor
+
+      const effectiveVencimento = isAcordo && formData.vencimentoEntrada && valorEntrada > 0
+        ? formData.vencimentoEntrada
+        : (formData.vencimento || formData.vencimentoEntrada || '')
+
       const data = {
         ...formData,
+        valor: valorFinal,
         usuarioId: formData.usuarioId || null,
         valorPago:
-          installmentsEnabled && Number.isInteger(formData.quantidadeParcelas) && formData.quantidadeParcelas > 0
+          installmentsEnabled && Number.isInteger(formData.quantidadeParcelas) && formData.quantidadeParcelas > 0 && !isAcordo
             ? calculatePaidPrincipalFromCurrentInstallment({
                 valor: formData.valor,
                 quantidadeParcelas: formData.quantidadeParcelas,
@@ -1131,9 +1196,12 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
               })
             : 0,
         quantidadeParcelas: Number.isInteger(formData.quantidadeParcelas) && formData.quantidadeParcelas > 0 ? formData.quantidadeParcelas : null,
-        jurosMes: Number(formData.jurosMes) || 0,
-        jurosAtrasoDia: Number(formData.jurosAtrasoDia) || 0,
-        vencimento: parseDateInputToUTCNoon(formData.vencimento),
+        jurosMes: isAcordo ? 0 : (Number(formData.jurosMes) || 0),
+        jurosAtrasoDia: isAcordo ? 0 : (Number(formData.jurosAtrasoDia) || 0),
+        vencimento: parseDateInputToUTCNoon(effectiveVencimento),
+        vencimentoEntrada: formData.vencimentoEntrada ? parseDateInputToUTCNoon(formData.vencimentoEntrada) : null,
+        valorEntrada: valorEntrada > 0 ? valorEntrada : null,
+        valorParcela: vParcela > 0 ? vParcela : null,
       };
 
       if (editingLoan) {
@@ -1268,6 +1336,7 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                 loan={loan}
                 idx={idx}
                 onEdit={handleOpenModal}
+                onRenegociar={handleOpenRenegociar}
                 onDelete={handleDelete}
                 onArchive={handleArchive}
                 onDetail={handleOpenDetail}
@@ -1427,6 +1496,17 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
                             >
                               <Eye className="w-5 h-5 text-blue-600 group-hover:text-blue-800 dark:text-blue-400 dark:group-hover:text-blue-300 transition-colors" />
                               <span className="font-medium text-slate-600 dark:text-slate-300">Ver</span>
+                            </button>
+                          ) : null}
+                          {!isDraft && userRole !== 'OPERADOR' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenRenegociar(loan)}
+                              className="group inline-flex flex-col items-center gap-1 text-xs transition-all hover:-translate-y-0.5"
+                              title="Firmar acordo de renegociação"
+                            >
+                              <Handshake className="w-5 h-5 text-blue-600 group-hover:text-blue-800 dark:text-blue-400 dark:group-hover:text-blue-300 transition-colors" />
+                              <span className="font-medium text-slate-600 dark:text-slate-300">Acordo</span>
                             </button>
                           ) : null}
                           {!isDraft && userRole !== 'OPERADOR' ? (

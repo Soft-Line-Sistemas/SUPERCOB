@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  calculateAcordoTotal,
   calculateCurrentInstallment,
   calculateCurrentInstallmentAmounts,
   calculateEstimatedInstallments,
@@ -113,4 +114,56 @@ describe('calculateEstimatedInstallments', () => {
       }),
     ).toBe(500)
   })
+
+  it('calcula o total de um acordo somando entrada + parcelas', () => {
+    expect(
+      calculateAcordoTotal({
+        valorEntrada: 500,
+        quantidadeParcelas: 20,
+        valorParcela: 300,
+      }),
+    ).toBe(6500)
+  })
+
+  it('calcula o progresso de acordo antes e depois de pagar a entrada', () => {
+    // Antes de pagar a entrada
+    expect(
+      calculateCurrentInstallment({
+        valor: 6500,
+        valorPago: 0,
+        quantidadeParcelas: 20,
+        tipoContrato: 'ACORDO',
+        valorEntrada: 500,
+        entradaPagaEm: null,
+        valorParcela: 300,
+      }),
+    ).toEqual({ current: 0, total: 20, entradaPaga: false })
+
+    // Pagou a entrada (500)
+    expect(
+      calculateCurrentInstallment({
+        valor: 6500,
+        valorPago: 500,
+        quantidadeParcelas: 20,
+        tipoContrato: 'ACORDO',
+        valorEntrada: 500,
+        entradaPagaEm: new Date(),
+        valorParcela: 300,
+      }),
+    ).toEqual({ current: 0, total: 20, entradaPaga: true })
+
+    // Pagou a entrada + 3 parcelas (500 + 3 * 300 = 1400)
+    expect(
+      calculateCurrentInstallment({
+        valor: 6500,
+        valorPago: 1400,
+        quantidadeParcelas: 20,
+        tipoContrato: 'ACORDO',
+        valorEntrada: 500,
+        entradaPagaEm: new Date(),
+        valorParcela: 300,
+      }),
+    ).toEqual({ current: 3, total: 20, entradaPaga: true })
+  })
 })
+

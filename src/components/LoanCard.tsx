@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Edit2, Trash2, Archive, Clock, CheckCircle2, AlertCircle as AlertIcon, X, Download, Send, Wallet, AlertTriangle } from 'lucide-react';
+import { Edit2, Trash2, Archive, Clock, CheckCircle2, AlertCircle as AlertIcon, X, Download, Send, Wallet, AlertTriangle, Handshake } from 'lucide-react';
 import { format } from 'date-fns';
 import { calculateCurrentInstallmentAmounts } from '@/lib/installments';
 
@@ -33,6 +33,12 @@ interface Loan {
   cobrancaAtiva?: boolean;
   inadimplente?: boolean;
   historico?: { createdAt: Date | string; descricao?: string | null }[];
+  tipoContrato?: 'EMPRESTIMO' | 'ACORDO';
+  valorEntrada?: number | null;
+  vencimentoEntrada?: Date | string | null;
+  entradaPagaEm?: Date | string | null;
+  regraVencimentoParcelas?: 'PAGAMENTO_ENTRADA' | 'DATA_LANCAMENTO';
+  valorParcela?: number | null;
 }
 
 const statusConfig: Record<LoanStatus, { label: string; color: string; icon: any; bg: string; border: string }> = {
@@ -46,6 +52,7 @@ interface LoanCardProps {
   loan: Loan;
   idx: number;
   onEdit: (loan: Loan) => void;
+  onRenegociar?: (loan: Loan) => void;
   onDelete: (id: string) => void;
   onArchive?: (id: string) => void;
   onDetail: (loan: Loan) => void;
@@ -60,7 +67,7 @@ interface LoanCardProps {
   contactFilter: (loan: Loan) => boolean;
   isAdmin?: boolean;
   canEdit?: boolean;
-  installmentProgress?: { current: number; total: number } | null;
+  installmentProgress?: { current: number; total: number; entradaPaga?: boolean } | null;
   canOpenPaymentTerminal?: boolean;
   canConfirmMonthlyPayment?: boolean;
   isMonthlyPaymentSettled?: boolean;
@@ -160,6 +167,18 @@ export function LoanCard({
             </button>
           ) : null}
 
+          {loan.tipoContrato === 'ACORDO' && Number(loan.valorEntrada ?? 0) > 0 && !loan.entradaPagaEm ? (
+            <div className="flex items-center gap-1.5 rounded-full border border-blue-300 bg-blue-100 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-blue-800 shadow-sm" title="Aguardando confirmação do pagamento da entrada">
+              <Clock className="h-3.5 w-3.5 text-blue-600 animate-pulse" />
+              Entrada: {formatCurrency(Number(loan.valorEntrada))} (Venc. {formatDate(loan.vencimentoEntrada || loan.vencimento)})
+            </div>
+          ) : loan.tipoContrato === 'ACORDO' ? (
+            <div className="flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-blue-700 shadow-sm">
+              <Handshake className="h-3.5 w-3.5" />
+              Acordo Ativo
+            </div>
+          ) : null}
+
           {monthlyPaymentPill ? (
             <div
               className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider shadow-sm ${monthlyPaymentPill.tone === 'overdue' ? 'border-orange-200 bg-orange-100 text-orange-700' : 'border-emerald-200 bg-emerald-100 text-emerald-700'}`}
@@ -190,7 +209,21 @@ export function LoanCard({
             Enviar para Cobrança
           </button>
         ) : !isDraft && (
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1">
+            {canEdit && onRenegociar && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRenegociar(loan);
+                }}
+                title="Firmar acordo / renegociar contrato"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-all"
+              >
+                <Handshake className="h-3.5 w-3.5 text-blue-600" />
+                <span>Acordo</span>
+              </button>
+            )}
             {canEdit && (
               <button
                 onClick={(e) => {
@@ -200,18 +233,6 @@ export function LoanCard({
                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all"
               >
                 <Edit2 className="h-4 w-4" />
-              </button>
-            )}
-            {false && isAdmin && onArchive && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onArchive?.(loan.id);
-                }}
-                title="Arquivar contrato"
-                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-white rounded-lg transition-all"
-              >
-                <Archive className="h-4 w-4" />
               </button>
             )}
             {isAdmin && (
@@ -248,25 +269,49 @@ export function LoanCard({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10">
-            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Capital Emprest.</p>
-            <p className="text-base font-black text-slate-900 dark:text-slate-100">{formatCurrency(loan.valor)}</p>
+        {loan.tipoContrato === 'ACORDO' ? (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 bg-blue-50/50 dark:bg-white/5 rounded-2xl border border-blue-100 dark:border-white/10">
+              <p className="text-[10px] font-bold text-blue-500 uppercase mb-1">Total do Acordo</p>
+              <p className="text-base font-black text-slate-900 dark:text-slate-100">{formatCurrency(loan.valor)}</p>
+            </div>
+            <div className="p-3 bg-blue-50/50 dark:bg-white/5 rounded-2xl border border-blue-100 dark:border-white/10">
+              <p className="text-[10px] font-bold text-blue-500 uppercase mb-1">Plano Acordado</p>
+              <p className="text-xs font-black text-blue-900 dark:text-blue-200">
+                {Number(loan.valorEntrada ?? 0) > 0 ? `Entrada: ${formatCurrency(Number(loan.valorEntrada))} + ` : ''}
+                {loan.quantidadeParcelas}x de {formatCurrency(Number(loan.valorParcela || (loan.valor / Math.max(1, loan.quantidadeParcelas || 1))))}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold text-slate-500">
+                {loan.entradaPagaEm ? '✅ Entrada paga' : Number(loan.valorEntrada ?? 0) > 0 ? '⏳ Aguardando entrada' : ''}
+              </p>
+            </div>
           </div>
-          <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10">
-            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Juros Mensal</p>
-            <p className="text-base font-black text-gold-600 dark:text-gold-500">{loan.jurosMes}%</p>
-            <p className="mt-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">Juros atual: {formatCurrency(jurosAtual)}</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10">
+              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Capital Emprest.</p>
+              <p className="text-base font-black text-slate-900 dark:text-slate-100">{formatCurrency(loan.valor)}</p>
+            </div>
+            <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10">
+              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Juros Mensal</p>
+              <p className="text-base font-black text-gold-600 dark:text-gold-500">{loan.jurosMes}%</p>
+              <p className="mt-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">Juros atual: {formatCurrency(jurosAtual)}</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {installmentProgress ? (
           <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 dark:border-blue-500/20 dark:bg-blue-500/10">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-300">Parcelamento</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-300">
+              {loan.tipoContrato === 'ACORDO' ? 'Progresso do Acordo' : 'Parcelamento'}
+            </p>
             <p className="mt-1 text-sm font-black text-blue-900 dark:text-blue-100">
               Parcela {installmentProgress.current}/{installmentProgress.total}
+              {loan.tipoContrato === 'ACORDO' && !loan.entradaPagaEm && Number(loan.valorEntrada ?? 0) > 0 ? (
+                <span className="ml-2 text-xs font-bold text-amber-700">(Entrada pendente)</span>
+              ) : null}
             </p>
-            {installmentAmounts ? (
+            {installmentAmounts && loan.tipoContrato !== 'ACORDO' ? (
               <div className="mt-2 grid grid-cols-2 gap-3 border-t border-blue-100 pt-2 text-xs dark:border-blue-500/20">
                 <p className="text-blue-700 dark:text-blue-200">Parcela atual <strong className="block font-black">{formatCurrency(installmentAmounts.valorParcela)}</strong></p>
                 <p className="text-blue-700 dark:text-blue-200">Juros atual <strong className="block font-black">{formatCurrency(installmentAmounts.jurosAtual)}</strong></p>

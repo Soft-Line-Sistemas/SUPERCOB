@@ -133,6 +133,12 @@ model Emprestimo {
   inadimplente        Boolean               @default(false)
   lastInterestAccrual DateTime?
   jurosCicloIniciadoEm DateTime?
+  tipoContrato        String                @default("EMPRESTIMO") @db.VarChar(20)
+  valorEntrada        Float?                @default(0)
+  vencimentoEntrada   DateTime?
+  entradaPagaEm       DateTime?
+  regraVencimentoParcelas String?           @default("PAGAMENTO_ENTRADA") @db.VarChar(30)
+  valorParcela        Float?
   cliente             Cliente               @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   usuario             Usuario?              @relation(fields: [usuarioId], references: [id])
   historico           EmprestimoHistorico[]
@@ -153,11 +159,12 @@ model CompetenciaEmprestimo {
   valorPrevisto  Float
   valorPago      Float      @default(0)
   pagoEm         DateTime?
+  tipo           String?    @default("PARCELA") @db.VarChar(20)
+  numeroParcela  Int?
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   emprestimo     Emprestimo @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
   recibos        EmprestimoHistorico[]
-
 }
 
 model WhatsappAutomationConfig {
@@ -358,6 +365,12 @@ model EmprestimoArquivado {
   inadimplente            Boolean
   lastInterestAccrual    DateTime?
   jurosCicloIniciadoEm   DateTime?
+  tipoContrato           String?   @default("EMPRESTIMO") @db.VarChar(20)
+  valorEntrada           Float?    @default(0)
+  vencimentoEntrada      DateTime?
+  entradaPagaEm          DateTime?
+  regraVencimentoParcelas String?  @default("PAGAMENTO_ENTRADA") @db.VarChar(30)
+  valorParcela           Float?
 
   arquivadoEm            DateTime @default(now())
   arquivadoPorId         String?

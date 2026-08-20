@@ -59,21 +59,72 @@ export function calculateCurrentInstallmentAmounts(input: {
   return { valorParcela, jurosAtual }
 }
 
+export function calculateAcordoTotal(input: {
+  valorEntrada?: number | null
+  quantidadeParcelas?: number | null
+  valorParcela?: number | null
+}) {
+  const entrada = Math.max(0, Number(input.valorEntrada ?? 0))
+  const parcelas = Math.max(0, Number(input.quantidadeParcelas ?? 0))
+  const valorParcela = Math.max(0, Number(input.valorParcela ?? 0))
+
+  return entrada + parcelas * valorParcela
+}
+
 export function calculateCurrentInstallment(input: {
   valor?: number | null
   valorPago?: number | null
   quantidadeParcelas?: number | null
   status?: string | null
+  tipoContrato?: string | null
+  valorEntrada?: number | null
+  entradaPagaEm?: Date | string | null
+  valorParcela?: number | null
 }) {
   const valor = Number(input.valor ?? 0)
   const valorPago = Math.max(Number(input.valorPago ?? 0), 0)
   const quantidadeParcelas = Number(input.quantidadeParcelas ?? 0)
+  const isAcordo = input.tipoContrato === 'ACORDO' || (Number(input.valorEntrada ?? 0) > 0)
+  const valorEntrada = Math.max(0, Number(input.valorEntrada ?? 0))
 
   if (!Number.isFinite(valor) || valor <= 0) return null
   if (!Number.isInteger(quantidadeParcelas) || quantidadeParcelas <= 0) return null
 
   if (input.status === 'QUITADO') {
-    return { current: quantidadeParcelas, total: quantidadeParcelas }
+    return {
+      current: quantidadeParcelas,
+      total: quantidadeParcelas,
+      entradaPaga: valorEntrada > 0 ? true : undefined,
+    }
+  }
+
+  if (isAcordo && valorEntrada > 0) {
+    const entradaPaga = Boolean(input.entradaPagaEm) || valorPago >= valorEntrada
+    if (!entradaPaga) {
+      return {
+        current: 0,
+        total: quantidadeParcelas,
+        entradaPaga: false,
+      }
+    }
+
+    const valorParcela = Number(input.valorParcela ?? 0) > 0
+      ? Number(input.valorParcela)
+      : (valor - valorEntrada) / quantidadeParcelas
+
+    if (!Number.isFinite(valorParcela) || valorParcela <= 0) return null
+
+    const pagoPosEntrada = Math.max(0, valorPago - valorEntrada)
+    const parcelasPagas = Math.min(
+      quantidadeParcelas,
+      Math.max(0, Math.floor((pagoPosEntrada + 0.000001) / valorParcela)),
+    )
+
+    return {
+      current: parcelasPagas,
+      total: quantidadeParcelas,
+      entradaPaga: true,
+    }
   }
 
   const amortizacaoPrincipal = valor / quantidadeParcelas
@@ -109,3 +160,4 @@ export function calculatePaidPrincipalFromCurrentInstallment(input: {
   const parcelasPagas = Math.min(quantidadeParcelas, currentInstallment)
   return (valor / quantidadeParcelas) * parcelasPagas
 }
+

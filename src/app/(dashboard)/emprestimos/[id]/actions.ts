@@ -163,14 +163,7 @@ export async function addPagamentoParcial(input: {
 
   if (!input.competenciaVencimento) throw new Error('Selecione obrigatoriamente a competência referente ao pagamento.')
 
-  const { jurosPendente, jurosBase } = calculateLoanInterest(emprestimoAtual)
-  const quantidadeParcelas = Number(emprestimoAtual.quantidadeParcelas ?? 0)
-  const acordoSemJuros = Number(emprestimoAtual.jurosMes ?? 0) <= 0.01 && Number.isInteger(quantidadeParcelas) && quantidadeParcelas > 0
-  const valorParcelaAcordo = acordoSemJuros ? emprestimoAtual.valor / quantidadeParcelas : 0
-
   const competenciaInformada = new Date(input.competenciaVencimento)
-  // A competência é mensal; horário e fuso não podem criar uma segunda
-  // competência para o mesmo dia, nem impedir que a já existente seja encontrada.
   const competenciaVencimento = Number.isNaN(competenciaInformada.getTime())
     ? competenciaInformada
     : new Date(Date.UTC(
@@ -179,29 +172,48 @@ export async function addPagamentoParcial(input: {
         competenciaInformada.getUTCDate(),
       ))
   if (Number.isNaN(competenciaVencimento.getTime())) throw new Error('Competência inválida')
-  if (emprestimoAtual.vencimento && competenciaVencimento.getUTCDate() !== emprestimoAtual.vencimento.getUTCDate()) {
+
+  const competenciaAtual = await prisma.competenciaEmprestimo.findFirst({
+    where: {
+      emprestimoId: input.emprestimoId,
+      vencimento: competenciaVencimento,
+    },
+  })
+
+  const { jurosPendente, jurosBase } = calculateLoanInterest(emprestimoAtual)
+  const quantidadeParcelas = Number(emprestimoAtual.quantidadeParcelas ?? 0)
+  const acordoSemJuros = Number(emprestimoAtual.jurosMes ?? 0) <= 0.01 && Number.isInteger(quantidadeParcelas) && quantidadeParcelas > 0
+  const isAcordo = emprestimoAtual.tipoContrato === 'ACORDO' || (Number(emprestimoAtual.valorEntrada ?? 0) > 0)
+  const isCompetenciaEntrada = competenciaAtual?.tipo === 'ENTRADA' || competenciaAtual?.numeroParcela === 0
+  const valorEntrada = Math.max(0, Number(emprestimoAtual.valorEntrada ?? 0))
+  const valorParcelaAcordo = isAcordo
+    ? (Number(emprestimoAtual.valorParcela ?? 0) > 0
+        ? Number(emprestimoAtual.valorParcela)
+        : (emprestimoAtual.valor - valorEntrada) / Math.max(1, quantidadeParcelas))
+    : (acordoSemJuros ? emprestimoAtual.valor / quantidadeParcelas : 0)
+
+  if (!isCompetenciaEntrada && emprestimoAtual.vencimento && competenciaVencimento.getUTCDate() !== emprestimoAtual.vencimento.getUTCDate()) {
     throw new Error('A competência deve usar o mesmo dia de vencimento do contrato.')
   }
   const hoje = new Date()
   const mesAtual = hoje.getUTCFullYear() * 12 + hoje.getUTCMonth()
   const mesCompetencia = competenciaVencimento.getUTCFullYear() * 12 + competenciaVencimento.getUTCMonth()
-  if (mesCompetencia > mesAtual + 1) throw new Error('Só é permitido antecipar os juros da competência do próximo mês.')
+  if (mesCompetencia > mesAtual + 1 && !isAcordo) throw new Error('Só é permitido antecipar os juros da competência do próximo mês.')
   const competenciaFutura = mesCompetencia > mesAtual
-  if (!acordoSemJuros && competenciaFutura && jurosPendente > 0.01) {
+  if (!acordoSemJuros && !isAcordo && competenciaFutura && jurosPendente > 0.01) {
     throw new Error('Existem juros pendentes. Regularize-os antes de antecipar juros de competências futuras.')
   }
-  if (!acordoSemJuros && aplicarPrincipal && jurosPendente > 0.01) {
+  if (!acordoSemJuros && !isAcordo && aplicarPrincipal && jurosPendente > 0.01) {
     throw new Error('O principal só pode ser abatido após quitar todos os juros pendentes.')
   }
 
-  // O recebimento é sempre referente ao mês escolhido. Mesmo que o cálculo
-  // geral de juros esteja zerado após o mês anterior, a competência atual
-  // continua podendo receber o juro mensal dela.
-  const competenciaAtual = await prisma.competenciaEmprestimo.findFirst({
-    where: { emprestimoId: input.emprestimoId, vencimento: competenciaVencimento },
-  })
+  // O recebimento é sempre referente ao mês escolhido.
+  const valorEsperadoCompetencia = isCompetenciaEntrada
+    ? valorEntrada
+    : (isAcordo ? valorParcelaAcordo : (acordoSemJuros ? valorParcelaAcordo : jurosBase))
+
   const jurosCobraveisNaCompetencia = Math.max(
-    (competenciaAtual?.valorPrevisto ?? (acordoSemJuros ? valorParcelaAcordo : jurosBase)) - (competenciaAtual?.valorPago ?? 0),
+    (competenciaAtual?.valorPrevisto ?? valorEsperadoCompetencia) - (competenciaAtual?.valorPago ?? 0),
     0,
   )
 
@@ -209,9 +221,13 @@ export async function addPagamentoParcial(input: {
   let pagamentoParaPrincipal = 0
 
   const jurosCobraveis = jurosCobraveisNaCompetencia
-  if (acordoSemJuros) {
-    if (!aplicarPrincipal) throw new Error('Confirme a opção de abatimento no principal para registrar uma parcela do acordo.')
-    if (valor > jurosCobraveisNaCompetencia + 0.01) throw new Error(`O pagamento excede o saldo desta parcela (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(jurosCobraveisNaCompetencia)}).`)
+  if (isAcordo || acordoSemJuros) {
+    if (!aplicarPrincipal && !isCompetenciaEntrada && !isAcordo) {
+      throw new Error('Confirme a opção de abatimento no principal para registrar uma parcela do acordo.')
+    }
+    if (valor > jurosCobraveisNaCompetencia + 0.01) {
+      throw new Error(`O pagamento excede o saldo desta parcela/entrada (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(jurosCobraveisNaCompetencia)}).`)
+    }
     pagamentoParaPrincipal = valor
   } else if (aplicarPrincipal) {
     pagamentoParaPrincipal = valor
@@ -229,11 +245,10 @@ export async function addPagamentoParcial(input: {
     throw new Error('Este pagamento quitaria o contrato. A conclusão deve ser feita por um administrador, gerente ou Escritório.')
   }
   
-  // Transição automática para NEGOCIACAO se estava ABERTO e foi recebido pagamento
   let nextStatus = emprestimoAtual.status
   if (quitado) {
     nextStatus = 'QUITADO'
-  } else if (emprestimoAtual.status === 'ABERTO') {
+  } else if (emprestimoAtual.status === 'ABERTO' || isAcordo) {
     nextStatus = 'NEGOCIACAO'
   }
 
@@ -241,6 +256,8 @@ export async function addPagamentoParcial(input: {
   if (jaAbatidoAnteriormente && (descontoJuros > 0 || renovarCiclo)) {
     throw new Error('Um registro já abatido não pode aplicar desconto ou renovar o ciclo de juros.')
   }
+
+  const quitandoEntradaAgora = isCompetenciaEntrada || (isAcordo && valorEntrada > 0 && !emprestimoAtual.entradaPagaEm && novoValorPago >= valorEntrada)
 
   const updated = jaAbatidoAnteriormente
     ? emprestimoAtual
@@ -251,6 +268,7 @@ export async function addPagamentoParcial(input: {
           jurosPagos: novoJurosPagos,
           status: nextStatus,
           quitadoEm: quitado ? new Date() : emprestimoAtual.quitadoEm,
+          ...(quitandoEntradaAgora ? { entradaPagaEm: new Date() } : {}),
           ...(shouldResetCycle
             ? { jurosPagosNoInicioCiclo: novoJurosPagos, jurosCicloIniciadoEm: new Date() }
             : {}),
@@ -259,21 +277,71 @@ export async function addPagamentoParcial(input: {
 
   let competenciaId: string | null = null
   {
-    // A competência mensal representa a cobrança de juros. Principal só é
-    // registrado mediante confirmação explícita, nunca como parte automática da mensalidade.
-    const valorPrevisto = acordoSemJuros ? valorParcelaAcordo : jurosBase
+    const valorPrevisto = isCompetenciaEntrada ? valorEntrada : (isAcordo ? valorParcelaAcordo : (acordoSemJuros ? valorParcelaAcordo : jurosBase))
     const novoPago = (competenciaAtual?.valorPago ?? 0) + valor
+    const pagoCompletamente = novoPago + 0.01 >= valorPrevisto
+
     if (competenciaAtual) {
       competenciaId = competenciaAtual.id
       await prisma.competenciaEmprestimo.update({
         where: { id: competenciaAtual.id },
-        data: { valorPrevisto, valorPago: novoPago, pagoEm: novoPago + 0.01 >= valorPrevisto ? new Date() : competenciaAtual.pagoEm },
+        data: {
+          valorPrevisto,
+          valorPago: novoPago,
+          pagoEm: pagoCompletamente ? new Date() : competenciaAtual.pagoEm,
+        },
       })
     } else {
       const competenciaCriada = await prisma.competenciaEmprestimo.create({
-        data: { emprestimoId: input.emprestimoId, vencimento: competenciaVencimento, valorPrevisto, valorPago: valor, pagoEm: valor + 0.01 >= valorPrevisto ? new Date() : null },
+        data: {
+          emprestimoId: input.emprestimoId,
+          vencimento: competenciaVencimento,
+          valorPrevisto,
+          valorPago: valor,
+          pagoEm: pagoCompletamente ? new Date() : null,
+          tipo: isCompetenciaEntrada ? 'ENTRADA' : 'PARCELA',
+          numeroParcela: isCompetenciaEntrada ? 0 : 1,
+        },
       })
       competenciaId = competenciaCriada.id
+    }
+
+    // Se quitou a Entrada e a regra é PAGAMENTO_ENTRADA, recalcula as datas das parcelas futuras
+    if (quitandoEntradaAgora && pagoCompletamente && emprestimoAtual.regraVencimentoParcelas === 'PAGAMENTO_ENTRADA') {
+      const parcelasFuturas = await prisma.competenciaEmprestimo.findMany({
+        where: {
+          emprestimoId: input.emprestimoId,
+          tipo: 'PARCELA',
+        },
+        orderBy: { numeroParcela: 'asc' },
+      })
+
+      const dataBase = new Date()
+      for (const parcela of parcelasFuturas) {
+        const num = parcela.numeroParcela ?? 1
+        const novoVenc = new Date(Date.UTC(
+          dataBase.getUTCFullYear(),
+          dataBase.getUTCMonth() + num,
+          dataBase.getUTCDate(),
+          12, 0, 0
+        ))
+        await prisma.competenciaEmprestimo.update({
+          where: { id: parcela.id },
+          data: { vencimento: novoVenc },
+        })
+      }
+
+      // Atualiza o vencimento principal do contrato para a 1ª parcela
+      const primeiraParcelaVenc = new Date(Date.UTC(
+        dataBase.getUTCFullYear(),
+        dataBase.getUTCMonth() + 1,
+        dataBase.getUTCDate(),
+        12, 0, 0
+      ))
+      await prisma.emprestimo.update({
+        where: { id: input.emprestimoId },
+        data: { vencimento: primeiraParcelaVenc },
+      })
     }
   }
 
@@ -493,3 +561,128 @@ export async function updateLoanUser(loanId: string, newUserId: string) {
   revalidatePath(`/emprestimos/${loanId}`)
   return updated
 }
+
+export async function firmarAcordoExistenteAction(input: {
+  emprestimoId: string
+  valorEntrada?: number | null
+  vencimentoEntrada?: string | null
+  quantidadeParcelas: number
+  valorParcela: number
+  regraVencimentoParcelas?: 'PAGAMENTO_ENTRADA' | 'DATA_LANCAMENTO'
+  observacao?: string
+}) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const role = (session.user as any).role
+  const createdById = (session.user as any).id as string | undefined
+
+  const emprestimoAtual = await prisma.emprestimo.findUnique({
+    where: { id: input.emprestimoId },
+    include: { cliente: true },
+  })
+
+  if (!emprestimoAtual) throw new Error('Contrato não encontrado.')
+  if ((role === 'OPERADOR' || role === 'GERENTE') && emprestimoAtual.usuarioId !== createdById) {
+    throw new Error('Você só pode renegociar contratos da própria carteira.')
+  }
+
+  const valorEntrada = Math.max(0, Number(input.valorEntrada || 0))
+  const quantidadeParcelas = Math.max(1, Number(input.quantidadeParcelas || 0))
+  const valorParcela = Math.max(0, Number(input.valorParcela || 0))
+  const regra = input.regraVencimentoParcelas || 'PAGAMENTO_ENTRADA'
+
+  const valorAcordo = valorEntrada + (quantidadeParcelas * valorParcela)
+  if (valorAcordo <= 0) throw new Error('O valor total do acordo deve ser maior que zero.')
+
+  const vencimentoEntradaDate = input.vencimentoEntrada ? new Date(input.vencimentoEntrada) : null
+
+  // Remove competências em aberto não pagas para substituir pelo novo cronograma do acordo
+  await prisma.competenciaEmprestimo.deleteMany({
+    where: {
+      emprestimoId: input.emprestimoId,
+      valorPago: 0,
+    },
+  })
+
+  const dataBaseParcelas = new Date()
+  const primeiroVencimento = valorEntrada > 0 && vencimentoEntradaDate
+    ? vencimentoEntradaDate
+    : new Date(Date.UTC(dataBaseParcelas.getUTCFullYear(), dataBaseParcelas.getUTCMonth() + 1, dataBaseParcelas.getUTCDate(), 12, 0, 0))
+
+  const updatedLoan = await prisma.emprestimo.update({
+    where: { id: input.emprestimoId },
+    data: {
+      tipoContrato: 'ACORDO',
+      status: 'NEGOCIACAO',
+      valor: valorAcordo,
+      valorPago: 0,
+      jurosMes: 0,
+      jurosAtrasoDia: 0,
+      jurosPagos: 0,
+      valorEntrada: valorEntrada > 0 ? valorEntrada : null,
+      vencimentoEntrada: vencimentoEntradaDate,
+      entradaPagaEm: null,
+      quantidadeParcelas,
+      valorParcela,
+      regraVencimentoParcelas: regra,
+      vencimento: primeiroVencimento,
+      observacao: input.observacao?.trim() || emprestimoAtual.observacao,
+    },
+  })
+
+  const competenciasData = []
+  if (valorEntrada > 0 && vencimentoEntradaDate) {
+    competenciasData.push({
+      emprestimoId: input.emprestimoId,
+      vencimento: vencimentoEntradaDate,
+      valorPrevisto: valorEntrada,
+      tipo: 'ENTRADA',
+      numeroParcela: 0,
+    })
+  }
+
+  for (let i = 1; i <= quantidadeParcelas; i++) {
+    const v = new Date(primeiroVencimento)
+    v.setUTCMonth(v.getUTCMonth() + i - (valorEntrada > 0 ? 0 : 1))
+    competenciasData.push({
+      emprestimoId: input.emprestimoId,
+      vencimento: v,
+      valorPrevisto: valorParcela,
+      tipo: 'PARCELA',
+      numeroParcela: i,
+    })
+  }
+
+  await prisma.competenciaEmprestimo.createMany({
+    data: competenciasData,
+  })
+
+  const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+  const descHistorico = `Acordo de Renegociação firmado: ${valorEntrada > 0 ? `Entrada de ${fmt.format(valorEntrada)} + ` : ''}${quantidadeParcelas}x de ${fmt.format(valorParcela)}. Total do acordo: ${fmt.format(valorAcordo)}.`
+
+  await prisma.emprestimoHistorico.create({
+    data: {
+      emprestimoId: input.emprestimoId,
+      descricao: descHistorico,
+      createdById,
+      tipo: 'ACORDO',
+    },
+  })
+
+  await logSystemAction({
+    entidade: 'EMPRESTIMO',
+    entidadeId: input.emprestimoId,
+    acao: 'UPDATE',
+    detalhes: descHistorico,
+    antes: emprestimoAtual,
+    depois: updatedLoan,
+  })
+
+  revalidatePath(`/emprestimos/${input.emprestimoId}`)
+  revalidatePath('/emprestimos')
+  revalidatePath('/dashboard')
+
+  return updatedLoan
+}
+

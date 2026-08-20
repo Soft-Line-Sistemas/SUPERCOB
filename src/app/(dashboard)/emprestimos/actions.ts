@@ -307,20 +307,34 @@ export async function createEmprestimo(data: {
   observacao?: string;
   quitadoEm?: Date | null;
   usuarioId?: string;
+  tipoContrato?: 'EMPRESTIMO' | 'ACORDO';
+  valorEntrada?: number | null;
+  vencimentoEntrada?: Date | null;
+  regraVencimentoParcelas?: 'PAGAMENTO_ENTRADA' | 'DATA_LANCAMENTO';
+  valorParcela?: number | null;
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
-  if (!Number.isFinite(Number(data.valor)) || Number(data.valor) <= 0) {
+  const isAcordo = data.tipoContrato === 'ACORDO'
+  const valorEntrada = Math.max(0, Number(data.valorEntrada || 0))
+  const quantidadeParcelas = Number(data.quantidadeParcelas || 0)
+  const valorParcela = Math.max(0, Number(data.valorParcela || 0))
+
+  const valorCalculado = isAcordo && valorParcela > 0
+    ? valorEntrada + quantidadeParcelas * valorParcela
+    : Number(data.valor)
+
+  if (!Number.isFinite(valorCalculado) || valorCalculado <= 0) {
     throw new Error('Valor inválido para a cobrança')
   }
-  if (!data.vencimento) {
+  if (!data.vencimento && (!isAcordo || !data.vencimentoEntrada)) {
     throw new Error('Vencimento é obrigatório para criar a cobrança')
   }
   if (data.quantidadeParcelas != null && (!Number.isInteger(Number(data.quantidadeParcelas)) || Number(data.quantidadeParcelas) <= 0)) {
     throw new Error('Quantidade de parcelas inválida')
   }
-  if (data.valorPago != null && (!Number.isFinite(Number(data.valorPago)) || Number(data.valorPago) < 0 || Number(data.valorPago) > Number(data.valor))) {
+  if (data.valorPago != null && (!Number.isFinite(Number(data.valorPago)) || Number(data.valorPago) < 0 || Number(data.valorPago) > valorCalculado)) {
     throw new Error('Valor pago inválido para a cobrança')
   }
 
@@ -331,9 +345,9 @@ export async function createEmprestimo(data: {
     throw new Error('Operadores não podem criar contratos.')
   }
 
-  let status: 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' = 'ABERTO'
+  let status: 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' = isAcordo ? 'NEGOCIACAO' : 'ABERTO'
   
-  if (data.quitadoEm || Number(data.valorPago ?? 0) >= Number(data.valor)) {
+  if (data.quitadoEm || Number(data.valorPago ?? 0) >= valorCalculado) {
     status = 'QUITADO'
   } else if (data.observacao && data.observacao.trim() !== '') {
     status = 'NEGOCIACAO'
@@ -343,52 +357,98 @@ export async function createEmprestimo(data: {
     throw new Error('Apenas administradores, gerentes ou Escritório podem concluir contratos.')
   }
 
-  // Se for GERENTE, o empréstimo é automaticamente atribuído a ele
-  // Se for ADMIN/ADM, ele pode atribuir a qualquer um (passado no data.usuarioId)
   const usuarioId = role === 'GERENTE' ? userId : data.usuarioId
+  const effectiveVencimento = isAcordo && data.vencimentoEntrada && valorEntrada > 0
+    ? data.vencimentoEntrada
+    : (data.vencimento ?? (data.vencimentoEntrada || new Date()))
 
   const createData: Prisma.EmprestimoUncheckedCreateInput = {
     clienteId: data.clienteId,
     usuarioId: usuarioId ?? undefined,
-    valor: Number(data.valor),
+    valor: valorCalculado,
     valorPago: data.valorPago == null ? undefined : Number(data.valorPago),
-    quantidadeParcelas: data.quantidadeParcelas == null ? undefined : Number(data.quantidadeParcelas),
-    jurosMes: Number(data.jurosMes ?? 0),
-    jurosAtrasoDia: Number(data.jurosAtrasoDia ?? 0),
-    vencimento: data.vencimento ?? undefined,
+    quantidadeParcelas: Number.isInteger(quantidadeParcelas) && quantidadeParcelas > 0 ? quantidadeParcelas : undefined,
+    jurosMes: isAcordo ? 0 : Number(data.jurosMes ?? 0),
+    jurosAtrasoDia: isAcordo ? 0 : Number(data.jurosAtrasoDia ?? 0),
+    vencimento: effectiveVencimento,
     observacao: data.observacao?.trim() || undefined,
     quitadoEm: data.quitadoEm ?? undefined,
     status,
+    tipoContrato: data.tipoContrato || 'EMPRESTIMO',
+    valorEntrada: valorEntrada > 0 ? valorEntrada : undefined,
+    vencimentoEntrada: data.vencimentoEntrada ?? undefined,
+    regraVencimentoParcelas: data.regraVencimentoParcelas || 'PAGAMENTO_ENTRADA',
+    valorParcela: valorParcela > 0 ? valorParcela : undefined,
   }
 
   const emprestimo = await prisma.emprestimo.create({
     data: createData,
   })
 
-  // Cada parcela tem sua própria competência e vencimento; assim uma baixa
-  // referente a julho não altera a competência de agosto.
-  const parcelas = Number(data.quantidadeParcelas ?? 0)
-  if (Number.isInteger(parcelas) && parcelas > 0) {
-    const valorPrevisto = calculateEstimatedMonthlyPayment({
-      valor: data.valor,
-      jurosMes: data.jurosMes,
-      quantidadeParcelas: parcelas,
-    }) ?? 0
-    const primeiroVencimento = new Date(data.vencimento)
-    await prisma.competenciaEmprestimo.createMany({
-      data: Array.from({ length: parcelas }, (_, index) => {
-        const vencimento = new Date(primeiroVencimento)
-        vencimento.setUTCMonth(vencimento.getUTCMonth() + index)
-        return { emprestimoId: emprestimo.id, vencimento, valorPrevisto }
-      }),
-    })
+  if (isAcordo && Number.isInteger(quantidadeParcelas) && quantidadeParcelas > 0) {
+    const dataBaseParcelas = data.vencimento ?? (data.vencimentoEntrada || new Date())
+    const competenciasData = []
+
+    if (valorEntrada > 0 && data.vencimentoEntrada) {
+      competenciasData.push({
+        emprestimoId: emprestimo.id,
+        vencimento: new Date(data.vencimentoEntrada),
+        valorPrevisto: valorEntrada,
+        tipo: 'ENTRADA',
+        numeroParcela: 0,
+      })
+    }
+
+    const firstDue = new Date(dataBaseParcelas)
+    for (let index = 1; index <= quantidadeParcelas; index++) {
+      const v = new Date(firstDue)
+      v.setUTCMonth(v.getUTCMonth() + index)
+      competenciasData.push({
+        emprestimoId: emprestimo.id,
+        vencimento: v,
+        valorPrevisto: valorParcela > 0 ? valorParcela : (valorCalculado - valorEntrada) / quantidadeParcelas,
+        tipo: 'PARCELA',
+        numeroParcela: index,
+      })
+    }
+
+    if (competenciasData.length > 0) {
+      await prisma.competenciaEmprestimo.createMany({
+        data: competenciasData,
+      })
+    }
+  } else {
+    const parcelas = Number(data.quantidadeParcelas ?? 0)
+    if (Number.isInteger(parcelas) && parcelas > 0) {
+      const valorPrevisto = calculateEstimatedMonthlyPayment({
+        valor: data.valor,
+        jurosMes: data.jurosMes,
+        quantidadeParcelas: parcelas,
+      }) ?? 0
+      const primeiroVencimento = new Date(data.vencimento!)
+      await prisma.competenciaEmprestimo.createMany({
+        data: Array.from({ length: parcelas }, (_, index) => {
+          const vencimento = new Date(primeiroVencimento)
+          vencimento.setUTCMonth(vencimento.getUTCMonth() + index)
+          return {
+            emprestimoId: emprestimo.id,
+            vencimento,
+            valorPrevisto,
+            tipo: 'PARCELA',
+            numeroParcela: index + 1,
+          }
+        }),
+      })
+    }
   }
 
   await logSystemAction({
     entidade: 'EMPRESTIMO',
     entidadeId: emprestimo.id,
     acao: 'CREATE',
-    detalhes: `Contrato de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.valor)} criado.`,
+    detalhes: isAcordo
+      ? `Acordo de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorCalculado)} criado (Entrada: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorEntrada)} + ${quantidadeParcelas}x de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorParcela)}).`
+      : `Contrato de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.valor)} criado.`,
     depois: emprestimo
   })
 
@@ -407,6 +467,11 @@ export async function updateEmprestimo(id: string, data: {
   observacao?: string;
   quitadoEm?: Date | null;
   usuarioId?: string;
+  tipoContrato?: 'EMPRESTIMO' | 'ACORDO';
+  valorEntrada?: number | null;
+  vencimentoEntrada?: Date | null;
+  regraVencimentoParcelas?: 'PAGAMENTO_ENTRADA' | 'DATA_LANCAMENTO';
+  valorParcela?: number | null;
 }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -456,6 +521,11 @@ export async function updateEmprestimo(id: string, data: {
     observacao: data.observacao?.trim() || null,
     quitadoEm: data.quitadoEm ?? null,
     status,
+    tipoContrato: data.tipoContrato || undefined,
+    valorEntrada: data.valorEntrada != null ? Number(data.valorEntrada) : undefined,
+    vencimentoEntrada: data.vencimentoEntrada,
+    regraVencimentoParcelas: data.regraVencimentoParcelas,
+    valorParcela: data.valorParcela != null ? Number(data.valorParcela) : undefined,
   }
 
   if (data.usuarioId !== undefined) {

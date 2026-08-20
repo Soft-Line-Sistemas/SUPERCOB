@@ -53,6 +53,12 @@ type EmprestimoDetalhes = {
   status: EmprestimoStatus
   observacao?: string | null
   createdAt: Date | string
+  tipoContrato?: 'EMPRESTIMO' | 'ACORDO' | null
+  valorEntrada?: number | null
+  vencimentoEntrada?: Date | string | null
+  entradaPagaEm?: Date | string | null
+  regraVencimentoParcelas?: 'PAGAMENTO_ENTRADA' | 'DATA_LANCAMENTO' | null
+  valorParcela?: number | null
   cliente: {
     nome: string
     indicacao?: string | null
@@ -86,7 +92,7 @@ type EmprestimoDetalhes = {
   usuario?: { id?: string; nome: string } | null
   historico: HistoricoEvento[]
   jurosPagos?: number | null
-  competencias?: { id: string; vencimento: Date | string; valorPrevisto: number; valorPago: number; pagoEm?: Date | string | null }[]
+  competencias?: { id: string; vencimento: Date | string; valorPrevisto: number; valorPago: number; pagoEm?: Date | string | null; tipo?: string | null; numeroParcela?: number | null }[]
   auditorias?: { id: string; detalhes?: string | null; createdAt: Date | string }[]
 }
 
@@ -154,6 +160,14 @@ export function ContractDetails({
   const [competenciaRegularizacaoVencimento, setCompetenciaRegularizacaoVencimento] = useState('')
   const [descontoJuros, setDescontoJuros] = useState('')
   const [renovarCiclo, setRenovarCiclo] = useState(false)
+  const [jaAbatidoAnteriormente, setJaAbatidoAnteriormente] = useState(false)
+  const [editingUserId, setEditingUserId] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState(emprestimo.usuario?.id || '')
+  const [savingUser, setSavingUser] = useState(false)
+  const [filtroTipo, setFiltroTipo] = useState<string>('TODOS')
+  const [ordenacao, setOrdenacao] = useState<'desc' | 'asc'>('desc')
+  const [filtroDataInicio, setFiltroDataInicio] = useState<string>('')
+  const [filtroDataFim, setFiltroDataFim] = useState<string>('')
   const [paymentConfirmationValue, setPaymentConfirmationValue] = useState<number | null>(null)
   const [abaAtiva, setAbaAtiva] = useState<'historico' | 'documentos'>('historico')
 
@@ -170,6 +184,7 @@ export function ContractDetails({
     if (/^\d{1,3}(?:\.\d{3})+$/.test(normalized)) return Number(normalized.replace(/\./g, ''))
     return Number(normalized)
   }
+  const isAcordo = emprestimo.tipoContrato === 'ACORDO' || Number(emprestimo.valorEntrada ?? 0) > 0
   const {
     principalRestante: restante,
     jurosBase,
@@ -183,11 +198,11 @@ export function ContractDetails({
   } = calculateLoanInterest({ ...emprestimo, valorPago })
   const installmentProgress = calculateCurrentInstallment({ ...emprestimo, valorPago, status })
   const installmentAmounts = calculateCurrentInstallmentAmounts(emprestimo)
-  const acordoSemJuros = jurosBase <= 0.01 && Boolean(installmentAmounts?.valorParcela)
+  const acordoSemJuros = isAcordo || (jurosBase <= 0.01 && Boolean(installmentAmounts?.valorParcela))
   const competencias = useMemo(() => {
-    // Contratos sem juros mensais não possuem cobrança por competência. Não
-    // crie meses sintéticos com valor zero, pois 0 previsto/0 pago parecia
-    // indevidamente como um pagamento confirmado no dossiê.
+    if (isAcordo && emprestimo.competencias && emprestimo.competencias.length > 0) {
+      return [...emprestimo.competencias].sort((a, b) => +new Date(a.vencimento) - +new Date(b.vencimento))
+    }
     const valorCompetencia = acordoSemJuros ? installmentAmounts?.valorParcela ?? 0 : jurosBase
     if (valorCompetencia <= 0.01) return []
     const existentes = new Map((emprestimo.competencias ?? []).map((item) => [
@@ -196,16 +211,13 @@ export function ContractDetails({
     ]))
     const vencimentoContrato = emprestimo.vencimento ? new Date(emprestimo.vencimento) : null
     const agora = new Date()
-    // Mostra o mês anterior, o atual e o próximo. A competência futura
-    // permite receber juros antecipadamente, sem entrar no total vencido. Em
-    // contratos novos, não cria competências antes do primeiro vencimento.
     const sugestoes = suggestedCompetenciaDates(vencimentoContrato, agora).map((vencimento) => {
       const key = vencimento.toISOString().slice(0, 10)
       return existentes.get(key) ?? { id: key, vencimento, valorPrevisto: valorCompetencia, valorPago: 0, pagoEm: null }
     })
     return [...existentes.values(), ...sugestoes.filter((item) => !existentes.has(new Date(item.vencimento).toISOString().slice(0, 10)))]
       .sort((a, b) => +new Date(a.vencimento) - +new Date(b.vencimento))
-  }, [acordoSemJuros, emprestimo.competencias, emprestimo.vencimento, installmentAmounts?.valorParcela, jurosBase])
+  }, [acordoSemJuros, isAcordo, emprestimo.competencias, emprestimo.vencimento, installmentAmounts?.valorParcela, jurosBase])
   const competenciaSelecionada = competencias.find((item) => new Date(item.vencimento).toISOString() === competenciaVencimento)
   const competenciaSelecionadaFutura = Boolean(competenciaSelecionada && (() => {
     const data = new Date(competenciaSelecionada.vencimento)
