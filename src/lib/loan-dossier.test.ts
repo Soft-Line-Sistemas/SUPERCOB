@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { PDFDocument } from 'pdf-lib'
 
 import {
   buildBatchExportFileName,
@@ -21,13 +22,15 @@ describe('loan-dossier helpers', () => {
     }
 
     expect(buildLoanFolderName(loan)).toBe('ABC12345 - maria-de-souza')
-    expect(buildLoanDossierFileName(loan)).toBe('dossie-maria-de-souza.pdf')
+    expect(buildLoanDossierFileName(loan)).toBe('maria-de-souza.pdf')
   })
 
   it('includes the date stamp in batch zip file name', () => {
     const fileName = buildBatchExportFileName(new Date(2026, 5, 3, 13, 45))
 
     expect(fileName).toBe('dossies-lote-20260603-1345.zip')
+    expect(buildBatchExportFileName(new Date(2026, 5, 3, 13, 45), { id: 'abc12345xyz', cliente: { nome: 'Maria de Souza' } }))
+      .toBe('maria-de-souza.zip')
   })
 
   it('builds a readable text summary', () => {
@@ -83,5 +86,25 @@ describe('loan-dossier helpers', () => {
 
     expect(bytes).toBeInstanceOf(Uint8Array)
     expect(bytes.length).toBeGreaterThan(1000)
+  })
+
+  it('adds supplied images to paginated dossier pages', async () => {
+    const bytes = await buildLoanDossierPdf(
+      {
+        id: 'loan-images-123',
+        valor: 2500,
+        status: 'ABERTO',
+        createdAt: '2026-06-01T12:00:00.000Z',
+        cliente: { id: 'c1', nome: 'Ana Lima' },
+      },
+      [{
+        name: 'documento.png',
+        mimeType: 'image/png',
+        data: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mNk+M/wHwAF/gL+9ZBcEAAAAABJRU5ErkJggg==', 'base64'),
+      }]
+    )
+
+    const pdf = await PDFDocument.load(bytes)
+    expect(pdf.getPageCount()).toBeGreaterThan(1)
   })
 })

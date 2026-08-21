@@ -26,6 +26,7 @@ import { BatchDossieModal } from './loans/BatchDossieModal'
 import { ChargeDeliveryModal } from './loans/ChargeDeliveryModal'
 import { PaymentTerminalModal } from './loans/PaymentTerminalModal'
 import Select from './Select';
+import { useState, useTransition, useEffect, useMemo } from 'react';
 
 type LoanStatus = 'ABERTO' | 'NEGOCIACAO' | 'QUITADO' | 'CANCELADO';
 
@@ -136,6 +137,8 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
   const [isBatchExporting, setIsBatchExporting] = useState(false)
   const [chargeDeliveryLoanId, setChargeDeliveryLoanId] = useState<string | null>(null)
   const [isSingleChargeDownloading, setIsSingleChargeDownloading] = useState(false)
+  const [isSingleChargeExtracting, setIsSingleChargeExtracting] = useState(false)
+  const [singleChargeExtractedProgress, setSingleChargeExtractedProgress] = useState<{ current: number; total: number } | null>(null)
   const [isSendingChargeWhatsapp, setIsSendingChargeWhatsapp] = useState(false)
   const [paymentTerminalLoan, setPaymentTerminalLoan] = useState<Loan | null>(null)
   const [paymentConfirmation, setPaymentConfirmation] = useState<{
@@ -1095,6 +1098,91 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
     }
   }
 
+  const handleDownloadDossiePdf = async (loanId: string) => {
+    try {
+      setIsSingleChargeDownloading(true)
+      toast.loading('Preparando dossiê em PDF...', { id: 'dossie-pdf' })
+      const res = await fetch('/api/export/pdf-dossie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emprestimoId: loanId }),
+      })
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        throw new Error(payload?.error || 'Erro ao gerar o dossiê em PDF')
+      }
+
+      const blob = await res.blob()
+      const fileUrl = URL.createObjectURL(blob)
+      const disposition = res.headers.get('Content-Disposition') || ''
+      const filenameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/)
+      const filename = decodeURIComponent(filenameMatch?.[1] || filenameMatch?.[2] || 'dossie-estrategico.pdf')
+      const anchor = document.createElement('a')
+      anchor.href = fileUrl
+      anchor.download = filename
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      setTimeout(() => URL.revokeObjectURL(fileUrl), 1000)
+
+      setChargeDeliveryLoanId(null)
+      toast.success('Dossiê em PDF gerado com sucesso!', { id: 'dossie-pdf' })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao gerar o dossiê em PDF.', { id: 'dossie-pdf' })
+    } finally {
+      setIsSingleChargeDownloading(false)
+    }
+  }
+
+  const handleDownloadExtractedDossie = async (loanId: string) => {
+    try {
+      setIsSingleChargeExtracting(true)
+      setSingleChargeExtractedProgress(null)
+      toast.loading('Preparando arquivos para download...', { id: 'dossie-extracted' })
+      const manifest = await fetch(`/api/export/extracted-dossie?loanId=${encodeURIComponent(loanId)}`)
+      const manifestPayload = await manifest.json().catch(() => null)
+      if (!manifest.ok) throw new Error(manifestPayload?.error || 'Erro ao preparar arquivos')
+
+      const total = Number(manifestPayload?.total) || 0
+      if (total === 0) throw new Error('Não há arquivos disponíveis para baixar')
+      setSingleChargeExtractedProgress({ current: 0, total })
+
+      for (let index = 0; index < total; index += 1) {
+        const response = await fetch('/api/export/extracted-dossie', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ loanId, index }),
+        })
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error || 'Erro ao baixar arquivo')
+        }
+
+        // O tipo binário força o navegador a baixar cada item sem abrir um visualizador.
+        const blob = new Blob([await response.arrayBuffer()], { type: 'application/octet-stream' })
+        const fileUrl = URL.createObjectURL(blob)
+        const disposition = response.headers.get('Content-Disposition') || ''
+        const filenameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/)
+        const filename = decodeURIComponent(filenameMatch?.[1] || filenameMatch?.[2] || `arquivo-${index + 1}`)
+        const anchor = document.createElement('a')
+        anchor.href = fileUrl
+        anchor.download = filename
+        document.body.appendChild(anchor)
+        anchor.click()
+        anchor.remove()
+        setTimeout(() => URL.revokeObjectURL(fileUrl), 1000)
+        setSingleChargeExtractedProgress({ current: index + 1, total })
+      }
+
+      toast.success(`${total} arquivo(s) baixado(s) separadamente.`, { id: 'dossie-extracted' })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao baixar arquivos.', { id: 'dossie-extracted' })
+    } finally {
+      setIsSingleChargeExtracting(false)
+    }
+  }
+
   const handleSendChargeWhatsapp = async (loanId: string, phone: string) => {
     try {
       setIsSendingChargeWhatsapp(true)
@@ -1657,11 +1745,15 @@ export function Loans({ initialLoans, total, page, pageSize, clientes, colaborad
         open={Boolean(chargeDeliveryLoan)}
         loan={chargeDeliveryLoan}
         downloading={isSingleChargeDownloading}
+        extracting={isSingleChargeExtracting}
+        extractedProgress={singleChargeExtractedProgress}
         sendingWhatsapp={isSendingChargeWhatsapp}
         onClose={() => {
-          if (!isSingleChargeDownloading && !isSendingChargeWhatsapp) setChargeDeliveryLoanId(null)
+          if (!isSingleChargeDownloading && !isSingleChargeExtracting && !isSendingChargeWhatsapp) setChargeDeliveryLoanId(null)
         }}
         onDownload={handleExportDossie}
+        onDownloadExtracted={handleDownloadExtractedDossie}
+        onDownloadPdf={handleDownloadDossiePdf}
         onSendWhatsapp={handleSendChargeWhatsapp}
       />
 

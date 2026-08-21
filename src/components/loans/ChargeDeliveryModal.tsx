@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Download, Loader2, MessageCircle, Package, Phone, X } from 'lucide-react'
+import { Download, FileText, Loader2, MessageCircle, Package, Phone, X } from 'lucide-react'
 
 interface ChargeDeliveryLoan {
   id: string
@@ -15,9 +15,13 @@ interface ChargeDeliveryModalProps {
   open: boolean
   loan: ChargeDeliveryLoan | null
   downloading: boolean
+  extracting: boolean
+  extractedProgress: { current: number; total: number } | null
   sendingWhatsapp: boolean
   onClose: () => void
   onDownload: (loanId: string) => void
+  onDownloadExtracted: (loanId: string) => void
+  onDownloadPdf: (loanId: string) => void
   onSendWhatsapp: (loanId: string, phone: string) => void
 }
 
@@ -33,13 +37,18 @@ export function ChargeDeliveryModal({
   open,
   loan,
   downloading,
+  extracting,
+  extractedProgress,
   sendingWhatsapp,
   onClose,
   onDownload,
+  onDownloadExtracted,
+  onDownloadPdf,
   onSendWhatsapp,
 }: ChargeDeliveryModalProps) {
-  const [mode, setMode] = useState<'download' | 'whatsapp'>('download')
+  const [mode, setMode] = useState<'download' | 'pdf' | 'whatsapp'>('download')
   const [phone, setPhone] = useState('')
+  const [downloadExtracted, setDownloadExtracted] = useState(false)
 
   const phoneDigits = useMemo(() => phone.replace(/\D/g, ''), [phone])
   const canSendWhatsapp = phoneDigits.length === 11 && !sendingWhatsapp
@@ -77,7 +86,7 @@ export function ChargeDeliveryModal({
             transition={{ duration: 0.2 }}
             role="dialog"
             aria-modal="true"
-            className="relative w-full max-w-xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-slate-950"
+            className="relative w-full max-w-3xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-slate-950"
           >
             <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(239,68,68,0.16),_transparent_32%),linear-gradient(135deg,rgba(15,23,42,0.04),rgba(255,255,255,0))] px-6 py-6 dark:border-white/10 dark:bg-[radial-gradient(circle_at_top_left,_rgba(239,68,68,0.18),_transparent_28%),linear-gradient(135deg,rgba(15,23,42,0.6),rgba(2,6,23,0.92))]">
               <div className="flex items-start justify-between gap-4">
@@ -103,11 +112,11 @@ export function ChargeDeliveryModal({
             </div>
 
             <div className="space-y-6 px-6 py-6">
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <button
                   type="button"
                   onClick={() => setMode('download')}
-                  className={`rounded-[1.5rem] border px-4 py-4 text-left transition-all ${
+                  className={`min-h-32 rounded-[1.5rem] border px-5 py-5 text-left transition-all ${
                     mode === 'download'
                       ? 'border-slate-900 bg-slate-900 text-white dark:border-gold-600 dark:bg-gold-600'
                       : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200'
@@ -126,8 +135,28 @@ export function ChargeDeliveryModal({
 
                 <button
                   type="button"
+                  onClick={() => setMode('pdf')}
+                  className={`min-h-32 rounded-[1.5rem] border px-5 py-5 text-left transition-all ${
+                    mode === 'pdf'
+                      ? 'border-red-700 bg-red-700 text-white'
+                      : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5" />
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-[0.2em]">Baixar PDF</p>
+                      <p className={`mt-1 text-xs ${mode === 'pdf' ? 'text-white/80' : 'text-slate-500 dark:text-slate-400'}`}>
+                        Baixa somente o dossiê, com as imagens anexadas.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setMode('whatsapp')}
-                  className={`rounded-[1.5rem] border px-4 py-4 text-left transition-all ${
+                  className={`min-h-32 rounded-[1.5rem] border px-5 py-5 text-left transition-all ${
                     mode === 'whatsapp'
                       ? 'border-emerald-600 bg-emerald-600 text-white'
                       : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200'
@@ -163,9 +192,37 @@ export function ChargeDeliveryModal({
                     O número digitado será convertido automaticamente para o identificador usado pelo WhatsApp Web.
                   </p>
                 </div>
+              ) : mode === 'pdf' ? (
+                <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                  O PDF traz o Dossiê Estratégico e inclui as imagens JPEG e PNG dos anexos, paginadas sem cortar o conteúdo.
+                </div>
               ) : (
                 <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                  O mesmo pacote do dossiê será gerado para este contrato, com PDF, anexos e documentos do cliente.
+                  <p>O mesmo pacote do dossiê será gerado para este contrato, com PDF, anexos e documentos do cliente.</p>
+                  <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100">
+                    <input
+                      type="checkbox"
+                      checked={downloadExtracted}
+                      onChange={(event) => setDownloadExtracted(event.target.checked)}
+                      disabled={downloading || extracting}
+                      className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                    />
+                    Baixar extraído
+                  </label>
+                  {downloadExtracted ? (
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+                        <span>{extracting ? 'Baixando arquivos individualmente' : 'Os arquivos serão baixados um por um'}</span>
+                        <span>{extractedProgress ? `${extractedProgress.current}/${extractedProgress.total}` : '0/0'}</span>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-slate-900 transition-all duration-300 dark:bg-gold-500"
+                          style={{ width: `${extractedProgress && extractedProgress.total ? (extractedProgress.current / extractedProgress.total) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -183,12 +240,22 @@ export function ChargeDeliveryModal({
                 {mode === 'download' ? (
                   <button
                     type="button"
-                    onClick={() => onDownload(loan.id)}
-                    disabled={downloading}
+                    onClick={() => downloadExtracted ? onDownloadExtracted(loan.id) : onDownload(loan.id)}
+                    disabled={downloading || extracting}
                     className="flex items-center justify-center gap-2 rounded-[1.25rem] bg-slate-900 px-5 py-3 text-xs font-black uppercase tracking-[0.22em] text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gold-600 dark:hover:bg-gold-700"
                   >
-                    {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                    {downloading ? 'Preparando...' : 'Baixar Agora'}
+                    {downloading || extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    {downloading || extracting ? 'Preparando...' : downloadExtracted ? 'Baixar extraído' : 'Baixar Agora'}
+                  </button>
+                ) : mode === 'pdf' ? (
+                  <button
+                    type="button"
+                    onClick={() => onDownloadPdf(loan.id)}
+                    disabled={downloading}
+                    className="flex items-center justify-center gap-2 rounded-[1.25rem] bg-red-700 px-5 py-3 text-xs font-black uppercase tracking-[0.22em] text-white transition-all hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                    {downloading ? 'Preparando...' : 'Baixar PDF'}
                   </button>
                 ) : (
                   <button

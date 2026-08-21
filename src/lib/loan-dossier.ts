@@ -57,6 +57,12 @@ export interface LoanDossierPayload {
   } | null
 }
 
+export interface LoanDossierImage {
+  name: string
+  data: Uint8Array
+  mimeType?: string | null
+}
+
 export function sanitizeForFileName(value: string) {
   return value
     .normalize('NFD')
@@ -75,7 +81,7 @@ export function buildLoanFolderName(loan: { id: string; cliente: { nome: string 
 }
 
 export function buildLoanDossierFileName(loan: { cliente: { nome: string } }) {
-  return `dossie-${sanitizeForFileName(loan.cliente.nome || 'cliente')}.pdf`
+  return `${sanitizeForFileName(loan.cliente.nome || 'cliente')}.pdf`
 }
 
 export function buildBatchExportFileName(
@@ -92,9 +98,8 @@ export function buildBatchExportFileName(
   ].join('')
 
   if (loan) {
-    const contractCode = loan.id.slice(0, 8).toUpperCase()
     const clientName = sanitizeForFileName(loan.cliente.nome || 'cliente')
-    return `dossie-${contractCode}-${clientName}-${stamp}.zip`
+    return `${clientName}.zip`
   }
 
   return `dossies-lote-${stamp}.zip`
@@ -148,7 +153,7 @@ function formatDate(date: Date | string | null | undefined) {
   return date ? new Date(date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '-'
 }
 
-export async function buildLoanDossierPdf(loan: LoanDossierPayload) {
+export async function buildLoanDossierPdf(loan: LoanDossierPayload, attachmentImages: LoanDossierImage[] = []) {
   const { cliente } = loan
 
   const pdfDoc = await PDFDocument.create()
@@ -306,7 +311,26 @@ export async function buildLoanDossierPdf(loan: LoanDossierPayload) {
   drawField('Documentos do Cliente', String(documentosCliente.length), 210, 140)
   drawField('Total de Arquivos', String(totalDocumentos), 370, 140)
 
-  if (totalDocumentos > 0) {
+  if (attachmentImages.length > 0) {
+    y -= 35
+    page.drawText(`${attachmentImages.length} imagem(ns) serão exibidas nas páginas a seguir.`, {
+      x: 50,
+      y,
+      size: 8,
+      font,
+      color: rgb(0.4, 0.4, 0.4),
+    })
+    y -= 15
+    if (totalDocumentos > attachmentImages.length) {
+      page.drawText(`${totalDocumentos - attachmentImages.length} arquivo(s) sem visualização em imagem permanecem no pacote ZIP.`, {
+        x: 50,
+        y,
+        size: 8,
+        font,
+        color: rgb(0.4, 0.4, 0.4),
+      })
+    }
+  } else if (totalDocumentos > 0) {
     y -= 35
     anexosLegados.forEach((_, index) => {
       page.drawText(`[X] Documento Digitalizado Anexo ${index + 1} verificado`, {
@@ -339,6 +363,77 @@ export async function buildLoanDossierPdf(loan: LoanDossierPayload) {
       font,
       color: rgb(0.4, 0.4, 0.4),
     })
+  }
+
+  const fitImage = (imageWidth: number, imageHeight: number, maxWidth: number, maxHeight: number) => {
+    const scale = Math.min(maxWidth / imageWidth, maxHeight / imageHeight, 1)
+    return { width: imageWidth * scale, height: imageHeight * scale }
+  }
+
+  const addImagesPage = () => {
+    page = pdfDoc.addPage([595.28, 841.89])
+    y = height - 50
+    drawText('Mr Cobranças - ANEXOS EM IMAGEM', { size: 7, color: rgb(0.6, 0.6, 0.6), align: 'right' })
+    y -= 28
+  }
+
+  const embedImage = async (attachment: LoanDossierImage) => {
+    const mimeType = attachment.mimeType?.toLowerCase() || ''
+    if (mimeType === 'image/png' || attachment.name.toLowerCase().endsWith('.png')) {
+      return pdfDoc.embedPng(attachment.data)
+    }
+    if (mimeType === 'image/jpeg' || mimeType === 'image/jpg' || /\.jpe?g$/i.test(attachment.name)) {
+      return pdfDoc.embedJpg(attachment.data)
+    }
+    return null
+  }
+
+  const embeddedImages = [] as Array<{ name: string; image: Awaited<ReturnType<typeof pdfDoc.embedJpg>> }>
+  for (const attachment of attachmentImages) {
+    try {
+      const image = await embedImage(attachment)
+      if (image) embeddedImages.push({ name: sanitizePdfText(attachment.name), image })
+    } catch {
+      // Arquivos inválidos ou formatos não suportados não impedem a exportação do dossiê.
+    }
+  }
+
+  if (embeddedImages.length > 0) {
+    addImagesPage()
+    drawSectionTitle('Imagens anexadas')
+
+    for (let index = 0; index < embeddedImages.length;) {
+      const current = embeddedImages[index]
+      const isLandscape = current.image.width >= current.image.height
+      const next = embeddedImages[index + 1]
+      const row = isLandscape || !next || next.image.width >= next.image.height ? [current] : [current, next]
+      const columns = row.length
+      const maxWidth = columns === 1 ? width - 100 : (width - 115) / 2
+      const maxHeight = columns === 1 ? 300 : 285
+      const sizes = row.map(({ image }) => fitImage(image.width, image.height, maxWidth, maxHeight))
+      const rowHeight = Math.max(...sizes.map((size) => size.height))
+      const neededHeight = rowHeight + 35
+
+      if (y - neededHeight < 50) addImagesPage()
+
+      row.forEach(({ name, image }, column) => {
+        const size = sizes[column]
+        const cellWidth = columns === 1 ? width - 100 : (width - 115) / 2
+        const cellX = 50 + column * (cellWidth + 15)
+        const x = cellX + (cellWidth - size.width) / 2
+        page.drawText(name.slice(0, 78), {
+          x: cellX,
+          y,
+          size: 6.5,
+          font: fontBold,
+          color: rgb(0.4, 0.4, 0.5),
+          maxWidth: cellWidth,
+        })
+        page.drawImage(image, { x, y: y - 14 - size.height, width: size.width, height: size.height })
+      })
+      y -= neededHeight
+      index += row.length
+    }
   }
 
   page.drawLine({ start: { x: 50, y: 30 }, end: { x: width - 50, y: 30 }, color: rgb(0.9, 0.9, 0.9), thickness: 0.5 })

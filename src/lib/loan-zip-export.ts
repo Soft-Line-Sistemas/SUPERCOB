@@ -68,7 +68,7 @@ async function readCustomerDocument(clienteId: string, fileName: string) {
   return Buffer.from(data)
 }
 
-async function resolveLegacyAttachment(
+export async function resolveLegacyAttachment(
   rawPath: string,
   fallbackName: string
 ): Promise<{ fileName: string; data: Buffer; mimeType: string } | { error: string }> {
@@ -183,6 +183,41 @@ async function loadExportableLoans(loanIds: string[]) {
   })
 
   return loans
+}
+
+export async function buildLoanExtractedFiles(loanId: string) {
+  const [loan] = await loadExportableLoans([loanId])
+  if (!loan) throw new Error('Nenhum contrato encontrado para exportação.')
+
+  const files: Array<{ fileName: string; data: Buffer; mimeType: string }> = []
+  const dossierPdf = await buildLoanDossierPdf(loan)
+  files.push({
+    fileName: buildLoanDossierFileName(loan),
+    data: Buffer.from(dossierPdf),
+    mimeType: 'application/pdf',
+  })
+
+  const legacyAttachments = [loan.arquivo1, loan.arquivo2, loan.arquivo3, loan.arquivo4, loan.arquivo5]
+    .filter((value): value is string => Boolean(value))
+
+  for (const [index, attachment] of legacyAttachments.entries()) {
+    const resolved = await resolveLegacyAttachment(attachment, `anexo-contrato-${index + 1}`)
+    if (!('error' in resolved)) files.push(resolved)
+  }
+
+  for (const document of loan.cliente.documentos) {
+    try {
+      files.push({
+        fileName: safeArchiveName(document.originalName),
+        data: await readCustomerDocument(loan.clienteId, document.fileName),
+        mimeType: document.mimeType,
+      })
+    } catch {
+      // Arquivos removidos após o cadastro não impedem os demais downloads.
+    }
+  }
+
+  return files
 }
 
 export async function buildLoanZipExport(input: { loanIds: string[]; password?: string; keepFilesInRoot?: boolean }) {
